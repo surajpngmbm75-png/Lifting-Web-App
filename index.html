@@ -1,0 +1,2625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>PSM Broiler Distributor</title>
+<style>
+:root{--bg:#f6f8fb;--card:#fff;--ink:#0f172a;--mut:#64748b;--line:#e2e8f0;--pri:#1d4ed8;--pri2:#2563eb;--ok:#dc2626;--warn:#b45309;--bad:#b91c1c;--nav:#0f172a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+button,input,select,textarea{font:inherit}.app{min-height:100vh}.top{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;gap:10px;align-items:center}.logo{width:40px;height:40px;border-radius:12px;background:var(--nav);color:#fff;display:grid;place-items:center;font-size:22px}.brand b{font-size:18px}.sub{font-size:11px;color:var(--mut)}
+.sync{border:1px solid var(--line);background:#fff;padding:7px 10px;border-radius:999px;font-size:12px;font-weight:800;cursor:pointer}
+.shell{display:grid;grid-template-columns:240px 1fr;min-height:calc(100vh - 62px)}aside{background:var(--nav);color:#cbd5e1;padding:14px 10px;position:sticky;top:62px;height:calc(100vh - 62px);overflow:auto}
+.nav-group{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:#64748b;padding:12px 10px 6px}.nav{width:100%;border:0;background:transparent;color:#cbd5e1;text-align:left;padding:10px 12px;border-radius:9px;cursor:pointer;margin:2px 0;font-weight:650}.nav:hover,.nav.active{background:#1e293b;color:white}.main{padding:18px;min-width:0}
+.view{display:none}.view.active{display:block}.head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}.head h1{font-size:22px;margin:0}.head p{margin:4px 0 0;color:var(--mut);font-size:13px}
+.grid{display:grid;gap:12px}.g4{grid-template-columns:repeat(4,minmax(0,1fr))}.g3{grid-template-columns:repeat(3,minmax(0,1fr))}.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 1px 2px #00000008}.metric .lab{font-size:11px;text-transform:uppercase;color:var(--mut);font-weight:800}.metric .val{font-size:24px;font-weight:900;margin-top:4px}.metric .mini{font-size:11px;color:var(--mut)}
+.btn{border:1px solid var(--line);background:#fff;padding:8px 11px;border-radius:9px;font-weight:750;cursor:pointer}.btn.primary{background:var(--pri);border-color:var(--pri);color:#fff}.btn.ok{background:var(--ok);border-color:var(--ok);color:#fff}.btn.bad{background:#fff;color:var(--bad);border-color:#fecaca}.btn:disabled{opacity:.5;cursor:not-allowed}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:end}.field{display:flex;flex-direction:column;gap:5px}.field label{font-size:11px;font-weight:750;color:var(--mut)}input,select,textarea{border:1px solid #cbd5e1;border-radius:9px;padding:9px;background:#fff;min-width:0}textarea{min-height:72px;resize:vertical}
+table{width:100%;border-collapse:collapse;font-size:12px}th,td{border-bottom:1px solid var(--line);padding:9px 8px;text-align:left;vertical-align:top}th{color:#475569;background:#f8fafc;position:sticky;top:0}.tablewrap{overflow:auto;max-height:62vh;border:1px solid var(--line);border-radius:10px}
+.badge{display:inline-block;border-radius:999px;padding:3px 7px;font-size:10px;font-weight:800}.green{background:#fff1f2;color:#dc2626}.orange{background:#fff7ed;color:#c2410c}.red{background:#fef2f2;color:#b91c1c}.blue{background:#eff6ff;color:#1d4ed8}
+.hero{background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;border-radius:14px;padding:16px}.hero .val{font-size:30px;font-weight:950}.hero .sub{color:#cbd5e1}
+.alerts .row{padding:8px 10px;background:#fff7ed;color:#9a3412;border-radius:9px;margin-top:6px;font-size:12px}.empty{padding:26px;text-align:center;color:var(--mut)}
+.modal{position:fixed;inset:0;background:#0007;display:none;place-items:center;z-index:100}.modal.open{display:grid}.dialog{width:min(720px,calc(100vw - 24px));max-height:90vh;overflow:auto;background:#fff;border-radius:16px;padding:16px}.dialog h3{margin:0 0 12px}.close{float:right}
+.toast{position:fixed;right:16px;bottom:16px;background:#0f172a;color:white;padding:11px 14px;border-radius:10px;z-index:200;box-shadow:0 10px 30px #0004;font-size:13px}
+.kicker{font-size:11px;color:var(--mut);font-weight:800;text-transform:uppercase}.split{display:flex;justify-content:space-between;gap:10px;align-items:center}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+@media(max-width:960px){.shell{grid-template-columns:1fr}aside{position:static;height:auto;display:flex;overflow:auto;padding:8px}.nav-group{display:none}.nav{white-space:nowrap;width:auto}.g4,.g3{grid-template-columns:repeat(2,minmax(0,1fr))}.main{padding:12px}}
+@media(max-width:600px){.g4,.g3,.g2{grid-template-columns:1fr}.top{align-items:flex-start}.brand .sub{display:none}.head{flex-direction:column}.toolbar{align-items:stretch}.field{width:100%}.field input,.field select{width:100%}}
+@media print{aside,.top,.no-print,.btn{display:none!important}.shell{display:block}.main{padding:0}.card{box-shadow:none;break-inside:avoid}.view{display:none!important}.view.active{display:block!important}}
+
+.invoice-sheet{background:#fff;color:#111827;border:1px solid #d1d5db;border-radius:16px;padding:24px;font-family:Arial,sans-serif}
+.invoice-head{display:flex;justify-content:space-between;gap:18px;border-bottom:3px solid #111827;padding-bottom:14px;margin-bottom:16px}
+.invoice-brand{font-size:22px;font-weight:900;letter-spacing:.2px}.invoice-sub{font-size:12px;color:#6b7280;margin-top:4px}
+.invoice-tag{font-size:12px;font-weight:800;border:1px solid #111827;padding:6px 10px;border-radius:999px;height:max-content}
+.invoice-info{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:16px}.invoice-box{border:1px solid #e5e7eb;background:#f9fafb;border-radius:10px;padding:10px}
+.invoice-box .k{font-size:10px;color:#6b7280;text-transform:uppercase;font-weight:800}.invoice-box .v{font-size:13px;font-weight:800;margin-top:3px}
+.invoice-table{width:100%;border-collapse:collapse}.invoice-table th{background:#111827;color:#fff;position:static}.invoice-table th,.invoice-table td{border:1px solid #d1d5db;padding:8px}
+.invoice-summary{margin-left:auto;width:min(360px,100%);margin-top:14px}.invoice-summary .r{display:flex;justify-content:space-between;border-bottom:1px solid #e5e7eb;padding:7px 0}.invoice-summary .total{font-size:17px;font-weight:900;border-top:2px solid #111827;border-bottom:0}
+.invoice-foot{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:44px}.signline{border-top:1px solid #111827;padding-top:6px;text-align:center;font-size:11px;color:#4b5563}
+.action-group{display:flex;flex-wrap:wrap;gap:5px}.action-group .btn{padding:6px 8px;font-size:11px}
+@media print{.invoice-sheet{border:0;border-radius:0;padding:0}.invoice-actions{display:none!important}.invoice-head{margin-top:0}}
+
+
+/* PSM professional invoice */
+.psm-invoice{background:#fff;color:#10212a;border:1px solid #d9e2e0;border-radius:14px;padding:0;overflow:hidden;font-family:Arial,Helvetica,sans-serif;box-shadow:0 10px 28px rgba(15,23,42,.08)}
+.psm-brandbar{display:grid;grid-template-columns:110px 1fr 210px;align-items:stretch;background:#fff;border-bottom:1px solid #dce8e4}
+.psm-logo{display:flex;align-items:center;justify-content:center;padding:16px}
+.psm-logo-mark{width:82px;height:82px;border-radius:50%;background:#b91c1c;color:white;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900;border:6px solid #dff3e9;box-shadow:inset 0 -10px 0 rgba(255,255,255,.08)}
+.psm-brandmain{padding:18px 8px}
+.psm-brandname{font-size:29px;line-height:1.05;font-weight:900;color:#074b38;letter-spacing:.2px}
+.psm-address{margin-top:7px;font-size:13px;color:#24333b}
+.psm-tagline{margin-top:6px;font-size:13px;color:#c81e1e;font-style:italic;font-weight:700}
+.psm-support{background:linear-gradient(135deg,#1a8b52,#b91c1c);color:#fff;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:900;font-size:13px;line-height:1.55;padding:14px}
+.psm-invoice-body{padding:18px 22px 20px}
+.psm-titleband{background:linear-gradient(90deg,#fff5f5,#fffafa);border:1px solid #d8ebe2;border-radius:10px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.psm-title{font-size:25px;font-weight:900;color:#10212a}.psm-title-sub{font-size:11px;letter-spacing:5px;margin-top:4px}
+.psm-meta{text-align:right;font-size:12px;line-height:1.7}.psm-meta b{color:#111827}
+.psm-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.psm-info{border:1px solid #d8e3df;border-radius:9px;overflow:hidden}
+.psm-info h4{margin:0;background:#eef7f3;padding:9px 12px;color:#0c6447;font-size:12px}
+.psm-info .body{padding:10px 12px;display:grid;grid-template-columns:120px 1fr;gap:7px;font-size:12px}
+.psm-table{width:100%;border-collapse:collapse;margin-top:14px}.psm-table th{background:#b91c1c;color:#fff;padding:9px 8px;text-align:center;font-size:12px}.psm-table td{border:1px solid #cfd9d5;padding:8px;text-align:center;font-size:12px}.psm-table tbody tr:nth-child(even){background:#fbfdfc}
+.psm-totals{width:min(430px,100%);margin-left:auto;margin-top:0;border:1px solid #fecaca;border-top:0}.psm-total-row{display:flex;justify-content:space-between;padding:8px 12px;border-top:1px solid #fecaca;font-size:12px}.psm-total-row.final{background:#e8f7ee;font-size:17px;font-weight:900;color:#10212a}
+.psm-thanks{margin-top:15px;background:linear-gradient(90deg,#e9f8ef,#fffafa);border-radius:8px;padding:11px 14px;color:#c81e1e;font-size:12px}.psm-thanks b{display:block;margin-bottom:3px}
+.psm-footer{margin-top:14px;border-top:3px solid #b91c1c;padding-top:11px;text-align:center}.psm-footer .name{font-size:17px;font-weight:900}.psm-footer .addr{font-size:11px;margin-top:3px}.psm-contact{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;font-size:10px;margin-top:8px}.psm-generated{margin-top:10px;background:#fff5f5;border-radius:7px;padding:8px;font-size:10px}
+@media(max-width:800px){.psm-brandbar{grid-template-columns:78px 1fr}.psm-support{display:none}.psm-logo-mark{width:58px;height:58px;font-size:21px}.psm-brandname{font-size:20px}.psm-info-grid{grid-template-columns:1fr}.psm-titleband{align-items:flex-start;flex-direction:column}.psm-meta{text-align:left}.psm-invoice-body{padding:14px}}
+
+
+/* Supabase Authentication */
+.auth-screen{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;background:
+radial-gradient(circle at 15% 15%,rgba(34,197,94,.15),transparent 28%),
+linear-gradient(135deg,#07111f 0%,#0b1d2e 52%,#073b2d 100%);font-family:Arial,Helvetica,sans-serif}
+.auth-card{width:min(430px,100%);background:#fff;border-radius:22px;box-shadow:0 28px 80px rgba(0,0,0,.35);overflow:hidden}
+.auth-brand{padding:28px 30px 22px;background:linear-gradient(135deg,#fff7f7,#fff)}
+.auth-brandmark{width:64px;height:64px;border-radius:18px;background:#b91c1c;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px;margin-bottom:16px}
+.auth-title{margin:0;font-size:25px;color:#0f172a}.auth-sub{margin-top:7px;color:#64748b;font-size:13px;line-height:1.55}
+.auth-form{padding:24px 30px 30px}.auth-field{margin-bottom:15px}.auth-field label{display:block;font-size:11px;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px}
+.auth-field input{width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:11px;padding:12px 13px;font-size:14px;outline:none;background:#fff}
+.auth-field input:focus{border-color:#0b7a55;box-shadow:0 0 0 3px rgba(11,122,85,.12)}
+.auth-submit{width:100%;border:0;border-radius:11px;background:#b91c1c;color:#fff;padding:13px 16px;font-size:14px;font-weight:900;cursor:pointer}
+.auth-submit:disabled{opacity:.65;cursor:wait}.auth-error{display:none;margin:0 0 14px;padding:10px 12px;border-radius:9px;background:#fef2f2;color:#b91c1c;font-size:12px}
+.auth-note{margin-top:14px;text-align:center;color:#94a3b8;font-size:10px}.auth-hidden{display:none!important}
+.app.auth-locked{display:none!important}
+.user-email{max-width:210px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px;color:#64748b}
+.logout-btn{border:1px solid #cbd5e1;background:#fff;color:#334155;border-radius:8px;padding:6px 10px;font-size:11px;font-weight:800;cursor:pointer}
+
+
+.clean-start-banner{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;background:rgba(7,17,31,.94);padding:24px}
+.clean-start-card{width:min(440px,100%);background:#fff;border-radius:18px;padding:28px;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.35)}
+.clean-start-card h2{margin:0 0 8px;color:#0f172a}.clean-start-card p{margin:0;color:#64748b;font-size:13px;line-height:1.55}.clean-start-spinner{width:42px;height:42px;border:4px solid #fee2e2;border-top-color:#b91c1c;border-radius:50%;margin:0 auto 16px;animation:psmspin 1s linear infinite}
+@keyframes psmspin{to{transform:rotate(360deg)}}
+
+
+/* ===== PSM WHITE + RED PRODUCTION THEME ===== */
+:root{
+  --psm-red:#b91c1c;
+  --psm-red-bright:#dc2626;
+  --psm-red-dark:#991b1b;
+  --psm-red-soft:#fff1f2;
+  --psm-red-border:#fecaca;
+  --psm-white:#ffffff;
+  --psm-text:#111827;
+  --psm-muted:#6b7280;
+}
+body{background:#f8fafc;color:var(--psm-text)}
+.sidebar{background:#fff!important;border-right:1px solid #e5e7eb!important}
+.brand,.brand-title,.sidebar .brand{color:var(--psm-red)!important}
+.nav button.active,.nav-item.active,.nav a.active{
+  background:var(--psm-red)!important;color:#fff!important
+}
+.nav button:hover,.nav-item:hover,.nav a:hover{background:var(--psm-red-soft)!important}
+.btn.primary,.primary,.auth-submit{
+  background:var(--psm-red)!important;border-color:var(--psm-red)!important;color:#fff!important
+}
+.btn.primary:hover,.auth-submit:hover{background:var(--psm-red-dark)!important}
+.btn:not(.danger):not(.primary):hover{border-color:var(--psm-red)!important;color:var(--psm-red)!important}
+.card,.panel,.modal,.auth-card{background:#fff}
+.metric .value,.kpi .value{color:var(--psm-red)!important}
+input:focus,select:focus,textarea:focus{
+  border-color:var(--psm-red)!important;
+  box-shadow:0 0 0 3px rgba(185,28,28,.10)!important;
+  outline:none
+}
+.auth-brandmark,.psm-logo-mark{background:var(--psm-red)!important;color:#fff!important}
+.auth-title{color:#111827!important}
+.clean-start-spinner{border-color:#fee2e2!important;border-top-color:var(--psm-red)!important}
+.psm-brandbar,.psm-titleband,.psm-support,.psm-thanks{
+  background:var(--psm-red)!important
+}
+.psm-table th{background:var(--psm-red)!important;color:#fff!important}
+.psm-total-row:last-child{color:var(--psm-red)!important}
+.badge.success,.pill.success{background:var(--psm-red-soft)!important;color:var(--psm-red-dark)!important}
+a{color:var(--psm-red)}
+
+
+/* ===== NEW LIFTING TWO-STEP WORKFLOW ===== */
+.lifting-cage-dialog{
+  width:min(1180px,96vw)!important;
+  max-width:1180px!important;
+  height:94vh!important;
+  max-height:94vh!important;
+  overflow:auto!important;
+}
+.lifting-step-title{font-size:24px;font-weight:900;color:#991b1b;margin:0 0 4px}
+.lifting-step-sub{font-size:14px;color:#6b7280;margin-bottom:16px}
+.farmer-search-box{position:relative}
+.farmer-results{
+  position:absolute;left:0;right:0;top:100%;z-index:30;background:#fff;
+  border:1px solid #fecaca;border-radius:10px;max-height:240px;overflow:auto;
+  box-shadow:0 12px 30px rgba(0,0,0,.12);display:none
+}
+.farmer-results.open{display:block}
+.farmer-result{padding:11px 12px;border-bottom:1px solid #f3f4f6;cursor:pointer}
+.farmer-result:hover{background:#fff1f2}
+.farmer-result b{font-size:15px;color:#111827}
+.farmer-result .mini{font-size:12px;color:#6b7280}
+.cage-entry-toolbar{
+  position:sticky;top:-1px;z-index:10;background:#fff;padding:12px 0;
+  border-bottom:1px solid #fee2e2;margin-bottom:12px
+}
+.cage-entry-summary{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+.cage-chip{background:#fff1f2;border:1px solid #fecaca;border-radius:999px;padding:7px 12px;font-weight:800;color:#991b1b}
+.cage-entry-row{
+  display:grid;grid-template-columns:1.35fr 1fr 1fr auto;gap:14px;align-items:end;
+  padding:18px;margin:12px 0;background:#fff;border:2px solid #fee2e2;border-radius:14px
+}
+.cage-entry-row .field label{font-size:16px;font-weight:800}
+.cage-entry-row input{
+  font-size:24px!important;font-weight:800!important;padding:14px 12px!important;
+  min-height:56px!important
+}
+.cage-index{
+  font-size:18px;font-weight:900;color:#b91c1c;margin-bottom:8px
+}
+.cage-remove{min-height:56px;font-size:16px!important}
+.cage-finish-bar{
+  position:sticky;bottom:-1px;background:#fff;border-top:1px solid #fee2e2;
+  padding:14px 0 4px;margin-top:18px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap
+}
+@media(max-width:760px){
+  .lifting-cage-dialog{width:98vw!important;height:96vh!important}
+  .cage-entry-row{grid-template-columns:1fr}
+  .cage-entry-row input{font-size:22px!important}
+}
+
+
+/* ===== OPERATIONS HARDENING / REPORTS / PRINT ===== */
+.sync-good{background:#ecfdf5!important;color:#166534!important}
+.sync-warn{background:#fff7ed!important;color:#9a3412!important}
+.sync-bad{background:#fef2f2!important;color:#991b1b!important}
+.archive-badge{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:999px;background:#f3f4f6;color:#6b7280;font-size:11px;font-weight:800}
+.confirm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.confirm-item{border:1px solid #fee2e2;border-radius:10px;padding:10px;background:#fff}
+.confirm-item .k{font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:800}.confirm-item .v{font-size:18px;font-weight:900;margin-top:3px}
+.warning-box{padding:10px 12px;border:1px solid #fed7aa;background:#fff7ed;color:#9a3412;border-radius:10px;margin-top:10px}
+.report-total{font-weight:900;background:#fff1f2}
+@media print{
+ body *{visibility:hidden!important}
+ .print-lifting-summary,.print-lifting-summary *{visibility:visible!important}
+ .print-lifting-summary{position:absolute!important;left:0;top:0;width:100%!important;border:none!important;box-shadow:none!important}
+ .no-print{display:none!important}
+}
+
+
+/* ===== PASSWORD-FIRST + PASSKEY AUTH ===== */
+.auth-separator{display:flex;align-items:center;gap:10px;color:#9ca3af;font-size:12px;font-weight:800;text-transform:uppercase;margin:3px 0}
+.auth-separator:before,.auth-separator:after{content:"";height:1px;background:#e5e7eb;flex:1}
+.auth-passkey{width:100%;border:1px solid #fecaca;background:#fff;color:#991b1b;border-radius:10px;padding:12px 14px;font-weight:900;font-size:14px;cursor:pointer}
+.auth-passkey:hover{background:#fff1f2}
+.auth-passkey:disabled{opacity:.5;cursor:not-allowed}
+
+
+/* ===== LOGIN INVOICE DOWNLOAD PORTAL ===== */
+.public-invoice-btn{
+ position:fixed;top:18px;left:18px;z-index:10020;border:1px solid #fecaca;background:#fff;color:#991b1b;
+ border-radius:10px;padding:10px 14px;font-weight:900;font-size:13px;cursor:pointer;box-shadow:0 8px 24px rgba(127,29,29,.12)
+}
+.public-invoice-btn:hover{background:#fff1f2}
+.invoice-portal{position:fixed;inset:0;z-index:10030;background:#f8fafc;overflow:auto}
+.invoice-portal.auth-hidden{display:none!important}
+.invoice-portal-top{height:76px;background:#fff;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;gap:18px;padding:0 24px;position:sticky;top:0;z-index:3}
+.invoice-back-btn{border:1px solid #fecaca;background:#fff;color:#991b1b;border-radius:9px;padding:9px 12px;font-weight:800;cursor:pointer}
+.invoice-portal-brand{font-weight:950;color:#b91c1c;font-size:19px}.invoice-portal-sub{font-size:12px;color:#6b7280}
+.invoice-portal-wrap{max-width:980px;margin:34px auto;padding:0 18px}
+.invoice-portal-card{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:28px;box-shadow:0 18px 60px rgba(15,23,42,.08)}
+.invoice-portal-title{font-size:28px;font-weight:950;color:#111827}.invoice-portal-desc{margin-top:5px;color:#6b7280}
+.invoice-type-tabs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:22px 0 16px}
+.invoice-type-tab{border:1px solid #fecaca;background:#fff;color:#7f1d1d;border-radius:12px;padding:13px;font-weight:900;cursor:pointer}
+.invoice-type-tab.active{background:#b91c1c;color:#fff;border-color:#b91c1c}
+.invoice-search-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}
+.invoice-search-field{margin:0}.invoice-search-btn{width:auto;min-width:120px;height:44px;margin:0}
+.invoice-lookup-status{font-size:13px;color:#6b7280;margin:16px 0 9px}
+.invoice-lookup-results{display:grid;gap:10px}
+.invoice-result-card{border:1px solid #e5e7eb;border-radius:13px;padding:15px;display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center}
+.invoice-result-card:hover{border-color:#fecaca;background:#fffafa}
+.invoice-result-title{font-weight:950;color:#111827;font-size:15px}.invoice-result-meta{color:#6b7280;font-size:12px;margin-top:5px;line-height:1.55}
+.invoice-download-btn{border:0;background:#b91c1c;color:#fff;border-radius:10px;padding:10px 14px;font-weight:900;cursor:pointer;white-space:nowrap}
+.invoice-download-btn:hover{background:#991b1b}.invoice-download-btn:disabled{opacity:.55;cursor:wait}
+.invoice-empty{padding:28px;text-align:center;border:1px dashed #d1d5db;border-radius:12px;color:#6b7280;background:#fafafa}
+.invoice-portal-note{margin-top:18px;color:#9ca3af;font-size:11px;text-align:center}
+@media(max-width:650px){
+ .public-invoice-btn{top:10px;left:10px;padding:8px 10px;font-size:12px}
+ .invoice-portal-card{padding:18px}.invoice-type-tabs{grid-template-columns:1fr}
+ .invoice-search-row{grid-template-columns:1fr}.invoice-search-btn{width:100%}
+ .invoice-result-card{grid-template-columns:1fr}.invoice-download-btn{width:100%}
+}
+
+
+/* ===== MOBILE-FIRST BOTTOM NAVIGATION ===== */
+:root{
+  --bottom-nav-height:72px;
+  --mobile-page-pad:12px;
+}
+.shell{display:block!important;min-height:calc(100vh - 58px)!important}
+.main{
+  width:100%!important;max-width:none!important;margin:0!important;
+  padding:14px 16px calc(var(--bottom-nav-height) + 24px)!important;
+  overflow-x:hidden!important;
+}
+.bottom-nav{
+  position:fixed!important;left:0!important;right:0!important;bottom:0!important;top:auto!important;
+  width:100%!important;height:var(--bottom-nav-height)!important;z-index:9000!important;
+  display:flex!important;align-items:stretch!important;gap:0!important;
+  background:rgba(255,255,255,.98)!important;border-top:1px solid #e5e7eb!important;border-right:0!important;
+  box-shadow:0 -5px 22px rgba(15,23,42,.10)!important;padding:4px max(4px,env(safe-area-inset-left)) max(4px,env(safe-area-inset-bottom)) max(4px,env(safe-area-inset-right))!important;
+  overflow-x:auto!important;overflow-y:hidden!important;scrollbar-width:none!important;-webkit-overflow-scrolling:touch!important;
+}
+.bottom-nav::-webkit-scrollbar{display:none!important}
+.bottom-nav .nav{
+  flex:1 0 68px!important;min-width:68px!important;max-width:92px!important;height:auto!important;
+  display:flex!important;flex-direction:column!important;justify-content:center!important;align-items:center!important;
+  gap:2px!important;margin:0!important;padding:5px 3px!important;border-radius:10px!important;border:0!important;
+  background:transparent!important;color:#6b7280!important;font-weight:700!important;text-align:center!important;
+  white-space:nowrap!important;
+}
+.bottom-nav .nav .nav-icon{display:block!important;font-size:21px!important;line-height:1.05!important;transform:none!important}
+.bottom-nav .nav .nav-label{display:block!important;font-size:9.5px!important;line-height:1.05!important;font-weight:800!important;letter-spacing:-.1px!important}
+.bottom-nav .nav.active{background:#fff1f2!important;color:#b91c1c!important}
+.bottom-nav .nav.active .nav-icon{transform:translateY(-1px)!important}
+.top{
+  position:sticky!important;top:0!important;z-index:8500!important;min-height:58px!important;
+  padding:8px 12px!important;background:rgba(255,255,255,.98)!important;backdrop-filter:blur(10px)!important;
+}
+.brand{min-width:0!important;display:flex!important;align-items:center!important;gap:7px!important}
+.brand .logo{width:32px!important;height:32px!important;min-width:32px!important;font-size:17px!important}
+.brand-text{min-width:0!important}.brand-text b{font-size:13px!important;display:block!important;max-width:42vw!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+.brand-text .sub{font-size:9px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;max-width:42vw!important}
+.app-back-btn{
+  width:34px;height:34px;min-width:34px;border:1px solid #fecaca;border-radius:9px;background:#fff;color:#991b1b;
+  font-size:20px;font-weight:900;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0
+}
+.top>div:last-child{gap:5px!important;min-width:0!important}
+#authUserEmail{max-width:24vw!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;font-size:9px!important}
+#roleBadge{font-size:9px!important;padding:4px 6px!important}
+.logout-btn{font-size:10px!important;padding:7px 8px!important}
+.head{gap:10px!important;align-items:flex-start!important;flex-wrap:wrap!important}
+.head>div:first-child{min-width:0!important;flex:1 1 180px!important}
+.head h1{font-size:21px!important;line-height:1.15!important;margin-bottom:3px!important}
+.head p{font-size:11px!important}
+.head>.toolbar,.head>div:last-child{max-width:100%!important;flex-wrap:wrap!important}
+.toolbar{gap:7px!important;flex-wrap:wrap!important}
+.btn{min-height:38px!important;padding:8px 11px!important;font-size:11px!important}
+.card{border-radius:13px!important;padding:12px!important}
+.metric .val{font-size:22px!important}
+.grid.g2,.grid.g3,.grid.g4{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important}
+.tablewrap{width:100%!important;overflow-x:auto!important;-webkit-overflow-scrolling:touch!important}
+table{min-width:680px!important}
+th,td{font-size:10.5px!important;padding:8px 7px!important}
+.field label{font-size:10px!important}
+.field input,.field select,.field textarea{min-height:42px!important;font-size:14px!important;padding:9px 10px!important}
+.modal{padding:8px!important;align-items:flex-end!important}
+.dialog{width:100%!important;max-width:100%!important;max-height:92vh!important;border-radius:18px 18px 0 0!important;padding:16px!important;overflow:auto!important}
+.invoice-portal-wrap{margin:18px auto!important;padding:0 10px!important}.invoice-portal-card{padding:16px!important}
+.invoice-portal-title{font-size:22px!important}
+.auth-card{width:min(94vw,430px)!important;padding:22px 18px!important}
+.public-invoice-btn{position:absolute!important;top:10px!important;left:10px!important}
+.cage-entry-row{grid-template-columns:1fr 1fr!important;gap:8px!important}
+.cage-entry-row .field:nth-child(3){grid-column:1/2!important}
+.cage-entry-row .cage-remove{grid-column:2/3!important;align-self:end!important}
+.cage-finish-bar{position:sticky!important;bottom:calc(var(--bottom-nav-height) + 2px)!important;background:#fff!important;padding:10px 0 3px!important;z-index:10!important}
+.psm-info-grid{grid-template-columns:1fr!important}
+.psm-brandbar{grid-template-columns:auto 1fr!important}
+.psm-support{display:none!important}
+.psm-logo-mark{font-size:16px!important}
+.psm-brandname{font-size:14px!important}
+.psm-address,.psm-tagline{font-size:8px!important}
+.psm-table{min-width:620px!important}
+
+@media(max-width:600px){
+  :root{--bottom-nav-height:70px}
+  .main{padding:10px var(--mobile-page-pad) calc(var(--bottom-nav-height) + 20px)!important}
+  .grid.g2,.grid.g3,.grid.g4{grid-template-columns:1fr!important}
+  .grid[style*="auto-fit"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .head h1{font-size:19px!important}
+  .head .toolbar{width:100%!important}
+  .head .toolbar .btn{flex:1 1 auto!important}
+  .bottom-nav .nav{flex-basis:64px!important;min-width:64px!important}
+  .bottom-nav .nav .nav-icon{font-size:20px!important}
+  .bottom-nav .nav .nav-label{font-size:9px!important}
+  .top .sub{display:none!important}
+  #authUserEmail{display:none!important}
+  .brand-text b{max-width:38vw!important;font-size:12px!important}
+  .logout-btn{padding:6px!important}
+  .invoice-type-tabs{grid-template-columns:1fr 1fr!important}
+  .invoice-result-card{grid-template-columns:1fr!important}
+  .confirm-grid{grid-template-columns:1fr 1fr!important}
+}
+@media(max-width:380px){
+  .brand .logo{display:none!important}
+  .brand-text b{max-width:36vw!important;font-size:11px!important}
+  .grid[style*="auto-fit"]{grid-template-columns:1fr!important}
+  .confirm-grid{grid-template-columns:1fr!important}
+}
+
+</style>
+<meta name="theme-color" content="#b91c1c">
+</head>
+<body>
+<div id="authScreen" class="auth-screen">
+  <button id="publicInvoiceBtn" class="public-invoice-btn" type="button" onclick="openInvoiceDownloadPortal()">⬇ Download Invoice</button>
+  <div class="auth-card">
+    <div class="auth-brand">
+      <div class="auth-brandmark">PSM</div>
+      <h1 class="auth-title">PSM Broiler Distributor</h1>
+      <div class="auth-sub">Secure staff access using your Supabase Authentication account.</div>
+    </div>
+    <form id="authForm" class="auth-form">
+      <div id="authError" class="auth-error"></div>
+      <div class="auth-field"><label>Email Address</label><input id="authEmail" type="email" autocomplete="username" required placeholder="name@example.com"></div>
+      <div class="auth-field"><label>Password</label><input id="authPassword" type="password" autocomplete="current-password" required placeholder="Enter password"></div>
+      <button id="authSubmit" class="auth-submit" type="submit">Sign In with Password</button>
+      <div class="auth-separator"><span>or</span></div>
+      <button id="passkeyLoginBtn" class="auth-passkey" type="button">🔐 Sign In with Passkey / Biometric</button>
+      <div id="passkeyLoginNote" class="auth-note">Use a passkey already registered to your Supabase account.</div>
+      <div class="auth-note">Your email is remembered on this device. Your password is never stored.</div>
+    </form>
+  </div>
+</div>
+
+<div id="invoicePortal" class="invoice-portal auth-hidden">
+  <div class="invoice-portal-top">
+    <button class="invoice-back-btn" type="button" onclick="closeInvoiceDownloadPortal()">← Back to Login</button>
+    <div>
+      <div class="invoice-portal-brand">PSM Broiler Distributor</div>
+      <div class="invoice-portal-sub">Find & Download Invoice</div>
+    </div>
+  </div>
+
+  <div class="invoice-portal-wrap">
+    <div class="invoice-portal-card">
+      <div class="invoice-portal-title">Download Your Invoice</div>
+      <div class="invoice-portal-desc">Select Farmer or Store, then search by invoice number, name or phone number.</div>
+
+      <div class="invoice-type-tabs">
+        <button id="lookupFarmerTab" class="invoice-type-tab active" type="button" onclick="setInvoiceLookupType('farmer')">👨‍🌾 Farmer Invoice</button>
+        <button id="lookupStoreTab" class="invoice-type-tab" type="button" onclick="setInvoiceLookupType('store')">🏪 Store Invoice</button>
+      </div>
+
+      <div class="invoice-search-row">
+        <div class="auth-field invoice-search-field">
+          <label>Search Invoice</label>
+          <input id="invoiceLookupQuery" autocomplete="off" placeholder="Invoice no., name or phone number" oninput="debouncedInvoiceLookup()">
+        </div>
+        <button class="auth-submit invoice-search-btn" type="button" onclick="searchPublicInvoices()">Search</button>
+      </div>
+
+      <div id="invoiceLookupStatus" class="invoice-lookup-status">Enter invoice number, name or phone number.</div>
+      <div id="invoiceLookupResults" class="invoice-lookup-results"></div>
+
+      <div class="invoice-portal-note">For privacy, this page only searches invoice records already available on this device.</div>
+    </div>
+  </div>
+</div>
+
+<div class="app auth-locked">
+<header class="top">
+ <div class="brand">
+   <button class="app-back-btn" type="button" onclick="appBack()" aria-label="Go back">←</button>
+   <div class="logo">🐓</div>
+   <div class="brand-text"><b>PSM Broiler Distributor</b><div class="sub">Broiler Lifting & Store Supply</div></div>
+ </div>
+ <div style="display:flex;gap:8px;align-items:center"><span id="authUserEmail" class="user-email"></span><span id="roleBadge" class="badge blue">ADMIN</span><button class="logout-btn" onclick="supabaseLogout()">Logout</button><button id="syncBadge" class="sync" style="display:none" aria-hidden="true" tabindex="-1">☁️</button></div>
+</header>
+<div class="shell">
+<aside class="bottom-nav" aria-label="Main navigation">
+ <button class="nav active" data-view="home" aria-label="Dashboard"><span class="nav-icon">🏠</span><span class="nav-label">Dashboard</span></button>
+ <button class="nav" data-view="lifting" aria-label="Liftings"><span class="nav-icon">👨‍🌾</span><span class="nav-label">Liftings</span></button>
+ <button class="nav" data-view="sales" aria-label="Sales"><span class="nav-icon">🧾</span><span class="nav-label">Sales</span></button>
+ <button class="nav" data-view="stores" aria-label="Stores"><span class="nav-icon">🏪</span><span class="nav-label">Stores</span></button>
+ <button class="nav" data-view="singke" aria-label="MPF A/C"><span class="nav-icon">🤝</span><span class="nav-label">MPF A/C</span></button>
+ <button class="nav" data-view="ledger" aria-label="Ledger"><span class="nav-icon">📚</span><span class="nav-label">Ledger</span></button>
+ <button class="nav" data-view="closing" aria-label="Closing"><span class="nav-icon">🔒</span><span class="nav-label">Closing</span></button>
+ <button class="nav" data-view="reports" aria-label="Reports"><span class="nav-icon">📊</span><span class="nav-label">Reports</span></button>
+ <button class="nav" data-view="audit" aria-label="Audit"><span class="nav-icon">🛡️</span><span class="nav-label">Audit</span></button>
+ <button class="nav" data-view="settings" aria-label="Settings"><span class="nav-icon">⚙️</span><span class="nav-label">Settings</span></button>
+</aside>
+<main class="main">
+<section id="v-home" class="view active">
+ <div class="head"><div><h1>Operational Dashboard</h1><p>Operational and profitability overview</p></div><div class="toolbar"><button class="btn primary" onclick="downloadDailyOperationalSummaryPdf()">Daily Summary PDF</button><button class="btn dashPeriod active" data-period="today" onclick="setDashboardPeriod('today',this)">Today</button><button class="btn dashPeriod" data-period="week" onclick="setDashboardPeriod('week',this)">Week</button><button class="btn dashPeriod" data-period="month" onclick="setDashboardPeriod('month',this)">Month</button><button class="btn dashPeriod" data-period="year" onclick="setDashboardPeriod('year',this)">Year</button><button class="btn" onclick="refreshAll()">Refresh</button></div></div>
+ <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+  <div class="card metric"><div class="lab" id="mLiftLabel">Today's Liftings</div><div class="val" id="mLift">0</div><div class="mini" id="mLiftKg">0 kg</div></div>
+  <div class="card metric"><div class="lab" id="mSalesLabel">Today's Sales</div><div class="val">₹<span id="mSales">0.00</span></div><div class="mini">Store billing</div></div>
+  <div class="card metric"><div class="lab">Store Outstanding</div><div class="val">₹<span id="mDue">0.00</span></div><div class="mini">All stores</div></div>
+  <div class="card metric"><div class="lab">Unsold Cages</div><div class="val" id="mUnsold">0</div><div class="mini">Needs supply/billing</div></div>
+  <div class="card metric"><div class="lab">Gross Profit</div><div class="val">₹<span id="mGrossProfit">0.00</span></div><div class="mini" id="mGrossProfitSub">Sales minus lifting cost</div></div>
+ </div>
+ <div style="height:12px"></div>
+ <div class="grid g2">
+  <div class="card">
+   <div class="split"><b>Needs Attention</b><span class="badge orange">LIVE</span></div>
+   <div id="attention" class="alerts"></div>
+  </div>
+  <div class="card">
+   <div class="kicker">MPF A/C</div><div class="hero" style="margin-top:8px"><div class="sub">Remaining Due to MPF</div><div class="val">₹<span id="dashSingke">0.00</span></div><div class="sub">Previous Due + Lifting Payable − Wangkhei − Settlements</div></div>
+  </div>
+ </div>
+
+ <div style="height:12px"></div>
+ <div class="grid g2">
+  <div class="card" id="syncHealthPanel">
+   <div class="split"><div><b>Outgoing Sync Status</b><div class="sub">Only local → Supabase saves and delete retries. No cloud download.</div></div><span id="syncHealthBadge" class="badge blue">Checking</span></div>
+   <div style="height:10px"></div>
+   <div class="grid g3">
+    <div class="metric"><div class="lab">Pending Uploads</div><div class="val" id="syncPendingSaves">0</div></div>
+    <div class="metric"><div class="lab">Delete Retries</div><div class="val" id="syncPendingDeletes">0</div></div>
+    <div class="metric"><div class="lab">Network</div><div class="val" id="syncNetwork" style="font-size:18px">—</div></div>
+   </div>
+   <div class="sub" style="margin-top:10px">Last successful Supabase save: <b id="syncLastSuccess">Never</b></div>
+   <div style="height:8px"></div><button class="btn" onclick="retryAllOutgoing()">Retry Pending Now</button>
+  </div>
+  <div class="card">
+   <div class="split"><div><b>Reconciliation Controls</b><div class="sub">Dashboard warnings for operational mismatches.</div></div></div>
+   <div class="field" style="margin-top:10px"><label>Warn when an unsold cage is older than (days)</label><input id="unsoldAgeDays" type="number" min="1" max="60" value="2" onchange="saveUnsoldAgeDays()"></div>
+   <div class="sub" style="margin-top:8px">Checks cage totals, rates, sale weight, aged unsold cages and pending Supabase work.</div>
+  </div>
+ </div>
+</section>
+
+<section id="v-farmers" class="view" style="display:none!important">
+ <div class="head"><div><h1>Farmer Master</h1><p>Central farmer records with duplicate protection and archive support</p></div><button class="btn primary" onclick="openFarmer()">+ Add Farmer</button></div>
+ <div class="card"><div class="toolbar"><div class="field"><label>Search</label><input id="farmerSearch" placeholder="Name, phone or ID" oninput="renderFarmers()"></div></div><div style="height:10px"></div><div class="tablewrap"><table><thead><tr><th>ID</th><th>Name</th><th>Phone</th><th>Updated</th><th></th></tr></thead><tbody id="farmerRows"></tbody></table></div></div>
+</section>
+
+<section id="v-lifting" class="view">
+ <div class="head"><div><h1>Farmers &amp; Liftings</h1><p>Farmer master and cage-wise lifting records in one workspace</p></div><div><button class="btn" onclick="openFarmer()">+ Add Farmer</button> <button class="btn primary" onclick="openLifting()">+ New Lifting</button></div></div>
+ <div class="grid g2">
+  <div class="card">
+   <div class="split"><div><b>Farmer Master</b><div class="sub">Search, edit and manage farmer records</div></div></div>
+   <div style="height:8px"></div>
+   <div class="field"><label>Search Farmer</label><input id="farmerSearchCombined" placeholder="Name, phone or ID" oninput="renderFarmersCombined()"></div>
+   <div style="height:10px"></div>
+   <div class="tablewrap" style="max-height:340px"><table><thead><tr><th>ID</th><th>Name</th><th>Phone</th><th>Action</th></tr></thead><tbody id="farmerRowsCombined"></tbody></table></div>
+  </div>
+  <div class="card">
+   <div class="split"><div><b>Quick Lifting Summary</b><div class="sub">Current lifting totals</div></div></div>
+   <div style="height:10px"></div>
+   <div class="grid g3">
+    <div class="metric"><div class="lab">Total Liftings</div><div class="val" id="liftQuickCount">0</div></div>
+    <div class="metric"><div class="lab">Total Cages</div><div class="val" id="liftQuickCages">0</div></div>
+    <div class="metric"><div class="lab">Total Weight</div><div class="val" id="liftQuickWeight">0</div><div class="mini">kg</div></div>
+   </div>
+  </div>
+ </div>
+ <div style="height:12px"></div>
+ <div class="card"><div class="split"><div><b>Lifting Log</b><div class="sub">Farmer invoice, WhatsApp share, edit and delete</div></div></div><div style="height:8px"></div><div class="tablewrap"><table><thead><tr><th>Date</th><th>Invoice</th><th>Farmer</th><th>Cages</th><th>Birds</th><th>Weight</th><th>Rate</th><th>Amount</th><th>Action</th></tr></thead><tbody id="liftingRows"></tbody></table></div></div>
+</section>
+
+
+<section id="v-lifting-cages" class="view">
+  <div class="head">
+    <div><h1>New Lifting → Cage Entry</h1><p id="fullCageContext">Complete cage details for this lifting</p></div>
+    <button class="btn" onclick="cancelFullPageCageEntry()">Cancel</button>
+  </div>
+  <div class="card">
+    <div class="cage-entry-toolbar">
+      <div class="cage-entry-summary">
+        <span class="cage-chip">Cages: <span id="cageCountLive">0</span></span>
+        <span class="cage-chip">Birds: <span id="cageBirdsLive">0</span></span>
+        <span class="cage-chip">Weight: <span id="cageWeightLive">0.00</span> kg</span>
+      </div>
+    </div>
+    <div id="cageInputs"></div>
+    <div class="action-group" style="margin-top:12px">
+      <button class="btn primary" onclick="addCageInput()">+ Add Cage</button>
+      <button class="btn" onclick="undoLastCage()">↶ Undo Last Cage</button>
+    </div>
+    <div class="cage-finish-bar">
+      <button class="btn" onclick="backToLiftingDetailsFromFullPage()">← Back to Details</button>
+      <button class="btn primary" style="font-size:18px;padding:13px 24px" id="fullCageCompleteBtn" onclick="confirmLiftingSave(window._liftingEditId||'')">Complete Lifting</button>
+    </div>
+  </div>
+</section>
+
+<section id="v-lifting-complete" class="view">
+ <div class="head"><div><h1>Lifting Completed</h1><p>Review, print or continue to the next operation.</p></div></div>
+ <div class="card print-lifting-summary" id="liftingCompletionSummary"></div>
+ <div style="height:12px"></div>
+ <div class="action-group no-print">
+  <button class="btn primary" id="completeInvoiceBtn">Invoice</button>
+  <button class="btn ok" id="completeWhatsAppBtn">WhatsApp</button>
+  <button class="btn" onclick="printLiftingCompletion()">Print Summary</button>
+  <button class="btn" onclick="openLifting()">+ New Lifting</button>
+  <button class="btn" onclick="goToView('sales')">Go to Sales →</button>
+ </div>
+</section>
+<section id="v-sales" class="view">
+ <div class="head"><div><h1>Store Sales</h1><p>Bill available cages to stores and track payments</p></div><button class="btn primary" onclick="openSale()">+ New Sale</button></div>
+ <div class="card"><div class="tablewrap"><table><thead><tr><th>Date</th><th>Invoice</th><th>Store</th><th>Cage</th><th>Weight</th><th>Rate</th><th>Amount</th><th>Paid</th><th>Outstanding</th><th>Action</th></tr></thead><tbody id="saleRows"></tbody></table></div></div>
+</section>
+
+<section id="v-stores" class="view">
+ <div class="head"><div><h1>Stores</h1><p>Opening due, sales, payments, outstanding and archive support</p></div><div><button class="btn" onclick="openPayment()">+ Payment</button> <button class="btn primary" onclick="openStore()">+ Add Store</button></div></div>
+ <div class="card"><div class="tablewrap"><table><thead><tr><th>ID</th><th>Store</th><th>Phone</th><th>Opening Due</th><th>Sales</th><th>Paid</th><th>Outstanding</th><th>Reminder</th><th>Action</th></tr></thead><tbody id="storeRows"></tbody></table></div></div>
+</section>
+
+<section id="v-singke" class="view">
+ <div class="head">
+  <div><h1>Singke Reconciliation Ledger</h1><p>Lifting payable, Wangkhei adjustments, settlements and running balance</p></div>
+  <div class="action-group"><button class="btn" onclick="downloadSingkeLedgerPdf()">Save PDF</button><button class="btn primary" onclick="openSettlement()">+ Record Settlement</button></div>
+ </div>
+ <div class="grid g4">
+  <div class="card metric"><div class="lab">Previous Due</div><div class="val">₹<span id="sPrev">0.00</span></div><div class="mini" id="sPrevDate">Not set</div></div>
+  <div class="card metric"><div class="lab">Lifting Payable</div><div class="val">₹<span id="sLift">0.00</span></div><div class="mini">All liftings</div></div>
+  <div class="card metric"><div class="lab">Wangkhei Adjustments</div><div class="val">₹<span id="sWang">0.00</span></div><div class="mini"><span id="sWangKg">0.00</span> kg total</div></div>
+  <div class="card metric"><div class="lab">Other Settlements</div><div class="val">₹<span id="sSet">0.00</span></div><div class="mini">Cash / bank payouts</div></div>
+ </div>
+ <div style="height:12px"></div>
+ <div class="hero"><div class="sub">Remaining Due to Singke</div><div class="val">₹<span id="sRemain">0.00</span></div><div class="sub">Previous Due + Lifting Payable − Wangkhei Adjustments − Other Settlements</div></div>
+ <div style="height:12px"></div>
+ <div class="card">
+  <div class="toolbar" style="justify-content:space-between;align-items:end">
+   <div><b>Transaction Ledger</b><div class="mini">Wangkhei adjustments include total kg sold</div></div>
+   <div class="toolbar">
+    <div class="field"><label>From</label><input id="singkeFrom" type="date" onchange="renderSingke()"></div>
+    <div class="field"><label>To</label><input id="singkeTo" type="date" onchange="renderSingke()"></div>
+    <button class="btn" onclick="clearSingkeFilter()">Clear</button>
+   </div>
+  </div>
+  <div style="height:8px"></div>
+  <div class="tablewrap"><table><thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Total Kg</th><th>Debit</th><th>Credit</th><th>Running Due</th></tr></thead><tbody id="singkeRows"></tbody></table></div>
+ </div>
+</section>
+
+<section id="v-ledger" class="view">
+ <div class="head"><div><h1>Store Ledger</h1><p>Sales, payments and running balance by store</p></div><div class="action-group"><button class="btn ok" id="ledgerReminderBtn" onclick="sendLedgerReminder()">WhatsApp Reminder</button><button class="btn primary" onclick="downloadStoreLedgerPdf()">Save PDF</button></div></div>
+ <div class="card"><div class="toolbar"><div class="field"><label>Store</label><select id="ledgerStore" onchange="renderLedger()"></select></div><div class="field"><label>Ledger Generated At</label><input id="ledgerGeneratedAt" disabled></div></div><div style="height:10px"></div><div class="tablewrap"><table><thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead><tbody id="ledgerRows"></tbody></table></div></div>
+</section>
+
+
+<section id="v-reports" class="view">
+ <div class="head"><div><h1>Date-Range Reports</h1><p>Operational, financial and reconciliation reports with CSV and Excel-compatible export.</p></div></div>
+ <div class="card">
+  <div class="toolbar">
+   <div class="field"><label>From</label><input id="reportFrom" type="date"></div>
+   <div class="field"><label>To</label><input id="reportTo" type="date"></div>
+   <div class="field"><label>Report</label><select id="reportType">
+    <option value="farmer">Farmer Liftings</option>
+    <option value="sales">Store Sales</option>
+    <option value="wangkhei">Wangkhei Adjustments</option>
+    <option value="singke">Singke Ledger</option>
+    <option value="profit">Profit</option>
+    <option value="outstanding">Outstanding</option>
+   </select></div>
+   <button class="btn primary" onclick="renderDateRangeReport()">Preview</button>
+   <button class="btn" onclick="exportDateRangeReportCSV()">CSV</button>
+   <button class="btn" onclick="exportDateRangeReportExcel()">Excel</button>
+  </div>
+ </div>
+ <div style="height:12px"></div>
+ <div class="card"><div id="reportSummary" class="sub"></div><div style="height:8px"></div><div class="tablewrap"><table><thead id="reportHead"></thead><tbody id="reportRows"></tbody></table></div></div>
+</section>
+
+<section id="v-closing" class="view">
+ <div class="head"><div><h1>Daily Closing</h1><p>Operational and financial day-end snapshot</p></div><button class="btn primary" onclick="closeToday()">Close / Recalculate Today</button></div>
+ <div id="closingCards" class="grid g3"></div><div style="height:12px"></div><div class="card"><div class="tablewrap"><table><thead><tr><th>Date</th><th>Liftings</th><th>Cages</th><th>Kg</th><th>Lifting Payable</th><th>Sales</th><th>Payments</th><th>MPF A/C Settlements</th><th>Closed At</th></tr></thead><tbody id="closingRows"></tbody></table></div></div>
+</section>
+
+<section id="v-audit" class="view">
+ <div class="head"><div><h1>Audit Log</h1><p>Local immutable-style history of important changes</p></div><button class="btn" onclick="exportAudit()">Export Audit</button></div>
+ <div class="card"><div class="tablewrap"><table><thead><tr><th>Time</th><th>Role</th><th>Module</th><th>Action</th><th>Record</th><th>Note</th></tr></thead><tbody id="auditRows"></tbody></table></div></div>
+</section>
+
+<section id="v-settings" class="view">
+ <div class="head"><div><h1>Settings</h1><p>Permissions, Singke opening balance, backup and cloud sync</p></div></div>
+ <div class="grid g2">
+  <div class="card"><b>User Role</b><div style="height:8px"></div><select id="roleSel" onchange="setRole(this.value)"><option value="admin">Admin</option><option value="staff">Staff / Operator</option></select><p class="sub">Staff can enter operations but cannot delete/reverse financial history or change sensitive settings.</p></div>
+  <div class="card"><b>Singke Previous Due</b><div class="grid g2" style="margin-top:8px"><div class="field"><label>Amount ₹</label><input id="prevDueAmt" type="number" step="0.01"></div><div class="field"><label>As-of Date</label><input id="prevDueDate" type="date"></div></div><div class="field" style="margin-top:8px"><label>Remarks</label><input id="prevDueRemarks"></div><div style="height:8px"></div><button class="btn primary" onclick="savePreviousDue()">Save Previous Due</button></div>
+  <div class="card"><b>Backup & Restore</b><p class="sub">Use backup before bulk changes or moving devices.</p><button class="btn" onclick="exportBackup()">Export Full Backup</button> <button class="btn" onclick="document.getElementById('restoreFile').click()">Restore Backup</button><input id="restoreFile" type="file" accept=".json" hidden onchange="restoreBackup(this.files[0])"></div>
+  <div class="card"><b>Passkey / Biometric Sign-In</b>
+   <p class="sub">Register this account with a device passkey so future sign-ins can use fingerprint, face recognition, device PIN or a security key.</p>
+   <div id="passkeySupportStatus" class="sub" style="margin-bottom:8px">Checking device support…</div>
+   <button class="btn primary" id="registerPasskeyBtn" onclick="registerDevicePasskey()">Register Passkey on This Device</button>
+   <p class="sub" style="margin-top:8px">Passkeys require Supabase Authentication → Passkeys to be enabled and the app to run from an HTTPS origin configured in Supabase.</p>
+  </div>
+
+  <div class="card"><b>Outgoing Supabase Health</b>
+<p class="sub">The app only sends your local changes to Supabase. Automatic cloud downloads remain disabled.</p>
+<div class="grid g2">
+  <div class="metric"><div class="lab">Pending Work</div><div class="val" style="font-size:18px" id="autoBackupStatus">Checking…</div></div>
+  <div class="metric"><div class="lab">Last Successful Save</div><div class="val" style="font-size:18px" id="autoBackupLast">Never</div></div>
+</div>
+<div style="height:8px"></div>
+<button class="btn primary" onclick="retryAllOutgoing()">Retry Pending Now</button>
+<div id="syncDetail" class="sub" style="margin-top:8px"></div>
+</div>
+ </div>
+</section>
+</main>
+</div>
+</div>
+
+<div id="modal" class="modal"><div class="dialog"><button class="btn close" onclick="closeModal()">✕</button><div id="modalBody"></div></div></div>
+
+<script>
+"use strict";
+const DB_NAME="MPFLiftDeskDB",DB_VERSION=3;
+
+let PUBLIC_INVOICE_LOOKUP_TYPE="farmer";
+let PUBLIC_INVOICE_LOOKUP_TIMER=null;
+
+async function ensureInvoiceLookupDB(){
+  if(db)return db;
+  return await openDB();
+}
+function openInvoiceDownloadPortal(){
+  document.getElementById("invoicePortal")?.classList.remove("auth-hidden");
+  const q=document.getElementById("invoiceLookupQuery");if(q){q.value="";setTimeout(()=>q.focus(),50)}
+  document.getElementById("invoiceLookupResults").innerHTML="";
+  document.getElementById("invoiceLookupStatus").textContent="Enter invoice number, name or phone number.";
+  setInvoiceLookupType("farmer");
+}
+function closeInvoiceDownloadPortal(){
+  document.getElementById("invoicePortal")?.classList.add("auth-hidden");
+}
+function setInvoiceLookupType(type){
+  PUBLIC_INVOICE_LOOKUP_TYPE=type==="store"?"store":"farmer";
+  document.getElementById("lookupFarmerTab")?.classList.toggle("active",PUBLIC_INVOICE_LOOKUP_TYPE==="farmer");
+  document.getElementById("lookupStoreTab")?.classList.toggle("active",PUBLIC_INVOICE_LOOKUP_TYPE==="store");
+  const q=document.getElementById("invoiceLookupQuery");
+  if(q)q.placeholder=PUBLIC_INVOICE_LOOKUP_TYPE==="farmer"?"Invoice no., farmer name or phone":"Invoice no., store name or phone";
+  document.getElementById("invoiceLookupResults").innerHTML="";
+  document.getElementById("invoiceLookupStatus").textContent="Enter invoice number, name or phone number.";
+}
+function debouncedInvoiceLookup(){
+  clearTimeout(PUBLIC_INVOICE_LOOKUP_TIMER);
+  PUBLIC_INVOICE_LOOKUP_TIMER=setTimeout(searchPublicInvoices,250);
+}
+function normalizeLookupText(v){return String(v??"").trim().toLowerCase()}
+function lookupPhoneDigits(v){return String(v??"").replace(/\D/g,"")}
+async function searchPublicInvoices(){
+  const out=document.getElementById("invoiceLookupResults"),status=document.getElementById("invoiceLookupStatus");
+  const raw=document.getElementById("invoiceLookupQuery")?.value||"",q=normalizeLookupText(raw),digits=lookupPhoneDigits(raw);
+  if(!q){out.innerHTML="";status.textContent="Enter invoice number, name or phone number.";return}
+  try{
+    status.textContent="Searching invoices…";out.innerHTML="";
+    await ensureInvoiceLookupDB();
+    let results=[];
+    if(PUBLIC_INVOICE_LOOKUP_TYPE==="farmer"){
+      const [liftings,farmers]=await Promise.all([txAll("liftings"),txAll("farmers")]);
+      const fm=new Map(farmers.map(f=>[f.id,f]));
+      results=liftings.map(l=>({l,f:fm.get(l.farmerId)||null})).filter(({l,f})=>{
+        const inv=normalizeLookupText(l.invoiceNumber||l.id),name=normalizeLookupText(f?.name||l.farmerName),phone=lookupPhoneDigits(f?.phone);
+        return inv.includes(q)||name.includes(q)||(digits.length>=4&&phone.includes(digits));
+      }).sort((a,b)=>String(b.l.liftingDate||"").localeCompare(String(a.l.liftingDate||""))).slice(0,30);
+      out.innerHTML=results.length?results.map(({l,f})=>`
+        <div class="invoice-result-card">
+          <div>
+            <div class="invoice-result-title">${esc(l.invoiceNumber||l.id)}</div>
+            <div class="invoice-result-meta">
+              Farmer: <b>${esc(f?.name||l.farmerName||"-")}</b><br>
+              Date: ${esc(l.liftingDate||"-")} · ${fmt(l.totalWeight)} kg · Net ₹${fmt(l.netAmount??l.payableAmount??l.liftingAmount??l.totalAmount)}
+            </div>
+          </div>
+          <button class="invoice-download-btn" type="button" onclick="publicDownloadFarmerInvoice('${l.id}',this)">Download PDF</button>
+        </div>`).join(""):`<div class="invoice-empty">No farmer invoice found.</div>`;
+    }else{
+      const [sales,stores]=await Promise.all([txAll("sales"),txAll("stores")]);
+      const sm=new Map(stores.map(s=>[s.id,s]));
+      results=sales.map(s=>({s,st:sm.get(s.storeId)||null})).filter(({s,st})=>{
+        const inv=normalizeLookupText(s.invoiceNumber||s.id),name=normalizeLookupText(st?.name||s.storeName),phone=lookupPhoneDigits(st?.phone);
+        return inv.includes(q)||name.includes(q)||(digits.length>=4&&phone.includes(digits));
+      }).sort((a,b)=>String(b.s.saleDate||"").localeCompare(String(a.s.saleDate||""))).slice(0,30);
+      out.innerHTML=results.length?results.map(({s,st})=>`
+        <div class="invoice-result-card">
+          <div>
+            <div class="invoice-result-title">${esc(s.invoiceNumber||s.id)}</div>
+            <div class="invoice-result-meta">
+              Store: <b>${esc(st?.name||s.storeName||"-")}</b><br>
+              Date: ${esc(s.saleDate||"-")} · ${fmt(s.weight??s.netWeight)} kg · Net ₹${fmt(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)}
+            </div>
+          </div>
+          <button class="invoice-download-btn" type="button" onclick="publicDownloadStoreInvoice('${s.id}',this)">Download PDF</button>
+        </div>`).join(""):`<div class="invoice-empty">No store invoice found.</div>`;
+    }
+    status.textContent=results.length?`${results.length} invoice${results.length===1?"":"s"} found.`:"No matching invoice found.";
+  }catch(e){
+    status.textContent="Unable to search invoices.";
+    out.innerHTML=`<div class="invoice-empty">${esc(e.message||"Invoice search failed.")}</div>`;
+  }
+}
+async function publicDownloadFarmerInvoice(liftingId,btn){
+  const old=btn?.textContent;if(btn){btn.disabled=true;btn.textContent="Preparing…"}
+  try{
+    await ensureInvoiceLookupDB();
+    const x=await createFarmerInvoicePdf(liftingId);
+    downloadBlob(x.blob,x.fileName);
+  }catch(e){toast(e.message||"Unable to download invoice.")}
+  finally{if(btn){btn.disabled=false;btn.textContent=old||"Download PDF"}}
+}
+async function publicDownloadStoreInvoice(saleId,btn){
+  const old=btn?.textContent;if(btn){btn.disabled=true;btn.textContent="Preparing…"}
+  try{
+    await ensureInvoiceLookupDB();
+    const x=await makeStoreInvoicePdf(saleId);
+    downloadBlob(x.blob,x.fileName);
+  }catch(e){toast(e.message||"Unable to download invoice.")}
+  finally{if(btn){btn.disabled=false;btn.textContent=old||"Download PDF"}}
+}
+
+const TABLES=["farmers","stores","liftings","cages","sales","payments","singke_settlements","settings"];
+let db=null;
+const S={role:localStorage.getItem("mpf_role")||"admin",syncing:false};
+const fmt=n=>(Number(n)||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
+const invoiceRound=n=>{const exact=Number(n)||0,rounded=Math.round(exact),roundOff=Math.round((rounded-exact)*100)/100;return {exact,rounded,roundOff}};
+const today=()=>{const d=new Date(),y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),da=String(d.getDate()).padStart(2,"0");return `${y}-${m}-${da}`};
+const iso=()=>new Date().toISOString();
+
+const LAST_CLOUD_SUCCESS_KEY="psm_last_cloud_success_v1";
+function markCloudSuccess(){localStorage.setItem(LAST_CLOUD_SUCCESS_KEY,iso());updateSyncHealth()}
+function formatLocalDateTime(v){if(!v)return"Never";try{return new Date(v).toLocaleString("en-IN")}catch(e){return String(v)}}
+function pendingSaveCount(){return loadSaveRetryQueue().length}
+function pendingDeleteCount(){return loadDeleteRetryQueue().length}
+function saveUnsoldAgeDays(){const el=document.getElementById("unsoldAgeDays");if(el)localStorage.setItem("psm_unsold_age_days",String(Math.max(1,Number(el.value)||2)));renderDashboard()}
+async function retryAllOutgoing(){await retryPendingSaves();
+     updateSyncHealth();await retryPendingVerifiedDeletes();updateSyncHealth();toast(pendingSaveCount()+pendingDeleteCount()?"Some changes are still pending.":"All outgoing changes are saved.")}
+function updateSyncHealth(){
+ const saves=pendingSaveCount(),dels=pendingDeleteCount(),online=navigator.onLine,last=localStorage.getItem(LAST_CLOUD_SUCCESS_KEY);
+ const total=saves+dels;
+ const badge=document.getElementById("syncHealthBadge");
+ if(badge){badge.textContent=!online?"Offline":total?`${total} Pending`:"All Saved";badge.className="badge "+(!online?"sync-bad":total?"sync-warn":"sync-good")}
+ const a=document.getElementById("syncPendingSaves");if(a)a.textContent=saves;
+ const b=document.getElementById("syncPendingDeletes");if(b)b.textContent=dels;
+ const n=document.getElementById("syncNetwork");if(n)n.textContent=online?"Online":"Offline";
+ const l=document.getElementById("syncLastSuccess");if(l)l.textContent=formatLocalDateTime(last);
+ const s=document.getElementById("autoBackupStatus");if(s)s.textContent=total?`${total} pending`:"All saved";
+ const al=document.getElementById("autoBackupLast");if(al)al.textContent=formatLocalDateTime(last);
+ const d=document.getElementById("syncDetail");if(d)d.textContent=online?`${saves} pending upload(s), ${dels} delete retry/retries. Cloud download is disabled.`:"Offline. Local work is safe and will retry when online.";
+}
+async function nextSequentialNumber(kind,dateValue){
+ const year=String(dateValue||today()).slice(0,4);
+ const cfg={lifting:["PSM-L","liftings","invoiceNumber"],sale:["PSM-S","sales","invoiceNumber"],settlement:["PSM-RS","singke_settlements","receiptNumber"],payment:["PSM-RP","payments","receiptNumber"]}[kind];
+ if(!cfg)throw new Error("Unknown sequence type");
+ const [prefix,table,field]=cfg,rx=new RegExp("^"+prefix.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"-"+year+"-(\\d+)$");
+ const all=await txAll(table);
+ let max=0;for(const x of all){const m=String(x[field]||"").match(rx);if(m)max=Math.max(max,Number(m[1])||0)}
+ let seq=max+1,number="";
+ do{number=`${prefix}-${year}-${String(seq).padStart(4,"0")}`;seq++}while(all.some(x=>String(x[field]||"")===number));
+ return number;
+}
+
+let APP_HISTORY_READY=false;
+let APP_CURRENT_VIEW="home";
+
+function renderAppView(v){
+  const target=document.getElementById("v-"+v);if(!target)return false;
+  document.querySelectorAll(".view").forEach(x=>{x.classList.remove("active");x.style.display="none"});
+  target.classList.add("active");target.style.display="block";
+  document.querySelectorAll(".nav").forEach(x=>x.classList.toggle("active",x.dataset.view===v));
+  APP_CURRENT_VIEW=v;
+  if(v==="ledger")renderLedger();if(v==="settings")loadSettings();if(v==="audit")renderAudit();if(v==="closing")renderClosings();if(v==="reports")renderDateRangeReport();
+  return true;
+}
+function initAppBackHistory(){
+  if(APP_HISTORY_READY)return;
+  APP_HISTORY_READY=true;
+  try{
+    history.replaceState({psmApp:true,psmView:"home",guardLevel:0},"","#home");
+    history.pushState({psmApp:true,psmView:"home",guardLevel:1},"","#home");
+    history.pushState({psmApp:true,psmView:"home",guardLevel:2},"","#home");
+  }catch(e){console.warn("History setup:",e)}
+}
+function appBack(){history.back()}
+
+function goToView(name){
+  if(!renderAppView(name))return;
+  if(APP_HISTORY_READY){
+    try{history.pushState({psmApp:true,psmView:name},"","#"+name)}catch(e){}
+  }
+}
+
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function toast(m){const d=document.createElement("div");d.className="toast";d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),3000)}
+function id(prefix){return prefix+"-"+Date.now().toString(36).toUpperCase()+"-"+Math.random().toString(36).slice(2,6).toUpperCase()}
+function txGet(store,key){return new Promise((res,rej)=>{const r=db.transaction(store).objectStore(store).get(key);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}
+function txAll(store){return new Promise((res,rej)=>{const r=db.transaction(store).objectStore(store).getAll();r.onsuccess=()=>res(r.result||[]);r.onerror=()=>rej(r.error)})}
+function txPut(store,val){return new Promise((res,rej)=>{const t=db.transaction(store,"readwrite"),r=t.objectStore(store).put(val);r.onsuccess=()=>res(val);r.onerror=()=>rej(r.error)})}
+function txDel(store,key){return new Promise((res,rej)=>{const r=db.transaction(store,"readwrite").objectStore(store).delete(key);r.onsuccess=()=>res(true);r.onerror=()=>rej(r.error)})}
+async function setting(k,def=null){const r=await txGet("settings",k);return r?r.value:def}
+async function setSetting(k,v){await txPut("settings",{key:k,value:v,updatedAt:iso()});audit("settings","UPDATE",k,"");queueCloud("settings","UPSERT",{key:k,value:v,updatedAt:iso()})}
+function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=e=>{const d=e.target.result;
+ if(!d.objectStoreNames.contains("farmers")){let s=d.createObjectStore("farmers",{keyPath:"id"});s.createIndex("by_name","name");s.createIndex("by_phone","phone");s.createIndex("by_createdAt","createdAt")}
+ if(!d.objectStoreNames.contains("liftings")){let s=d.createObjectStore("liftings",{keyPath:"id"});s.createIndex("by_farmerId","farmerId");s.createIndex("by_date","liftingDate");s.createIndex("by_createdAt","createdAt")}
+ if(!d.objectStoreNames.contains("cages")){let s=d.createObjectStore("cages",{keyPath:"id"});s.createIndex("by_liftingId","liftingId");s.createIndex("by_farmerId","farmerId");s.createIndex("by_isSold","isSold");s.createIndex("by_cageNumber","cageNumber")}
+ if(!d.objectStoreNames.contains("stores")){let s=d.createObjectStore("stores",{keyPath:"id"});s.createIndex("by_name","name",{unique:true});s.createIndex("by_phone","phone")}
+ if(!d.objectStoreNames.contains("sales")){let s=d.createObjectStore("sales",{keyPath:"id"});s.createIndex("by_storeId","storeId");s.createIndex("by_cageId","cageId",{unique:true});s.createIndex("by_liftingId","liftingId");s.createIndex("by_saleDate","saleDate");s.createIndex("by_invoiceNumber","invoiceNumber",{unique:true})}
+ if(!d.objectStoreNames.contains("payments")){let s=d.createObjectStore("payments",{keyPath:"id"});s.createIndex("by_storeId","storeId");s.createIndex("by_paymentDate","paymentDate")}
+ if(!d.objectStoreNames.contains("settings"))d.createObjectStore("settings",{keyPath:"key"});
+ if(!d.objectStoreNames.contains("singke_settlements")){let s=d.createObjectStore("singke_settlements",{keyPath:"id"});s.createIndex("by_date","date");s.createIndex("by_farmerId","farmerId");s.createIndex("by_createdAt","createdAt")}
+ };r.onsuccess=e=>{db=e.target.result;res(db)};r.onerror=()=>rej(r.error)})}
+function audit(mod,act,rid,note=""){let a=JSON.parse(localStorage.getItem("mpf_audit")||"[]");a.unshift({time:iso(),role:S.role,module:mod,action:act,record:String(rid||""),note});if(a.length>2000)a.length=2000;localStorage.setItem("mpf_audit",JSON.stringify(a))}
+function requireAdmin(msg="Admin permission required."){if(S.role!=="admin"){toast(msg);throw new Error(msg)}}
+let autoBackupTimer=null;
+function getDeleteTombstones(){
+  try{return JSON.parse(localStorage.getItem("mpf_delete_tombstones")||"{}")}catch{return {}}
+}
+function addDeleteTombstone(table,key){
+  const all=getDeleteTombstones(),k=`${table}:${String(key)}`;
+  all[k]={table,key:String(key),deletedAt:iso()};
+  localStorage.setItem("mpf_delete_tombstones",JSON.stringify(all));
+}
+function isDeleteTombstoned(table,key){
+  return !!getDeleteTombstones()[`${table}:${String(key)}`];
+}
+function cleanupDeleteTombstones(){
+  const all=getDeleteTombstones(),cut=Date.now()-(365*24*60*60*1000),next={};
+  for(const [k,v] of Object.entries(all)){
+    if((Date.parse(v.deletedAt)||Date.now())>=cut) next[k]=v;
+  }
+  localStorage.setItem("mpf_delete_tombstones",JSON.stringify(next));
+}
+
+const SAVE_RETRY_KEY="psm_outgoing_save_retry_v1";
+function loadSaveRetryQueue(){try{return JSON.parse(localStorage.getItem(SAVE_RETRY_KEY)||"[]")}catch(e){return []}}
+function saveSaveRetryQueue(items){localStorage.setItem(SAVE_RETRY_KEY,JSON.stringify(items.slice(-1000)));setTimeout(updateSyncHealth,0)}
+function saveRetryKey(table,data){return `${table}:${String(data?.id??data?.key??"")}`}
+function enqueueSaveRetry(table,data){
+  const items=loadSaveRetryQueue(),k=saveRetryKey(table,data);
+  const next=items.filter(x=>x.k!==k);
+  next.push({k,table,data,attempts:0,updatedAt:iso()});
+  saveSaveRetryQueue(next);
+}
+async function retryPendingSaves(){
+  if(!navigator.onLine){updateSyncHealth();return}
+  const items=loadSaveRetryQueue(); if(!items.length){updateSyncHealth();return}
+  const keep=[];
+  for(const item of items){
+    try{
+      if(isPermanentlyDeleted(item.table,item.data?.id??item.data?.key))continue;
+      await rest(item.table,"POST",toCloud(item.table,item.data));
+      markCloudSuccess();
+    }catch(e){
+      item.attempts=(item.attempts||0)+1;item.updatedAt=iso();keep.push(item);
+    }
+  }
+  saveSaveRetryQueue(keep);updateSyncHealth();
+}
+
+function queueCloud(table,action,data){
+  if(action==="DELETE"){
+    const keyValue=typeof data==="object"?(data?.id??data?.key):data;
+    if(keyValue==null)return;
+    addPermanentTombstone(table,keyValue);
+    queueVerifiedDelete(table,keyValue);
+    updateSyncHealth();
+    deleteCloudRecordVerified(table,keyValue).then(()=>updateSyncHealth()).catch(()=>updateSyncHealth());
+    return;
+  }
+  const keyValue=data?.id??data?.key;
+  if(keyValue!=null && isPermanentlyDeleted(table,keyValue))return;
+  (async()=>{
+    try{
+      await rest(table,"POST",toCloud(table,data));
+      markCloudSuccess();
+      const k=saveRetryKey(table,data);
+      saveSaveRetryQueue(loadSaveRetryQueue().filter(x=>x.k!==k));
+    }catch(e){
+      enqueueSaveRetry(table,data);
+      toast("Saved locally. Supabase save will retry automatically.");
+    }
+    updateSyncHealth();
+  })();
+}
+
+
+
+async function deleteCloudRecordNow(table,keyValue){
+  const ok=await deleteCloudRecordVerified(table,keyValue);
+  if(!ok) toast("Deleted locally. Supabase deletion will retry automatically.");
+  return ok;
+}
+
+function updateSyncBadge(){
+  const badge=document.getElementById("syncBadge");
+  if(badge){badge.style.display="none";badge.textContent="Outgoing sync only"}
+  updateSyncHealth();
+}
+
+
+const PSM_DELETE_TOMBSTONES_KEY="psm_permanent_delete_tombstones_v1";
+const PSM_DELETE_RETRY_KEY="psm_permanent_delete_retry_v1";
+
+function loadPermanentTombstones(){
+  try{return JSON.parse(localStorage.getItem(PSM_DELETE_TOMBSTONES_KEY)||"{}")||{}}
+  catch(e){return {}}
+}
+function savePermanentTombstones(map){
+  localStorage.setItem(PSM_DELETE_TOMBSTONES_KEY,JSON.stringify(map||{}));
+}
+function tombstoneKey(table,keyValue){return `${table}:${String(keyValue)}`}
+function addPermanentTombstone(table,keyValue){
+  const map=loadPermanentTombstones();
+  map[tombstoneKey(table,keyValue)]={table,key:String(keyValue),deletedAt:iso()};
+  savePermanentTombstones(map);
+}
+function isPermanentlyDeleted(table,keyValue){
+  return !!loadPermanentTombstones()[tombstoneKey(table,keyValue)];
+}
+function loadDeleteRetryQueue(){
+  try{return JSON.parse(localStorage.getItem(PSM_DELETE_RETRY_KEY)||"[]")||[]}
+  catch(e){return []}
+}
+function saveDeleteRetryQueue(items){
+  localStorage.setItem(PSM_DELETE_RETRY_KEY,JSON.stringify(items||[]));
+}
+function queueVerifiedDelete(table,keyValue){
+  const q=loadDeleteRetryQueue();
+  if(!q.some(x=>x.table===table && String(x.key)===String(keyValue))){
+    q.push({table,key:String(keyValue),queuedAt:iso(),attempts:0});
+    saveDeleteRetryQueue(q);
+  }
+}
+async function verifyCloudDeleted(table,keyValue){
+  const key=table==="settings"?"key":"id";
+  const rows=await rest(table,"GET",null,`?select=${key}&${key}=eq.${encodeURIComponent(keyValue)}&limit=1`);
+  return !Array.isArray(rows) || rows.length===0;
+}
+async function deleteCloudRecordVerified(table,keyValue){
+  addPermanentTombstone(table,keyValue);
+  queueVerifiedDelete(table,keyValue);
+  try{
+    if(!AUTH_SESSION) AUTH_SESSION=loadAuthSession();
+    if(!AUTH_SESSION) throw new Error("Not authenticated.");
+    const key=table==="settings"?"key":"id";
+    await rest(table,"DELETE",null,`?${key}=eq.${encodeURIComponent(keyValue)}`);
+    if(!(await verifyCloudDeleted(table,keyValue))){
+      throw new Error("Supabase still contains this record after DELETE.");
+    }
+    let q=loadDeleteRetryQueue();
+    q=q.filter(x=>!(x.table===table && String(x.key)===String(keyValue)));
+    saveDeleteRetryQueue(q);
+    markCloudSuccess();
+    return true;
+  }catch(e){
+    console.warn(`Verified Supabase delete pending for ${table}/${keyValue}:`,e);
+    return false;
+  }
+}
+async function retryPendingVerifiedDeletes(){
+  const q=loadDeleteRetryQueue();
+  if(!q.length || !navigator.onLine){updateSyncHealth();return}
+  const remain=[];
+  for(const item of q){
+    const ok=await deleteCloudRecordVerified(item.table,item.key);
+    if(!ok){item.attempts=(item.attempts||0)+1;remain.push(item)}
+  }
+  saveDeleteRetryQueue(remain);updateSyncHealth();
+}
+async function purgeTombstonedLocalRows(){
+  if(!db) return;
+  const map=loadPermanentTombstones();
+  for(const item of Object.values(map)){
+    if(!TABLES.includes(item.table)) continue;
+    try{await txDel(item.table,item.key)}
+    catch(e){console.warn("Local tombstone purge failed:",item.table,item.key,e)}
+  }
+}
+
+function queueCount(){return 0}
+function setRole(v){S.role=v;localStorage.setItem("mpf_role",v);document.getElementById("roleBadge").textContent=v.toUpperCase();document.getElementById("roleSel").value=v;audit("security","ROLE",v);refreshAll()}
+function nav(v){
+  if(!renderAppView(v))return;
+  if(APP_HISTORY_READY){
+    try{history.pushState({psmApp:true,psmView:v},"","#"+v)}catch(e){}
+  }
+}
+
+window.addEventListener("popstate",e=>{
+  const modal=document.getElementById("modal");
+  if(modal?.classList.contains("open"))closeModal();
+  const st=e.state;
+  if(st?.psmApp){
+    renderAppView(st.psmView||"home");
+    if(st.guardLevel===1)toast("Press Back 2 more times to exit.");
+    if(st.guardLevel===0)toast("Press Back 1 more time to exit.");
+  }
+});
+
+document.querySelectorAll(".nav").forEach(b=>b.onclick=()=>nav(b.dataset.view));
+function openModal(html){document.getElementById("modalBody").innerHTML=html;document.getElementById("modal").classList.add("open")}
+function closeModal(){document.getElementById("modal").classList.remove("open");document.querySelector("#modal .dialog")?.classList.remove("lifting-cage-dialog")}
+
+async function openFarmer(x=null){openModal(`<h3>${x?"Edit":"Add"} Farmer</h3><div class="grid g2"><div class="field"><label>Name</label><input id="fName" value="${esc(x?.name||"")}"></div><div class="field"><label>Phone</label><input id="fPhone" value="${esc(x?.phone||"")}"></div></div><div style="height:12px"></div><button class="btn primary" onclick="saveFarmer('${x?.id||""}')">Save Farmer</button>`)}
+async function saveFarmer(fid){
+ let name=document.getElementById("fName").value.trim(),phone=document.getElementById("fPhone").value.trim();
+ if(!name||!phone)return toast("Name and phone are required.");
+ let all=await txAll("farmers"),digits=phone.replace(/\D/g,"");
+ let dupPhone=all.find(f=>f.id!==fid&&String(f.phone||"").replace(/\D/g,"")===digits);
+ let dupName=all.find(f=>f.id!==fid&&String(f.name||"").trim().toLowerCase()===name.toLowerCase());
+ if(dupPhone&&!confirm(`Duplicate warning: this phone already belongs to ${dupPhone.name}. Save anyway?`))return;
+ if(dupName&&!confirm(`Duplicate warning: farmer name "${dupName.name}" already exists. Save anyway?`))return;
+ let old=fid?await txGet("farmers",fid):null;
+ let r={...(old||{}),id:fid||id("FARM"),name,phone,archived:old?.archived||false,createdAt:old?.createdAt||iso(),updatedAt:iso()};
+ await txPut("farmers",r);audit("farmers",old?"UPDATE":"CREATE",r.id);queueCloud("farmers","UPSERT",r);closeModal();refreshAll()
+}
+async function deleteFarmer(fid){requireAdmin();let ls=await txAll("liftings");if(ls.some(x=>x.farmerId===fid))return toast("Cannot delete farmer with lifting history.");if(confirm("Delete farmer?")){await txDel("farmers",fid);audit("farmers","DELETE",fid);queueCloud("farmers","DELETE",fid);refreshAll()}}
+
+async function openLifting(editId=null){
+  const existing=editId?await txGet("liftings",editId):null;
+  const farmers=(await txAll("farmers")).filter(f=>!f.archived||(existing&&f.id===existing.farmerId)).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+  if(!farmers.length)return toast("Add an active farmer first.");
+  const oldCages=editId?(await txAll("cages")).filter(c=>c.liftingId===editId):[];
+  if(existing && oldCages.some(c=>c.isSold)) return toast("Cannot edit a lifting after any cage has been sold.");
+
+  window._liftingFarmerList=farmers;
+  window._liftingOldCages=oldCages;
+  window._liftingEditId=editId||"";
+
+  const selected=farmers.find(f=>f.id===existing?.farmerId);
+  openModal(`
+    <div id="liftingDetailsStep">
+      <div class="lifting-step-title">${existing?"Edit":"New"} Lifting</div>
+      <div class="lifting-step-sub">Complete the lifting details first. Cage entry will open on the next full page.</div>
+      <div class="grid g2">
+        <div class="field"><label>Date</label><input id="lDate" type="date" value="${existing?.liftingDate||today()}"></div>
+        <div class="field farmer-search-box">
+          <label>Search Farmer</label>
+          <input id="lFarmerSearch" autocomplete="off" placeholder="Type farmer name, phone or ID" value="${esc(selected?`${selected.name} — ${selected.phone||""}`:"")}" oninput="filterLiftingFarmers()" onfocus="filterLiftingFarmers()">
+          <input id="lFarmer" type="hidden" value="${esc(existing?.farmerId||"")}">
+          <div id="liftingFarmerResults" class="farmer-results"></div>
+        </div>
+        <div class="field"><label>Lifting Rate ₹/kg</label><input id="lRate" type="number" step="0.01" value="${existing?.liftingRate??existing?.ratePerKg??""}" placeholder="Enter rate"></div>
+        <div class="field"><label>Remarks</label><input id="lRem" value="${esc(existing?.remarks||"")}" placeholder="Optional remarks"></div>
+      </div>
+      <div style="height:16px"></div>
+      <button class="btn primary" style="font-size:16px;padding:12px 20px" onclick="completeLiftingDetails()">Complete & Add Cages →</button>
+    </div>
+    <div id="liftingCagesStep" style="display:none"></div>
+  `);
+}
+
+function filterLiftingFarmers(){
+  const input=document.getElementById("lFarmerSearch");
+  const hidden=document.getElementById("lFarmer");
+  const q=String(input?.value||"").trim().toLowerCase();
+  if(hidden){
+    const selected=(window._liftingFarmerList||[]).find(f=>String(f.id)===String(hidden.value));
+    const selectedLabel=selected?`${selected.name} — ${selected.phone||""}`:"";
+    if(!selected || String(input?.value||"")!==selectedLabel) hidden.value="";
+  }
+  const box=document.getElementById("liftingFarmerResults"); if(!box)return;
+  const list=(window._liftingFarmerList||[]).filter(f=>{
+    const hay=`${f.name||""} ${f.phone||""} ${f.id||""} ${f.address||f.village||""}`.toLowerCase();
+    return !q||hay.includes(q);
+  }).slice(0,30);
+  box.innerHTML=list.map(f=>`<div class="farmer-result" onclick="selectLiftingFarmer('${f.id}')"><b>${esc(f.name||"")}</b><div class="mini">${esc(f.phone||"")} ${f.address||f.village?`• ${esc(f.address||f.village)}`:""}</div></div>`).join("")||`<div class="farmer-result"><div class="mini">No farmer found</div></div>`;
+  box.classList.add("open");
+}
+
+function selectLiftingFarmer(id){
+  const f=(window._liftingFarmerList||[]).find(x=>String(x.id)===String(id));
+  if(!f)return;
+  document.getElementById("lFarmer").value=f.id;
+  document.getElementById("lFarmerSearch").value=`${f.name} — ${f.phone||""}`;
+  document.getElementById("liftingFarmerResults")?.classList.remove("open");
+}
+
+async function completeLiftingDetails(){
+  const date=document.getElementById("lDate")?.value||"";
+  const farmerId=document.getElementById("lFarmer")?.value||"";
+  const rate=Number(document.getElementById("lRate")?.value)||0;
+  if(!date)return toast("Select lifting date.");
+  if(!farmerId)return toast("Search and select a farmer from the list.");
+  if(rate<=0)return toast("Enter lifting rate.");
+
+  const farmer=await txGet("farmers",farmerId);
+  if(!farmer)return toast("Selected farmer was not found.");
+
+  window._liftingDraft={date,farmerId,farmerName:farmer.name,rate,remarks:String(document.getElementById("lRem")?.value||"").trim()};
+  closeModal();
+
+  document.querySelectorAll(".view").forEach(v=>v.style.display="none");
+  const view=document.getElementById("v-lifting-cages");
+  if(view){view.style.display="block";view.classList.add("active")}
+  document.getElementById("fullCageContext").innerHTML=`Farmer: <b>${esc(farmer.name)}</b> &nbsp;•&nbsp; Date: <b>${esc(date)}</b> &nbsp;•&nbsp; Rate: <b>₹${fmt(rate)}/kg</b>`;
+  const host=document.getElementById("cageInputs"); if(host)host.innerHTML="";
+  const old=window._liftingOldCages||[];
+  if(old.length)old.forEach(c=>addCageInput(c));else addCageInput();
+  const btn=document.getElementById("fullCageCompleteBtn");if(btn)btn.textContent=window._liftingEditId?"Update Lifting":"Complete Lifting";
+}
+
+function backToLiftingDetails(){
+  backToLiftingDetailsFromFullPage();
+}
+
+
+function backToLiftingDetailsFromFullPage(){
+  document.querySelectorAll(".view").forEach(v=>v.style.display="none");
+  const liftView=document.getElementById("v-lifting"); if(liftView)liftView.style.display="block";
+  openLifting(window._liftingEditId||null);
+  setTimeout(()=>{
+    const d=window._liftingDraft||{};
+    const f=(window._liftingFarmerList||[]).find(x=>String(x.id)===String(d.farmerId));
+    if(document.getElementById("lDate"))document.getElementById("lDate").value=d.date||today();
+    if(document.getElementById("lRate"))document.getElementById("lRate").value=d.rate||"";
+    if(document.getElementById("lRem"))document.getElementById("lRem").value=d.remarks||"";
+    if(f){document.getElementById("lFarmer").value=f.id;document.getElementById("lFarmerSearch").value=`${f.name} — ${f.phone||""}`;}
+  },0);
+}
+function cancelFullPageCageEntry(){
+  window._liftingDraft=null;
+  window._liftingOldCages=[];
+  window._liftingEditId="";
+  document.querySelectorAll(".view").forEach(v=>v.style.display="none");
+  const liftView=document.getElementById("v-lifting"); if(liftView)liftView.style.display="block";
+  refreshAll();
+}
+
+
+function handleCageEnter(e,input){
+ if(e.key!=="Enter")return;e.preventDefault();
+ const row=input.closest(".cage-entry-row");if(!row)return;
+ if(input.classList.contains("ciWeight"))return row.querySelector(".ciBirds")?.focus();
+ if(input.classList.contains("ciBirds"))return row.querySelector(".ciNum")?.focus();
+ if(input.classList.contains("ciNum")){addCageInput();return}
+}
+function collectLiftingCageDraft(){
+ const nums=[...document.querySelectorAll(".ciNum")],ws=[...document.querySelectorAll(".ciWeight")],bs=[...document.querySelectorAll(".ciBirds")],cages=[];
+ if(!nums.length)throw new Error("Add at least one cage.");
+ for(let i=0;i<nums.length;i++){const w=Number(ws[i].value),b=Number(bs[i].value),n=nums[i].value.trim();if(!n||w<=0||b<=0)throw new Error(`Cage ${i+1} needs weight, bird count and cage number.`);cages.push({cageNumber:n,weight:w,birdCount:b})}
+ return cages;
+}
+
+function removeCageInput(btn){
+  const row=btn.closest(".cage-entry-row");
+  if(!row)return;
+  row.remove();
+  renumberCageRows();
+  updateCageEntrySummary();
+  toast("Cage entry removed.");
+}
+
+function undoLastCage(){
+  const rows=[...document.querySelectorAll("#cageInputs .cage-entry-row")];
+  if(!rows.length)return toast("No cage to undo.");
+  rows[rows.length-1].remove();
+  renumberCageRows();
+  updateCageEntrySummary();
+  toast("Last cage reverted.");
+}
+
+function renumberCageRows(){
+  [...document.querySelectorAll("#cageInputs .cage-entry-row")].forEach((row,i)=>{
+    const idx=row.querySelector(".cage-index"); if(idx)idx.textContent=`Cage ${i+1}`;
+  });
+}
+
+function updateCageEntrySummary(){
+  const rows=[...document.querySelectorAll("#cageInputs .cage-entry-row")];
+  const birds=rows.reduce((s,r)=>s+(Number(r.querySelector(".ciBirds")?.value)||0),0);
+  const weight=rows.reduce((s,r)=>s+(Number(r.querySelector(".ciWeight")?.value)||0),0);
+  const c=document.getElementById("cageCountLive"),b=document.getElementById("cageBirdsLive"),w=document.getElementById("cageWeightLive");
+  if(c)c.textContent=rows.length;if(b)b.textContent=birds;if(w)w.textContent=fmt(weight);
+}
+
+function addCageInput(prefill={}){
+  const host=document.getElementById("cageInputs"); if(!host)return;
+  const d=document.createElement("div");d.className="cage-entry-row";
+  const n=host.querySelectorAll(".cage-entry-row").length+1;
+  d.innerHTML=`
+    <div class="field"><div class="cage-index">Cage ${n}</div><label>Weight (kg)</label><input class="ciWeight" type="number" step="0.01" inputmode="decimal" value="${prefill.weight??""}" placeholder="0.00" oninput="updateCageEntrySummary()" onkeydown="handleCageEnter(event,this)"></div>
+    <div class="field"><label>Birds (Nos.)</label><input class="ciBirds" type="number" inputmode="numeric" value="${prefill.birdCount??""}" placeholder="0" oninput="updateCageEntrySummary()" onkeydown="handleCageEnter(event,this)"></div>
+    <div class="field"><label>Cage No.</label><input class="ciNum" value="${prefill.cageNumber??n}" placeholder="${n}" onkeydown="handleCageEnter(event,this)"></div>
+    <button type="button" class="btn danger cage-remove" onclick="removeCageInput(this)">Remove</button>`;
+  host.appendChild(d);renumberCageRows();updateCageEntrySummary();setTimeout(()=>d.querySelector(".ciWeight")?.focus(),0);
+}
+
+async function confirmLiftingSave(editId=""){
+ try{
+  const draft=window._liftingDraft||{},farmer=await txGet("farmers",draft.farmerId),cages=collectLiftingCageDraft();
+  if(!draft.date||!farmer||!(Number(draft.rate)>0))return toast("Lifting details are incomplete.");
+  const totalKg=Math.round(cages.reduce((s,c)=>s+c.weight,0)*100)/100,totalBirds=cages.reduce((s,c)=>s+c.birdCount,0),exact=Math.round(totalKg*Number(draft.rate)*100)/100,rr=invoiceRound(exact);
+  const warnings=[];
+  const avg=totalBirds?totalKg/totalBirds:0;
+  if(avg&&avg<0.5)warnings.push(`Average bird weight is only ${avg.toFixed(2)} kg. Please recheck weight/bird entries.`);
+  if(avg>5)warnings.push(`Average bird weight is ${avg.toFixed(2)} kg, which looks unusually high. Please recheck entries.`);
+  for(const c of cages){const ca=c.birdCount?c.weight/c.birdCount:0;if(ca&&ca<0.4)warnings.push(`Cage ${c.cageNumber}: average ${ca.toFixed(2)} kg/bird looks unusually low.`);if(ca>5.5)warnings.push(`Cage ${c.cageNumber}: average ${ca.toFixed(2)} kg/bird looks unusually high.`)}
+  const existing=(await txAll("liftings")).filter(l=>l.id!==editId&&l.farmerId===draft.farmerId&&l.liftingDate===draft.date);
+  const similar=existing.find(l=>Math.abs((Number(l.totalWeight)||0)-totalKg)<=0.5 || Number(l.totalCages)===cages.length);
+  if(similar)warnings.push(`Possible duplicate lifting: ${similar.invoiceNumber||similar.id} already exists for this farmer on ${draft.date}.`);
+  window._pendingLiftingConfirm={editId,draft,farmer,cages,totalKg,totalBirds,exact,rr};
+  openModal(`<h3>Confirm Final Lifting</h3>
+   <div class="confirm-grid">
+    <div class="confirm-item"><div class="k">Farmer</div><div class="v">${esc(farmer.name)}</div></div>
+    <div class="confirm-item"><div class="k">Date</div><div class="v">${esc(draft.date)}</div></div>
+    <div class="confirm-item"><div class="k">Total Cages</div><div class="v">${cages.length}</div></div>
+    <div class="confirm-item"><div class="k">Total Birds</div><div class="v">${totalBirds}</div></div>
+    <div class="confirm-item"><div class="k">Total Kg</div><div class="v">${fmt(totalKg)} kg</div></div>
+    <div class="confirm-item"><div class="k">Rate</div><div class="v">₹${fmt(draft.rate)}/kg</div></div>
+    <div class="confirm-item"><div class="k">Exact Amount</div><div class="v">₹${fmt(exact)}</div></div>
+    <div class="confirm-item"><div class="k">Round Off</div><div class="v">${rr.roundOff>=0?"+":""}₹${fmt(rr.roundOff)}</div></div>
+    <div class="confirm-item" style="grid-column:1/-1"><div class="k">Net Payable</div><div class="v" style="font-size:24px;color:#b91c1c">₹${fmt(rr.rounded)}</div></div>
+   </div>
+   ${warnings.length?`<div class="warning-box"><b>Please review:</b><br>${warnings.map(esc).join("<br>")}</div>`:""}
+   <div style="height:14px"></div><div class="action-group"><button class="btn" onclick="closeModal()">Back</button><button class="btn primary" onclick="commitConfirmedLifting()">Confirm & Save</button></div>`);
+ }catch(e){toast(e.message)}
+}
+async function commitConfirmedLifting(){
+ const p=window._pendingLiftingConfirm;if(!p)return toast("Confirmation expired.");
+ closeModal();await saveLifting(p.editId,true);
+}
+
+async function saveLifting(editId="",confirmed=false){
+  if(!confirmed)return confirmLiftingSave(editId);
+  const p=window._pendingLiftingConfirm;
+  if(!p)return toast("Please confirm the lifting first.");
+  const {draft,farmer,cages,totalKg,totalBirds,exact,rr}=p;
+  const old=editId?await txGet("liftings",editId):null,lid=editId||id("LIFT");
+  if(editId){
+    const oldC=(await txAll("cages")).filter(c=>c.liftingId===editId);
+    if(oldC.some(c=>c.isSold))return toast("Cannot edit lifting with sold cages.");
+    for(const c of oldC){await txDel("cages",c.id);queueCloud("cages","DELETE",c.id)}
+  }
+  const invoiceNumber=old?.invoiceNumber||await nextSequentialNumber("lifting",draft.date);
+  const dupInv=(await txAll("liftings")).find(x=>x.id!==lid&&x.invoiceNumber===invoiceNumber);
+  if(dupInv)return toast("Invoice number conflict detected. Please try again.");
+  const r={...(old||{}),id:lid,invoiceNumber,farmerId:draft.farmerId,farmerName:farmer.name,liftingDate:draft.date,totalCages:cages.length,totalWeight:totalKg,totalBirds,liftingRate:Number(draft.rate),liftingAmount:exact,totalAmount:exact,roundOff:rr.roundOff,netAmount:rr.rounded,payableAmount:rr.rounded,remarks:draft.remarks,payableToSingke:true,createdAt:old?.createdAt||iso(),updatedAt:iso()};
+  await txPut("liftings",r);queueCloud("liftings","UPSERT",r);
+  for(const c0 of cages){
+    const c={id:id("CAGE"),cageNumber:c0.cageNumber,weight:c0.weight,birdCount:c0.birdCount,isSold:false,saleId:null,liftingId:lid,farmerId:draft.farmerId,createdAt:iso(),updatedAt:iso()};
+    await txPut("cages",c);queueCloud("cages","UPSERT",c);
+  }
+  window._pendingLiftingConfirm=null;window._liftingDraft=null;window._liftingOldCages=[];window._liftingEditId="";
+  audit("liftings",old?"UPDATE":"CREATE",lid,`${cages.length} cages | ${invoiceNumber}`);
+  await refreshAll();showLiftingCompletion(lid);
+}
+async function deleteLifting(lid){requireAdmin();let cages=(await txAll("cages")).filter(c=>c.liftingId===lid);if(cages.some(c=>c.isSold))return toast("Cannot delete lifting with sold cages.");if(confirm("Delete lifting and its cages?")){for(let c of cages){await txDel("cages",c.id);queueCloud("cages","DELETE",c.id)}await txDel("liftings",lid);queueCloud("liftings","DELETE",lid);audit("liftings","DELETE",lid);refreshAll()}}
+
+async function openStore(){openModal(`<h3>Add Store</h3><div class="grid g2"><div class="field"><label>Store Name</label><input id="stName"></div><div class="field"><label>Phone</label><input id="stPhone"></div><div class="field"><label>Opening Due ₹</label><input id="stDue" type="number" step="0.01"></div><div class="field"><label>Wangkhei / Singke deduction store?</label><select id="stW"><option value="0">No</option><option value="1">Yes</option></select></div></div><div style="height:12px"></div><button class="btn primary" onclick="saveStore()">Save Store</button>`)}
+
+async function setFarmerArchived(idv,value){
+ const r=await txGet("farmers",idv);if(!r)return;r.archived=!!value;r.updatedAt=iso();await txPut("farmers",r);queueCloud("farmers","UPSERT",r);audit("farmers",value?"ARCHIVE":"RESTORE",idv);refreshAll()
+}
+async function setStoreArchived(idv,value){
+ const r=await txGet("stores",idv);if(!r)return;r.archived=!!value;r.updatedAt=iso();await txPut("stores",r);queueCloud("stores","UPSERT",r);audit("stores",value?"ARCHIVE":"RESTORE",idv);refreshAll()
+}
+
+async function saveStore(){
+ let name=document.getElementById("stName").value.trim(),phone=document.getElementById("stPhone").value.trim(),openingDue=Number(document.getElementById("stDue").value)||0,isWangkhei=document.getElementById("stW").value==="1";
+ if(!name||!phone)return toast("Store name and phone required.");
+ let all=await txAll("stores"),digits=phone.replace(/\D/g,"");
+ let dn=all.find(s=>String(s.name||"").trim().toLowerCase()===name.toLowerCase()),dp=all.find(s=>String(s.phone||"").replace(/\D/g,"")===digits);
+ if(dn&&!confirm(`Duplicate warning: store "${dn.name}" already exists. Save anyway?`))return;
+ if(dp&&!confirm(`Duplicate warning: this phone already belongs to ${dp.name}. Save anyway?`))return;
+ let r={id:id("STORE"),name,phone,openingDue,isWangkhei,archived:false,singkeAccount:isWangkhei?"Singke":"General",createdAt:iso(),updatedAt:iso()};
+ await txPut("stores",r);queueCloud("stores","UPSERT",r);await setSetting("store_meta_"+r.id,{openingDue,isWangkhei});audit("stores","CREATE",r.id);closeModal();refreshAll()
+}
+async function openPayment(){let stores=(await txAll("stores")).filter(s=>!s.archived);if(!stores.length)return toast("Add a store first.");openModal(`<h3>Record Store Payment</h3><div class="grid g2"><div class="field"><label>Store</label><select id="pStore">${stores.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></div><div class="field"><label>Date</label><input id="pDate" type="date" value="${today()}"></div><div class="field"><label>Amount ₹</label><input id="pAmt" type="number" step="0.01"></div><div class="field"><label>Mode</label><select id="pMode"><option>Cash</option><option>UPI</option><option>Bank</option><option>Cheque</option></select></div><div class="field"><label>Reference</label><input id="pRef"></div><div class="field"><label>Remarks</label><input id="pRem"></div></div><div style="height:12px"></div><button class="btn primary" onclick="savePayment()">Save Payment</button>`)}
+async function savePayment(){
+ let date=document.getElementById("pDate").value;
+ let r={id:id("PAY"),receiptNumber:await nextSequentialNumber("payment",date),storeId:document.getElementById("pStore").value,paymentDate:date,amount:Number(document.getElementById("pAmt").value)||0,paymentMode:document.getElementById("pMode").value,referenceNumber:document.getElementById("pRef").value.trim(),remarks:document.getElementById("pRem").value.trim(),createdAt:iso(),updatedAt:iso()};
+ let s=await txGet("stores",r.storeId);r.storeName=s?.name||"";
+ if(!r.paymentDate||r.amount<=0)return toast("Valid date and amount required.");
+ if((await txAll("payments")).some(x=>x.receiptNumber===r.receiptNumber))return toast("Receipt number conflict. Please retry.");
+ await txPut("payments",r);queueCloud("payments","UPSERT",r);audit("payments","CREATE",r.id,r.receiptNumber);closeModal();refreshAll()
+}
+
+async function openSale(){let stores=(await txAll("stores")).filter(s=>!s.archived),cages=(await txAll("cages")).filter(c=>!c.isSold);if(!stores.length)return toast("Add a store first.");if(!cages.length)return toast("No unsold cages available.");let lifts=await txAll("liftings"),farmers=await txAll("farmers");let lm=new Map(lifts.map(x=>[x.id,x])),fm=new Map(farmers.map(x=>[x.id,x]));openModal(`<h3>New Store Sale</h3><div class="grid g2"><div class="field"><label>Date</label><input id="saDate" type="date" value="${today()}"></div><div class="field"><label>Store</label><select id="saStore" onchange="updateSaleStoreOutstanding()">${stores.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></div><div class="field"><label>Current Store Outstanding</label><input id="saOutstanding" value="Loading..." disabled></div><div class="field"><label>Cage</label><select id="saCage" onchange="fillSaleWeight()">${cages.map(c=>{let l=lm.get(c.liftingId),f=fm.get(c.farmerId);return `<option value="${c.id}" data-w="${c.weight}">${esc(c.cageNumber)} — ${fmt(c.weight)} kg — ${esc(f?.name||l?.farmerName||"")}</option>`}).join("")}</select></div><div class="field"><label>Billed Weight kg</label><input id="saWeight" type="number" step="0.01"></div><div class="field"><label>Sales Rate ₹/kg</label><input id="saRate" type="number" step="0.01"></div><div class="field"><label>Paid Amount ₹</label><input id="saPaid" type="number" step="0.01" value="0"></div><div class="field"><label>Payment Method</label><select id="saMode"><option>Cash</option><option>UPI</option><option>Credit</option><option>Bank</option></select></div><div class="field"><label>Remarks</label><input id="saRem"></div></div><div style="height:12px"></div><button class="btn primary" onclick="saveSale()">Save Sale</button>`);fillSaleWeight();updateSaleStoreOutstanding()}
+function fillSaleWeight(){let o=document.getElementById("saCage")?.selectedOptions[0];if(o)document.getElementById("saWeight").value=o.dataset.w||""}
+async function updateSaleStoreOutstanding(){
+  const storeId=document.getElementById("saStore")?.value,el=document.getElementById("saOutstanding");if(!storeId||!el)return;
+  const st=await txGet("stores",storeId);
+  if(st?.isWangkhei||String(st?.name||"").toLowerCase().includes("wangkhei")){el.value="N/A - MPF A/C settlement";return}
+  const f=await storeSummary(storeId);el.value=`₹${fmt(f.outstanding)}`;
+}
+async function storeSummary(storeId){
+  let s=await txGet("stores",storeId),sales=(await txAll("sales")).filter(x=>x.storeId===storeId),pays=(await txAll("payments")).filter(x=>x.storeId===storeId),opening=Number(s?.openingDue)||0;
+  const totalSales=sales.reduce((a,x)=>a+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0);
+  const salePaid=sales.reduce((a,x)=>a+(Number(x.paidAmount)||0),0);
+  const direct=pays.reduce((a,x)=>a+(Number(x.amount)||0),0);
+  return {opening,totalSales,totalPaid:salePaid+direct,outstanding:opening+totalSales-salePaid-direct}
+}
+async function saveSale(){
+  let storeId=document.getElementById("saStore").value,cageId=document.getElementById("saCage").value,date=document.getElementById("saDate").value,weight=Number(document.getElementById("saWeight").value),rate=Number(document.getElementById("saRate").value),paid=Number(document.getElementById("saPaid").value)||0;
+  if(!date||weight<=0||rate<=0)return toast("Date, weight and rate are required.");
+  let cage=await txGet("cages",cageId);if(!cage||cage.isSold)return toast("Cage is no longer available.");
+  let store=await txGet("stores",storeId),fin=await storeSummary(storeId);
+  const exactAmount=Math.round(weight*rate*100)/100,rr=invoiceRound(exactAmount),netAmount=rr.rounded;
+  const sid=id("SALE"),inv=await nextSequentialNumber("sale",date);
+  let r={id:sid,invoiceNumber:inv,storeId,storeName:store.name,saleDate:date,liftingId:cage.liftingId,farmerId:cage.farmerId,cageId,cageNumber:cage.cageNumber,birdsCount:cage.birdCount,netWeight:weight,weight,salesRate:rate,ratePerKg:rate,saleAmount:exactAmount,totalAmount:exactAmount,roundOff:rr.roundOff,netAmount,invoiceNetAmount:netAmount,paidAmount:paid,previousDue:fin.outstanding,outstanding:Math.round((fin.outstanding+netAmount-paid)*100)/100,paymentMethod:document.getElementById("saMode").value,remarks:document.getElementById("saRem").value.trim(),isWangkheiSale:!!store.isWangkhei,createdAt:iso(),updatedAt:iso()};
+  if((await txAll("sales")).some(x=>x.id!==sid&&x.invoiceNumber===inv))return toast("Invoice number conflict detected. Please retry.");await txPut("sales",r);cage.isSold=true;cage.saleId=sid;cage.updatedAt=iso();await txPut("cages",cage);
+  queueCloud("sales","UPSERT",r);queueCloud("cages","UPSERT",cage);await setSetting("cage_state_"+cage.id,{isSold:true,saleId:sid,updatedAt:cage.updatedAt});
+  audit("sales","CREATE",sid,inv);closeModal();refreshAll()
+}
+
+function clearSingkeFilter(){
+  const f=document.getElementById("singkeFrom"),t=document.getElementById("singkeTo");
+  if(f)f.value=""; if(t)t.value="";
+  renderSingke();
+}
+
+async function buildSingkeLedgerPdf(){
+  const s=await singkeSummary();
+  const stores=await txAll("stores");
+  const wm=new Set(stores.filter(st=>st.isWangkhei||String(st.name||"").toLowerCase().includes("wangkhei")).map(st=>st.id));
+  let ev=[
+    ...(await txAll("liftings")).map(x=>({date:x.liftingDate||"",type:"Lifting",ref:x.id,kg:Number(x.totalWeight)||0,debit:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,credit:0})),
+    ...(await txAll("sales")).filter(x=>x.isWangkheiSale||wm.has(x.storeId)).map(x=>({date:x.saleDate||"",type:"Wangkhei",ref:x.invoiceNumber||x.id,kg:Number(x.netWeight??x.weight??x.totalWeight)||0,debit:0,credit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0})),
+    ...(await txAll("singke_settlements")).map(x=>({date:x.date||"",type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,debit:0,credit:Number(x.amount)||0}))
+  ].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
+
+  const from=document.getElementById("singkeFrom")?.value||"";
+  const to=document.getElementById("singkeTo")?.value||"";
+  let bal=Number(s.p?.amount)||0;
+  if(from){for(const e of ev){if(e.date&&e.date<from)bal+=e.debit-e.credit}}
+  const filtered=ev.filter(e=>(!from||e.date>=from)&&(!to||e.date<=to));
+  const period=from||to?`${from||"Beginning"} to ${to||"Latest"}`:"All Transactions";
+
+  const lines=[
+    "__B__PSM BROILER DISTRIBUTOR",
+    "Kongba Kshetri Leikai, Imphal East, Manipur - 795008",
+    "Singke Reconciliation Ledger",
+    `Period: ${period}`,
+    `Generated: ${new Date().toLocaleString("en-IN")}`,
+    "__HR__",
+    `Previous Due: Rs. ${fmt(s.p?.amount)}`,
+    `Total Lifting Payable: Rs. ${fmt(s.liftingPayable)}`,
+    `Wangkhei Adjustments: Rs. ${fmt(s.wang)} | Total Kg: ${fmt(s.wangKg)} kg`,
+    `Other Settlements: Rs. ${fmt(s.sett)}`,
+    `Current Remaining Due: Rs. ${fmt(s.remain)}`,
+    "__HR__",
+    "DATE         TYPE         REFERENCE             KG        DEBIT       CREDIT      BALANCE"
+  ];
+  for(const e of filtered){
+    bal+=e.debit-e.credit;
+    lines.push(`${String(e.date).padEnd(12)} ${String(e.type).slice(0,12).padEnd(12)} ${String(e.ref).slice(0,20).padEnd(21)} ${e.kg?fmt(e.kg).padStart(8):"        "} ${e.debit?fmt(e.debit).padStart(11):"           "} ${e.credit?fmt(e.credit).padStart(11):"           "} ${fmt(bal).padStart(11)}`);
+  }
+  lines.push("__HR__",`Closing Running Due for Selected View: Rs. ${fmt(bal)}`);
+  return {blob:buildSimplePdf(lines,"PSM SINGKE RECONCILIATION LEDGER"),fileName:`PSM_Singke_Reconciliation_${from||"All"}_${to||today()}.pdf`};
+}
+
+async function downloadSingkeLedgerPdf(){
+  try{
+    const {blob,fileName}=await buildSingkeLedgerPdf();
+    downloadBlob(blob,fileName);
+    audit("singke","DOWNLOAD_PDF",fileName);
+  }catch(e){toast(e.message)}
+}
+
+async function openSettlement(){openModal(`<h3>Record Payout to Singke</h3><div class="grid g2"><div class="field"><label>Date</label><input id="ssDate" type="date" value="${today()}"></div><div class="field"><label>Amount ₹</label><input id="ssAmt" type="number" step="0.01"></div><div class="field"><label>Method</label><select id="ssMode"><option>Cash</option><option>UPI</option><option>Bank</option><option>Cheque</option></select></div><div class="field"><label>Reference</label><input id="ssRef"></div></div><div class="field" style="margin-top:8px"><label>Remarks</label><input id="ssRem"></div><div style="height:12px"></div><button class="btn primary" onclick="saveSettlement()">Save Settlement</button>`)}
+async function saveSettlement(){
+ let date=document.getElementById("ssDate").value;
+ let r={id:id("SSET"),receiptNumber:await nextSequentialNumber("settlement",date),date,amount:Number(document.getElementById("ssAmt").value)||0,paymentMethod:document.getElementById("ssMode").value,referenceNumber:document.getElementById("ssRef").value.trim(),remarks:document.getElementById("ssRem").value.trim(),createdAt:iso(),updatedAt:iso()};
+ if(!r.date||r.amount<=0)return toast("Valid date and amount required.");
+ if((await txAll("singke_settlements")).some(x=>x.receiptNumber===r.receiptNumber))return toast("Receipt number conflict. Please retry.");
+ await txPut("singke_settlements",r);queueCloud("singke_settlements","UPSERT",r);audit("singke","SETTLEMENT",r.id,r.receiptNumber);closeModal();refreshAll()
+}
+async function savePreviousDue(){requireAdmin();let v={amount:Number(document.getElementById("prevDueAmt").value)||0,asOf:document.getElementById("prevDueDate").value,remarks:document.getElementById("prevDueRemarks").value.trim(),updatedAt:iso()};await setSetting("singke_previous_due",v);audit("singke","PREVIOUS_DUE","singke_previous_due");toast("Previous due saved.");refreshAll()}
+
+async function renderFarmers(){
+ let q=(document.getElementById("farmerSearch")?.value||"").toLowerCase(),a=(await txAll("farmers")).filter(f=>!q||[f.id,f.name,f.phone].some(x=>String(x).toLowerCase().includes(q))).sort((a,b)=>Number(a.archived)-Number(b.archived)||String(b.createdAt||"").localeCompare(String(a.createdAt||"")));
+ document.getElementById("farmerRows").innerHTML=a.length?a.map(f=>`<tr><td class="mono">${esc(f.id)}</td><td><b>${esc(f.name)}</b>${f.archived?'<span class="archive-badge">ARCHIVED</span>':''}</td><td>${esc(f.phone)}</td><td>${esc((f.updatedAt||f.createdAt||"").slice(0,16).replace("T"," "))}</td><td><button class="btn" onclick='openFarmer(${JSON.stringify(f).replaceAll("'","&#39;")})'>Edit</button> ${f.archived?`<button class="btn ok" onclick="setFarmerArchived('${f.id}',false)">Restore</button>`:`<button class="btn" onclick="setFarmerArchived('${f.id}',true)">Archive</button>`}</td></tr>`).join(""):`<tr><td colspan="5" class="empty">No farmers</td></tr>`
+}
+
+function pdfEsc(s){return String(s??"").replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)").replace(/[^\x20-\x7E]/g,"?")}
+function buildSimplePdf(lines,title="PSM Broiler Distributor"){
+  const pageW=595,pageH=842,left=44,top=800,lineH=14;
+  const maxLines=50;
+  const pages=[];
+  for(let i=0;i<lines.length;i+=maxLines) pages.push(lines.slice(i,i+maxLines));
+  const objs=[null];
+  const add=o=>{objs.push(o);return objs.length-1};
+  const font=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+  const fontB=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+  const pageIds=[], contentIds=[];
+  pages.forEach((p,pi)=>{
+    let y=top, content="BT\n";
+    content += `/F2 16 Tf\n${left} ${y} Td\n(${pdfEsc(title)}) Tj\n`;
+    y-=24;
+    content += `/F1 10 Tf\n`;
+    p.forEach((line,idx)=>{
+      if(line==="__HR__"){
+        content += "ET\n0.75 w\n44 "+(y+4)+" m\n551 "+(y+4)+" l\nS\nBT\n/F1 10 Tf\n";
+      }else if(line.startsWith("__B__")){
+        content += `/F2 10 Tf\n1 0 0 1 ${left} ${y} Tm\n(${pdfEsc(line.slice(5))}) Tj\n/F1 10 Tf\n`;
+      }else{
+        content += `1 0 0 1 ${left} ${y} Tm\n(${pdfEsc(line)}) Tj\n`;
+      }
+      y-=lineH;
+    });
+    content += `1 0 0 1 ${left} 28 Tm\n(Page ${pi+1} of ${pages.length}) Tj\nET`;
+    const cid=add(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
+    contentIds.push(cid);
+    pageIds.push(add(""));
+  });
+  const pagesId=add("");
+  const catalogId=add(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`);
+  pageIds.forEach((pid,i)=>{
+    objs[pid]=`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${pageW} ${pageH}] /Resources << /Font << /F1 ${font} 0 R /F2 ${fontB} 0 R >> >> /Contents ${contentIds[i]} 0 R >>`;
+  });
+  objs[pagesId]=`<< /Type /Pages /Kids [${pageIds.map(x=>x+" 0 R").join(" ")}] /Count ${pageIds.length} >>`;
+  let out="%PDF-1.4\n", offsets=[0];
+  for(let i=1;i<objs.length;i++){offsets[i]=out.length;out+=`${i} 0 obj\n${objs[i]}\nendobj\n`;}
+  const xref=out.length;
+  out+=`xref\n0 ${objs.length}\n0000000000 65535 f \n`;
+  for(let i=1;i<objs.length;i++) out+=String(offsets[i]).padStart(10,"0")+" 00000 n \n";
+  out+=`trailer\n<< /Size ${objs.length} /Root ${catalogId} 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return new Blob([out],{type:"application/pdf"});
+}
+
+function downloadBlob(blob,fileName){
+  const a=document.createElement("a");
+  const url=URL.createObjectURL(blob);
+  a.href=url;a.download=fileName;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+
+function buildStyledInvoicePdf(kind,data){
+  const W=595,H=842;
+  const escp=s=>String(s??"").replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)").replace(/[^\x20-\x7E]/g,"?");
+  const cmds=[];
+  const rgb=(r,g,b)=>`${(r/255).toFixed(3)} ${(g/255).toFixed(3)} ${(b/255).toFixed(3)}`;
+  const rect=(x,y,w,h,fill,stroke=null)=>{if(fill)cmds.push(`${rgb(...fill)} rg ${x} ${y} ${w} ${h} re f`);if(stroke)cmds.push(`${rgb(...stroke)} RG ${x} ${y} ${w} ${h} re S`)};
+  const txt=(x,y,s,size=10,bold=false,fill=[15,23,42])=>cmds.push(`BT /${bold?"F2":"F1"} ${size} Tf ${rgb(...fill)} rg 1 0 0 1 ${x} ${y} Tm (${escp(s)}) Tj ET`);
+  const line=(x1,y1,x2,y2,stroke=[5,98,63],width=1)=>cmds.push(`${rgb(...stroke)} RG ${width} w ${x1} ${y1} m ${x2} ${y2} l S`);
+
+  // Page frame
+  rect(24,28,547,786,[255,255,255],[220,228,224]);
+
+  // Header
+  rect(30,716,535,92,[255,255,255],[215,226,222]);
+  rect(442,716,123,92,[5,98,63]);
+  rect(42,733,68,68,[5,98,63]);
+  txt(54,759,"PSM",23,true,[255,255,255]);
+  txt(124,779,"PSM BROILER DISTRIBUTOR",21,true,[7,75,56]);
+  txt(124,757,"Kongba Kshetri Leikai, Imphal East, Manipur - 795008",8.5,false);
+  txt(124,741,"Quality Chicks - Reliable Supply - Stronger Farmers",8.5,true,[11,107,75]);
+  txt(456,778,kind==="farmer"?"SUPPORTING":"RELIABLE",8.5,true,[255,255,255]);
+  txt(451,761,kind==="farmer"?"BROILER FARMERS":"BROILER SUPPLY",8.5,true,[255,255,255]);
+  txt(460,744,kind==="farmer"?"FOR A BETTER":"FOR YOUR",8.5,true,[255,255,255]);
+  txt(470,727,kind==="farmer"?"TOMORROW":"BUSINESS",8.5,true,[255,255,255]);
+
+  // Title band
+  rect(42,657,511,46,[238,247,243],[216,235,226]);
+  txt(52,676,kind==="farmer"?"FARMER LIFTING INVOICE":"STORE SALES INVOICE",18,true,[16,33,42]);
+  let invNo,date;
+  if(kind==="farmer"){invNo=data.lifting.invoiceNumber||data.lifting.id;date=data.lifting.liftingDate||""}
+  else{invNo=data.sale.invoiceNumber||data.sale.id;date=data.sale.saleDate||""}
+  txt(374,684,`Invoice No: ${invNo}`,7.5,true);
+  txt(429,667,`Date: ${date}`,7.5,true);
+
+  // Detail panels
+  rect(42,554,246,88,[249,252,251],[216,227,223]);
+  rect(307,554,246,88,[249,252,251],[216,227,223]);
+  rect(42,620,246,22,[238,247,243]);
+  rect(307,620,246,22,[238,247,243]);
+
+  if(kind==="farmer"){
+    const l=data.lifting,f=data.farmer||{};
+    txt(52,627,"FARMER DETAILS",8.5,true,[12,100,71]);
+    txt(317,627,"LIFTING DETAILS",8.5,true,[12,100,71]);
+    txt(52,601,`Farmer Name: ${f.name||l.farmerName||""}`,8.5,true);
+    txt(52,578,`Address: ${f.address||"-"}`,8.5);
+    txt(317,601,`Lifting Date: ${l.liftingDate||""}`,8.5,true);
+    txt(317,584,`Lifting ID: ${l.id}`,7.5);
+    txt(317,567,`Remarks: ${l.remarks||"-"}`,8.5);
+
+    // Cage table
+    let y=525;
+    rect(42,y,511,24,[5,98,63]);
+    txt(56,y+8,"#",8.5,true,[255,255,255]);
+    txt(108,y+8,"Cage No.",8.5,true,[255,255,255]);
+    txt(286,y+8,"Weight (kg)",8.5,true,[255,255,255]);
+    txt(429,y+8,"Birds (Nos.)",8.5,true,[255,255,255]);
+    y-=22;
+
+    const cages=data.cages||[];
+    // Dynamic row height to guarantee totals + footer remain visible.
+    const maxRows=Math.max(1,Math.min(cages.length,16));
+    const available=255;
+    const rowH=Math.max(14,Math.min(21,Math.floor(available/maxRows)));
+    cages.slice(0,16).forEach((c,i)=>{
+      rect(42,y,511,rowH,i%2?[251,253,252]:[255,255,255],[207,217,213]);
+      txt(57,y+Math.max(4,rowH/2-2),String(i+1),7.5);
+      txt(110,y+Math.max(4,rowH/2-2),String(c.cageNumber||""),7.5,true);
+      txt(294,y+Math.max(4,rowH/2-2),fmt(c.weight),7.5);
+      txt(440,y+Math.max(4,rowH/2-2),String(c.birdCount||0),7.5);
+      y-=rowH;
+    });
+
+    const totalBirds=cages.reduce((s,c)=>s+(Number(c.birdCount)||0),0);
+    const totalY=Math.max(178,y-116);
+    rect(313,totalY,240,126,[255,255,255],[212,223,218]);
+    const farmerRound=invoiceRound(l.liftingAmount??l.totalAmount);
+    const rows=[
+      ["Total Cages",cages.length],
+      ["Total Birds",totalBirds],
+      ["Total Weight",`${fmt(l.totalWeight)} kg`],
+      ["Lifting Rate",`Rs. ${fmt(l.liftingRate??l.ratePerKg)} / kg`],
+      ["Round Off",`${farmerRound.roundOff>=0?"+":""}Rs. ${fmt(farmerRound.roundOff)}`]
+    ];
+    rows.forEach((r,i)=>{const yy=totalY+102-i*18;txt(325,yy,r[0],8.5);txt(462,yy,String(r[1]),8.5,true)});
+    rect(313,totalY,240,27,[232,247,238],[180,220,196]);
+    txt(325,totalY+9,"Net Amount",11,true);
+    txt(462,totalY+9,`Rs. ${fmt(farmerRound.rounded)}`,11,true);
+
+    rect(42,125,511,36,[233,248,239]);
+    txt(52,145,"Thank you for your trust and support!",8.5,true,[11,107,75]);
+    txt(52,132,"Together for a stronger poultry farming community.",7.5,false,[11,107,75]);
+  } else {
+    const s=data.sale,st=data.store||{},farmer=data.farmer||{};
+    txt(52,627,"STORE DETAILS",8.5,true,[12,100,71]);
+    txt(317,627,"SALE DETAILS",8.5,true,[12,100,71]);
+    txt(52,601,`Store Name: ${st.name||s.storeName||""}`,8.5,true);
+    txt(52,584,"Company Phone: 7005215398",8.5);
+    txt(52,567,`Account: ${data.wangkhei?"MPF A/C":"Regular Store"}`,8.5);
+    txt(317,601,`Sale Date: ${s.saleDate||""}`,8.5,true);
+    txt(317,584,`Farmer: ${farmer.name||s.farmerName||"-"}`,8.5);
+    txt(317,567,`Sale ID: ${s.id}`,7.5);
+
+    let y=525;
+    rect(42,y,511,24,[5,98,63]);
+    ["Description","Cage","Weight","Birds","Rate","Amount"].forEach((h,i)=>txt([52,214,278,346,398,472][i],y+8,h,7.5,true,[255,255,255]));
+    y-=30;
+    rect(42,y,511,30,[255,255,255],[207,217,213]);
+    txt(52,y+11,"Live Broiler Supply",7.5,true);
+    txt(216,y+11,String(s.cageNumber||s.cageId||""),7.5);
+    txt(280,y+11,fmt(s.weight??s.netWeight),7.5);
+    txt(350,y+11,String(s.birdsCount||0),7.5);
+    txt(398,y+11,`Rs.${fmt(s.salesRate??s.ratePerKg)}`,7.5);
+    txt(472,y+11,`Rs.${fmt(s.saleAmount??s.totalAmount)}`,7.5,true);
+
+    const totalY=320;
+    rect(313,totalY,240,142,[255,255,255],[212,223,218]);
+    const storeRound=invoiceRound(s.saleAmount??s.totalAmount);
+    const rows=data.wangkhei
+      ? [["Invoice Amount",`Rs. ${fmt(storeRound.exact)}`],["Round Off",`${storeRound.roundOff>=0?"+":""}Rs. ${fmt(storeRound.roundOff)}`],["Net Invoice",`Rs. ${fmt(storeRound.rounded)}`],["Paid Amount",`Rs. ${fmt(s.paidAmount)}`],["Settlement","MPF A/C"]]
+      : [["Previous Due",`Rs. ${fmt(s.previousDue)}`],["Invoice Amount",`Rs. ${fmt(storeRound.exact)}`],["Round Off",`${storeRound.roundOff>=0?"+":""}Rs. ${fmt(storeRound.roundOff)}`],["Net Invoice",`Rs. ${fmt(storeRound.rounded)}`],["Paid Amount",`Rs. ${fmt(s.paidAmount)}`],["Outstanding",`Rs. ${fmt(s.outstanding)}`]];
+    rows.forEach((r,i)=>{const yy=totalY+116-i*18;txt(325,yy,r[0],8.5);txt(452,yy,r[1],8.5,true)});
+
+    rect(42,125,511,36,[233,248,239]);
+    txt(52,145,"Thank you for your business!",8.5,true,[11,107,75]);
+    txt(52,132,"Reliable broiler supply from PSM Broiler Distributor.",7.5,false,[11,107,75]);
+  }
+
+  // Footer always fully visible inside page margins
+  line(42,109,553,109,[5,98,63],2);
+  txt(218,91,"PSM Broiler Distributor",11,true);
+  txt(158,76,"Kongba Kshetri Leikai, Imphal East, Manipur - 795008",7.5);
+  if(kind==="store") txt(247,63,"Phone: 7005215398",7.5,true,[7,75,56]);
+  rect(42,36,511,20,[238,247,243]);
+  txt(165,43,"This is a computer-generated invoice. No signature is required.",7.5);
+
+  // Serialize one-page A4 PDF
+  const stream=cmds.join("\n");
+  const objs=[null,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+    "<< /Type /Pages /Kids [5 0 R] /Count 1 >>",
+    `<< /Type /Page /Parent 4 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 3 0 R >>`,
+    "<< /Type /Catalog /Pages 4 0 R >>"
+  ];
+  let out="%PDF-1.4\n",offs=[0];
+  for(let i=1;i<objs.length;i++){offs[i]=out.length;out+=`${i} 0 obj\n${objs[i]}\nendobj\n`}
+  const xref=out.length;out+=`xref\n0 ${objs.length}\n0000000000 65535 f \n`;
+  for(let i=1;i<objs.length;i++)out+=String(offs[i]).padStart(10,"0")+" 00000 n \n";
+  out+=`trailer\n<< /Size ${objs.length} /Root 6 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return new Blob([out],{type:"application/pdf"});
+}
+
+function professionalFarmerPdfLines(data){
+  const {lifting:l,farmer:f,cages}=data;
+  const lines=[
+    "__B__PSM BROILER DISTRIBUTOR",
+    "Kongba Kshetri Leikai, Imphal East, Manipur - 795008",
+    "Farmer Lifting Invoice",
+    "__HR__",
+    `Invoice ID: ${l.id}`,
+    `Lifting Date: ${l.liftingDate||""}`,
+    `Farmer Name: ${f?.name||l.farmerName||""}`,
+        "__HR__",
+    "__B__CAGE-WISE DETAILS",
+    "SL   CAGE NO.         WEIGHT (KG)        BIRDS"
+  ];
+  cages.forEach((c,i)=>lines.push(`${String(i+1).padEnd(4)} ${String(c.cageNumber||"").padEnd(16)} ${fmt(c.weight).padStart(10)}          ${String(c.birdCount||0).padStart(5)}`));
+  lines.push(
+    "__HR__",
+    `Total Cages: ${cages.length}`,
+    `Total Birds: ${cages.reduce((s,c)=>s+(Number(c.birdCount)||0),0)}`,
+    `Total Weight: ${fmt(l.totalWeight)} kg`,
+    `Lifting Rate: Rs. ${fmt(l.liftingRate??l.ratePerKg)} / kg`,
+    `Total Lifting Amount: Rs. ${fmt(l.liftingAmount??l.totalAmount)}`,
+    "__HR__",
+    `Remarks: ${l.remarks||"-"}`,
+    "",
+    "",
+    "This is a computer-generated invoice. No signature is required.",
+    "",
+    "This is a computer-generated invoice. No signature is required.","","Thank you for working with PSM Broiler Distributor."
+  );
+  return lines;
+}
+async function downloadFarmerInvoicePdf(liftingId){
+  const data=await getFarmerInvoiceData(liftingId);
+  const clean=(data.farmer?.name||data.lifting.farmerName||"Farmer").replace(/[^a-z0-9]+/gi,"_");
+  const fileName=`PSM_Farmer_Lifting_Invoice_${clean}_${data.lifting.liftingDate||today()}.pdf`;
+  const blob=buildStyledInvoicePdf("farmer",data);
+  downloadBlob(blob,fileName);audit("invoice","DOWNLOAD_PDF",liftingId)
+}
+async function makeStoreInvoicePdf(saleId){
+  const s=await txGet("sales",saleId);if(!s)throw new Error("Sale not found.");
+  const st=await txGet("stores",s.storeId),farmer=s.farmerId?await txGet("farmers",s.farmerId):null;
+  const wangkhei=!!(st?.isWangkhei||s.isWangkheiSale);
+  const clean=(st?.name||s.storeName||"Store").replace(/[^a-z0-9]+/gi,"_");
+  const data={sale:s,store:st,farmer,wangkhei};
+  return {blob:buildStyledInvoicePdf("store",data),fileName:`PSM_Store_Invoice_${clean}_${s.saleDate||today()}.pdf`,s,st};
+}
+async function downloadStoreInvoicePdf(saleId){
+  const {blob,fileName}=await makeStoreInvoicePdf(saleId);downloadBlob(blob,fileName);audit("invoice","STORE_DOWNLOAD_PDF",saleId)
+}
+
+async function buildDailyOperationalSummaryPdf(dateValue=today()){
+ const lift=(await txAll("liftings")).filter(x=>x.liftingDate===dateValue),sales=(await txAll("sales")).filter(x=>x.saleDate===dateValue),sett=(await txAll("singke_settlements")).filter(x=>x.date===dateValue),stores=await txAll("stores");
+ const liftKg=lift.reduce((s,x)=>s+(Number(x.totalWeight)||0),0),liftAmt=lift.reduce((s,x)=>s+(Number(x.netAmount??x.payableAmount??x.liftingAmount)||0),0);
+ const salesKg=sales.reduce((s,x)=>s+(Number(x.weight??x.netWeight)||0),0),salesAmt=sales.reduce((s,x)=>s+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0),0);
+ const wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>s.id)),ws=sales.filter(s=>s.isWangkheiSale||wm.has(s.storeId));
+ const wangKg=ws.reduce((s,x)=>s+(Number(x.weight??x.netWeight)||0),0),wangAmt=ws.reduce((s,x)=>s+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0),0);
+ const settlements=sett.reduce((s,x)=>s+(Number(x.amount)||0),0),lm=new Map((await txAll("liftings")).map(x=>[x.id,x]));
+ const cost=sales.reduce((a,s)=>a+(Number(s.weight??s.netWeight)||0)*(Number(lm.get(s.liftingId)?.liftingRate)||0),0),profit=salesAmt-cost;
+ let outstanding=0;for(const st of stores){if(st.archived||st.isWangkhei||String(st.name||"").toLowerCase().includes("wangkhei"))continue;outstanding+=(await storeSummary(st.id)).outstanding}
+ const sg=await singkeSummary();
+ const lines=["__B__PSM BROILER DISTRIBUTOR","Kongba Kshetri Leikai, Imphal East, Manipur - 795008",`Daily Operational Summary - ${dateValue}`,"__HR__",`Liftings: ${lift.length}`,`Total Lifting Kg: ${fmt(liftKg)} kg`,`Lifting Payable: Rs. ${fmt(liftAmt)}`,`Sales Transactions: ${sales.length}`,`Total Sales Kg: ${fmt(salesKg)} kg`,`Sales Value: Rs. ${fmt(salesAmt)}`,`Wangkhei Adjustment: ${fmt(wangKg)} kg | Rs. ${fmt(wangAmt)}`,`Singke Settlements: Rs. ${fmt(settlements)}`,`Gross Profit: Rs. ${fmt(profit)}`,`Store Outstanding: Rs. ${fmt(outstanding)}`,`Closing Singke Balance: Rs. ${fmt(sg.remain)}`,"__HR__",`Generated: ${new Date().toLocaleString("en-IN")}`];
+ return {blob:buildSimplePdf(lines,"PSM DAILY OPERATIONAL SUMMARY"),fileName:`PSM_Daily_Operational_Summary_${dateValue}.pdf`};
+}
+async function downloadDailyOperationalSummaryPdf(){try{const x=await buildDailyOperationalSummaryPdf(today());downloadBlob(x.blob,x.fileName);audit("reports","DAILY_SUMMARY_PDF",today())}catch(e){toast(e.message)}}
+
+async function buildLedgerPdf(){
+  const sel=document.getElementById("ledgerStore"),storeId=sel?.value;if(!storeId)throw new Error("Select a store.");
+  const st=await txGet("stores",storeId),wang=!!(st?.isWangkhei||String(st?.name||"").toLowerCase().includes("wangkhei"));
+  const sales=(await txAll("sales")).filter(x=>x.storeId===storeId).map(x=>({date:x.saleDate,type:"Sale",ref:x.invoiceNumber||x.id,debit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,credit:Number(x.paidAmount)||0}));
+  const pays=(await txAll("payments")).filter(x=>x.storeId===storeId).map(x=>({date:x.paymentDate,type:"Payment",ref:x.receiptNumber||x.referenceNumber||x.id,debit:0,credit:Number(x.amount)||0}));
+  const ev=[...sales,...pays].sort((a,b)=>a.date.localeCompare(b.date));
+  let bal=wang?0:(Number(st.openingDue)||0);
+  const lines=["__B__PSM BROILER DISTRIBUTOR","Kongba Kshetri Leikai, Imphal East, Manipur - 795008","Store Ledger","__HR__",`Store: ${st.name}`,`Phone: ${st.phone||""}`,`Generated: ${new Date().toLocaleString("en-IN")}`,"__HR__","DATE         TYPE      REFERENCE              DEBIT       CREDIT      BALANCE"];
+  if(!wang) lines.push(`             Opening                           ${fmt(bal).padStart(10)}              ${fmt(bal).padStart(10)}`);
+  for(const e of ev){
+    bal+=e.debit-e.credit;
+    lines.push(`${String(e.date||"").padEnd(12)} ${String(e.type).padEnd(9)} ${String(e.ref||"").slice(0,20).padEnd(21)} ${e.debit?fmt(e.debit).padStart(10):"          "} ${e.credit?fmt(e.credit).padStart(10):"          "} ${wang?"N/A":fmt(bal).padStart(10)}`);
+  }
+  if(!wang){lines.push("__HR__",`Closing Outstanding: Rs. ${fmt(bal)}`)}
+  else {lines.push("__HR__","Wangkhei store uses MPF A/C settlement account; outstanding is not applicable.")}
+  const clean=st.name.replace(/[^a-z0-9]+/gi,"_");
+  return {blob:buildSimplePdf(lines,"PSM STORE LEDGER"),fileName:`PSM_Store_Ledger_${clean}_${today()}.pdf`}
+}
+async function downloadStoreLedgerPdf(){
+  try{const {blob,fileName}=await buildLedgerPdf();downloadBlob(blob,fileName);audit("ledger","DOWNLOAD_PDF",document.getElementById("ledgerStore").value)}
+  catch(e){toast(e.message)}
+}
+async function getFarmerInvoiceData(liftingId){
+  const lifting=await txGet("liftings",liftingId);
+  if(!lifting) throw new Error("Lifting not found.");
+  const farmer=await txGet("farmers",lifting.farmerId);
+  const cages=(await txAll("cages")).filter(c=>c.liftingId===liftingId).sort((a,b)=>String(a.cageNumber).localeCompare(String(b.cageNumber),undefined,{numeric:true}));
+  return {lifting,farmer,cages};
+}
+function invoiceLines(data){
+  const {lifting:l,farmer:f,cages}=data;
+  const lines=[
+    "__B__PSM BROILER DISTRIBUTOR",
+    "PSM Broiler Distributor - Farmer Lifting Invoice / Lifting Log",
+    "__HR__",
+    `Invoice / Lifting ID: ${l.id}`,
+    `Lifting Date: ${l.liftingDate||""}`,
+    `Farmer: ${f?.name||l.farmerName||""}`,
+    `Phone: ${f?.phone||""}`,
+    "__HR__",
+    "__B__CAGE-WISE LIFTING DETAILS",
+    "Cage No.        Weight (kg)        Birds",
+  ];
+  cages.forEach(c=>{
+    lines.push(`${String(c.cageNumber||"").padEnd(15)} ${fmt(c.weight).padStart(10)}           ${String(c.birdCount||0).padStart(5)}`);
+  });
+  lines.push(
+    "__HR__",
+    `Total Cages: ${cages.length}`,
+    `Total Birds: ${cages.reduce((s,c)=>s+(Number(c.birdCount)||0),0)}`,
+    `Total Weight: ${fmt(cages.reduce((s,c)=>s+(Number(c.weight)||0),0))} kg`,
+    `Lifting Rate: Rs. ${fmt(l.liftingRate??l.ratePerKg)} / kg`,
+    `Total Lifting Amount: Rs. ${fmt(l.liftingAmount??l.totalAmount)}`,
+    "__HR__",
+    `Remarks: ${l.remarks||"-"}`,
+    "",
+    
+    
+    "",
+    "Generated by PSM Broiler Distributor"
+  );
+  return lines;
+}
+
+function buildMultiPageFarmerInvoicePdf(data){
+ const l=data.lifting,f=data.farmer||{},cages=data.cages||[],perPage=18;
+ const chunks=[];for(let i=0;i<cages.length;i+=perPage)chunks.push(cages.slice(i,i+perPage));if(!chunks.length)chunks.push([]);
+ const W=595,H=842,objs=[null],add=o=>{objs.push(o);return objs.length-1};
+ const font=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"),fontB=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+ const pageIds=[],contentIds=[];
+ const ep=s=>String(s??"").replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)").replace(/[^\x20-\x7E]/g,"?");
+ const rgb=(r,g,b)=>`${(r/255).toFixed(3)} ${(g/255).toFixed(3)} ${(b/255).toFixed(3)}`;
+ chunks.forEach((chunk,pi)=>{
+  const c=[],rect=(x,y,w,h,fill,stroke=null)=>{if(fill)c.push(`${rgb(...fill)} rg ${x} ${y} ${w} ${h} re f`);if(stroke)c.push(`${rgb(...stroke)} RG ${x} ${y} ${w} ${h} re S`)};
+  const txt=(x,y,s,size=9,b=false,fill=[17,24,39])=>c.push(`BT /${b?"F2":"F1"} ${size} Tf ${rgb(...fill)} rg 1 0 0 1 ${x} ${y} Tm (${ep(s)}) Tj ET`);
+  rect(24,28,547,786,[255,255,255],[226,232,240]);rect(36,742,523,58,[185,28,28]);
+  txt(49,774,"PSM BROILER DISTRIBUTOR",19,true,[255,255,255]);txt(49,754,"Kongba Kshetri Leikai, Imphal East, Manipur - 795008",8,false,[255,255,255]);
+  txt(390,774,"FARMER INVOICE",10,true,[255,255,255]);txt(390,756,`Page ${pi+1} of ${chunks.length}`,8,false,[255,255,255]);
+  rect(36,674,523,54,[255,241,242],[254,202,202]);
+  txt(48,708,`Invoice: ${l.invoiceNumber||l.id}`,9,true,[153,27,27]);txt(330,708,`Date: ${l.liftingDate||""}`,9,true);
+  txt(48,688,`Farmer: ${f.name||l.farmerName||""}`,9,true);txt(330,688,`Rate: Rs. ${fmt(l.liftingRate??l.ratePerKg)}/kg`,9,true);
+  let y=642;rect(36,y,523,24,[153,27,27]);["#","Cage No.","Weight (kg)","Birds"].forEach((h,i)=>txt([48,105,300,455][i],y+8,h,8,true,[255,255,255]));y-=22;
+  const offset=pi*perPage;
+  chunk.forEach((x,j)=>{rect(36,y,523,22,j%2?[255,247,247]:[255,255,255],[241,245,249]);txt(48,y+7,String(offset+j+1),8);txt(105,y+7,String(x.cageNumber||""),8,true);txt(300,y+7,fmt(x.weight),8);txt(455,y+7,String(x.birdCount||0),8);y-=22});
+  if(pi===chunks.length-1){
+   const rr=invoiceRound(l.liftingAmount??l.totalAmount);
+   const sumY=Math.max(110,y-140);rect(300,sumY,259,126,[255,247,247],[254,202,202]);
+   const vals=[["Total Cages",cages.length],["Total Birds",cages.reduce((s,x)=>s+(Number(x.birdCount)||0),0)],["Total Weight",`${fmt(l.totalWeight)} kg`],["Exact Amount",`Rs. ${fmt(rr.exact)}`],["Round Off",`${rr.roundOff>=0?"+":""}Rs. ${fmt(rr.roundOff)}`],["Net Payable",`Rs. ${fmt(rr.rounded)}`]];
+   vals.forEach((r,i)=>{txt(314,sumY+103-i*18,r[0],8,i===5);txt(460,sumY+103-i*18,String(r[1]),8,true,[153,27,27])});
+  }
+  txt(153,47,"This is a computer-generated invoice. No signature is required.",7,false,[107,114,128]);
+  const stream=c.join("\n"),cid=add(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);contentIds.push(cid);pageIds.push(add(""));
+ });
+ const pagesId=add(""),catalogId=add(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`);
+ pageIds.forEach((pid,i)=>objs[pid]=`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 ${font} 0 R /F2 ${fontB} 0 R >> >> /Contents ${contentIds[i]} 0 R >>`);
+ objs[pagesId]=`<< /Type /Pages /Kids [${pageIds.map(x=>x+" 0 R").join(" ")}] /Count ${pageIds.length} >>`;
+ let out="%PDF-1.4\n",offsets=[0];for(let i=1;i<objs.length;i++){offsets[i]=out.length;out+=`${i} 0 obj\n${objs[i]}\nendobj\n`}const xr=out.length;
+ out+=`xref\n0 ${objs.length}\n0000000000 65535 f \n`;for(let i=1;i<objs.length;i++)out+=String(offsets[i]).padStart(10,"0")+" 00000 n \n";
+ out+=`trailer\n<< /Size ${objs.length} /Root ${catalogId} 0 R >>\nstartxref\n${xr}\n%%EOF`;return new Blob([out],{type:"application/pdf"});
+}
+
+async function createFarmerInvoicePdf(liftingId){
+  const data=await getFarmerInvoiceData(liftingId);
+  const clean=(data.farmer?.name||data.lifting.farmerName||"Farmer").replace(/[^a-z0-9]+/gi,"_");
+  const fileName=`PSM_Farmer_Lifting_Invoice_${clean}_${data.lifting.liftingDate||today()}.pdf`;
+  return {blob:buildMultiPageFarmerInvoicePdf(data),fileName,data};
+}
+
+async function showLiftingCompletion(lid){
+ const data=await getFarmerInvoiceData(lid),l=data.lifting,f=data.farmer||{},c=data.cages,rr=invoiceRound(l.liftingAmount??l.totalAmount);
+ goToView("lifting-complete");
+ const el=document.getElementById("liftingCompletionSummary");if(!el)return;
+ el.innerHTML=`<div class="psm-title">CAGE ENTRY SUMMARY</div><div class="sub">Invoice ${esc(l.invoiceNumber||l.id)} • ${esc(l.liftingDate)}</div>
+ <div style="height:12px"></div><div class="confirm-grid">
+ <div class="confirm-item"><div class="k">Farmer</div><div class="v">${esc(f.name||l.farmerName||"")}</div></div>
+ <div class="confirm-item"><div class="k">Cages</div><div class="v">${c.length}</div></div>
+ <div class="confirm-item"><div class="k">Birds</div><div class="v">${c.reduce((s,x)=>s+(Number(x.birdCount)||0),0)}</div></div>
+ <div class="confirm-item"><div class="k">Total Kg</div><div class="v">${fmt(l.totalWeight)} kg</div></div>
+ <div class="confirm-item"><div class="k">Rate</div><div class="v">₹${fmt(l.liftingRate)}/kg</div></div>
+ <div class="confirm-item"><div class="k">Net Payable</div><div class="v">₹${fmt(rr.rounded)}</div></div></div>
+ <div style="height:12px"></div><div class="tablewrap"><table><thead><tr><th>#</th><th>Cage</th><th>Weight kg</th><th>Birds</th></tr></thead><tbody>${c.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.cageNumber)}</td><td>${fmt(x.weight)}</td><td>${x.birdCount||0}</td></tr>`).join("")}</tbody></table></div>`;
+ const ib=document.getElementById("completeInvoiceBtn"),wb=document.getElementById("completeWhatsAppBtn");if(ib)ib.onclick=()=>previewFarmerInvoice(lid);if(wb)wb.onclick=()=>shareFarmerLiftingPdf(lid);
+}
+function printLiftingCompletion(){window.print()}
+
+async function previewFarmerInvoice(liftingId){
+  try{
+    const data=await getFarmerInvoiceData(liftingId),l=data.lifting,f=data.farmer||{},cages=data.cages;
+    const rows=cages.map((c,i)=>`<tr><td>${i+1}</td><td><b>${esc(c.cageNumber)}</b></td><td>${fmt(c.weight)}</td><td>${c.birdCount||0}</td></tr>`).join("");
+    openModal(`<div class="psm-invoice">
+      <div class="psm-brandbar">
+        <div class="psm-logo"><div class="psm-logo-mark">PSM</div></div>
+        <div class="psm-brandmain">
+          <div class="psm-brandname">PSM BROILER DISTRIBUTOR</div>
+          <div class="psm-address">Kongba Kshetri Leikai, Imphal East, Manipur - 795008</div>
+          <div class="psm-tagline">Quality Chicks · Reliable Supply · Stronger Farmers</div>
+        </div>
+        <div class="psm-support">SUPPORTING<br>BROILER FARMERS<br>FOR A BETTER<br>TOMORROW</div>
+      </div>
+      <div class="psm-invoice-body">
+        <div class="psm-titleband">
+          <div><div class="psm-title">FARMER LIFTING INVOICE</div><div class="psm-title-sub">PSM Broiler Distributor</div></div>
+          <div class="psm-meta"><div><b>Invoice No:</b> ${esc(l.invoiceNumber||l.id)}</div><div><b>Date:</b> ${esc(l.liftingDate||"")}</div></div>
+        </div>
+        <div class="psm-info-grid">
+          <div class="psm-info"><h4>FARMER DETAILS</h4><div class="body">
+            <div>Farmer Name</div><b>${esc(f.name||l.farmerName||"")}</b>
+            <div>Address</div><span>${esc(f.address||"-")}</span>
+          </div></div>
+          <div class="psm-info"><h4>LIFTING DETAILS</h4><div class="body">
+            <div>Lifting Date</div><b>${esc(l.liftingDate||"")}</b>
+            <div>Lifting ID</div><span class="mono">${esc(l.id)}</span>
+            <div>Remarks</div><span>${esc(l.remarks||"-")}</span>
+          </div></div>
+        </div>
+        <table class="psm-table"><thead><tr><th>#</th><th>Cage No.</th><th>Weight (kg)</th><th>Birds (Nos.)</th></tr></thead><tbody>${rows}</tbody></table>
+        <div class="psm-totals">
+          <div class="psm-total-row"><span>Total Cages</span><b>${cages.length}</b></div>
+          <div class="psm-total-row"><span>Total Birds</span><b>${cages.reduce((s,c)=>s+(Number(c.birdCount)||0),0)}</b></div>
+          <div class="psm-total-row"><span>Total Weight</span><b>${fmt(l.totalWeight)} kg</b></div>
+          <div class="psm-total-row"><span>Lifting Rate</span><b>₹${fmt(l.liftingRate??l.ratePerKg)} / kg</b></div>
+          ${(()=>{const rr=invoiceRound(l.liftingAmount??l.totalAmount);return `<div class="psm-total-row"><span>Amount</span><b>₹${fmt(rr.exact)}</b></div><div class="psm-total-row"><span>Round Off</span><b>${rr.roundOff>=0?"+":""}₹${fmt(rr.roundOff)}</b></div><div class="psm-total-row final"><span>Net Amount</span><span>₹${fmt(rr.rounded)}</span></div>`})()}
+        </div>
+        <div class="psm-thanks"><b>Thank you for your trust and support!</b><span>Together for a stronger poultry farming community.</span></div>
+        <div class="psm-footer">
+          <div class="name">PSM Broiler Distributor</div>
+          <div class="addr">Kongba Kshetri Leikai, Imphal East, Manipur - 795008</div>
+          <div class="psm-contact"><span>📍 Kongba Kshetri Leikai, Imphal East, Manipur - 795008</span></div>
+          <div class="psm-generated">This is a computer-generated invoice. No signature is required.</div>
+        </div>
+      </div>
+    </div>
+    <div style="height:12px"></div><div class="action-group invoice-actions">
+      <button class="btn primary" onclick="downloadFarmerInvoicePdf('${liftingId}')">Save PDF</button>
+      <button class="btn ok" onclick="shareFarmerLiftingPdf('${liftingId}')">Share WhatsApp</button>
+    </div>`);
+    audit("invoice","PREVIEW",liftingId);
+  }catch(e){toast(e.message)}
+}
+function printInvoiceView(){window.print()}
+function normalizeWhatsappPhone(phone){
+  let p=String(phone||"").replace(/\D/g,"");
+  if(p.length===10) p="91"+p;
+  return p;
+}
+async function shareFarmerLiftingPdf(liftingId){
+  try{
+    const {blob,fileName,data}=await createFarmerInvoicePdf(liftingId);
+    const file=new File([blob],fileName,{type:"application/pdf"}),f=data.farmer||{},l=data.lifting;
+    const msg=`PSM Farmer Lifting Invoice\nKongba Kshetri Leikai, Imphal East, Manipur - 795008\nFarmer: ${f.name||l.farmerName||""}\nDate: ${l.liftingDate||""}\nTotal Cages: ${data.cages.length}\nTotal Birds: ${l.totalBirds||0}\nTotal Weight: ${fmt(l.totalWeight)} kg\nTotal Amount: Rs. ${fmt(l.liftingAmount??l.totalAmount)}`;
+    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({title:"PSM Farmer Lifting Invoice",text:msg,files:[file]});audit("invoice","SHARE_PDF",liftingId,f.phone||"");return;
+    }
+    downloadBlob(blob,fileName);const p=normalizeWhatsappPhone(f.phone);window.open(`https://wa.me/${p}?text=${encodeURIComponent(msg+"\n\nPlease attach the generated PDF invoice.")}`,"_blank");toast("PDF saved. WhatsApp opened; attach the generated invoice.");
+  }catch(e){if(e?.name!=="AbortError")toast("Invoice share error: "+e.message)}
+}
+
+async function renderFarmersCombined(){
+ let q=(document.getElementById("farmerSearchCombined")?.value||"").toLowerCase();
+ let a=(await txAll("farmers")).filter(f=>!q||[f.id,f.name,f.phone].some(x=>String(x).toLowerCase().includes(q))).sort((a,b)=>Number(a.archived)-Number(b.archived)||a.name.localeCompare(b.name));
+ const el=document.getElementById("farmerRowsCombined"); if(!el)return;
+ el.innerHTML=a.length?a.map(f=>`<tr><td class="mono">${esc(f.id)}</td><td><b>${esc(f.name)}</b>${f.archived?'<span class="archive-badge">ARCHIVED</span>':''}</td><td>${esc(f.phone)}</td><td><div class="action-group"><button class="btn" onclick='openFarmer(${JSON.stringify(f).replaceAll("'","&#39;")})'>Edit</button>${f.archived?`<button class="btn ok" onclick="setFarmerArchived('${f.id}',false)">Restore</button>`:`<button class="btn" onclick="setFarmerArchived('${f.id}',true)">Archive</button>`}</div></td></tr>`).join(""):`<tr><td colspan="4" class="empty">No farmers</td></tr>`;
+}
+async function renderLiftings(){
+  let a=(await txAll("liftings")).sort((a,b)=>String(b.liftingDate||"").localeCompare(String(a.liftingDate||"")));
+  let fm=new Map((await txAll("farmers")).map(f=>[f.id,f]));
+  document.getElementById("liftingRows").innerHTML=a.length?a.map(l=>`<tr>
+    <td>${esc(l.liftingDate)}</td><td class="mono">${esc(l.invoiceNumber||l.id)}</td><td>${esc(fm.get(l.farmerId)?.name||l.farmerName||"")}</td>
+    <td>${l.totalCages||0}</td><td>${l.totalBirds||0}</td><td>${fmt(l.totalWeight)} kg</td><td>₹${fmt(l.liftingRate??l.ratePerKg)}</td><td><b>₹${fmt(l.netAmount??l.payableAmount??l.liftingAmount??l.totalAmount)}</b></td>
+    <td><button class="btn primary" onclick="openLiftingActions('${l.id}')">Action</button></td>
+  </tr>`).join(""):`<tr><td colspan="9" class="empty">No liftings</td></tr>`;
+  document.getElementById("liftQuickCount").textContent=a.length;
+  document.getElementById("liftQuickCages").textContent=a.reduce((s,l)=>s+(Number(l.totalCages)||0),0);
+  document.getElementById("liftQuickWeight").textContent=fmt(a.reduce((s,l)=>s+(Number(l.totalWeight)||0),0));
+}
+function openLiftingActions(id){
+ openModal(`<h3>Lifting Actions</h3><div class="action-group">
+ <button class="btn" onclick="closeModal();openLifting('${id}')">Edit</button>
+ ${S.role==="admin"?`<button class="btn bad" onclick="closeModal();deleteLifting('${id}')">Delete</button>`:""}
+ <button class="btn primary" onclick="closeModal();previewFarmerInvoice('${id}')">Invoice</button>
+ <button class="btn ok" onclick="shareFarmerLiftingPdf('${id}')">Share WhatsApp</button>
+ </div>`);
+}
+async function renderSales(){
+ let a=(await txAll("sales")).sort((a,b)=>String(b.saleDate||"").localeCompare(String(a.saleDate||"")));
+ let stores=new Map((await txAll("stores")).map(s=>[s.id,s]));
+ document.getElementById("saleRows").innerHTML=a.length?a.map(s=>{
+   let st=stores.get(s.storeId),wang=!!(st?.isWangkhei||s.isWangkheiSale);
+   return `<tr><td>${esc(s.saleDate)}</td><td class="mono">${esc(s.invoiceNumber||s.id)}</td><td>${esc(s.storeName||st?.name||"")}</td><td>${esc(s.cageNumber||s.cageId||"")}</td><td>${fmt(s.weight??s.netWeight)} kg</td><td>₹${fmt(s.salesRate??s.ratePerKg)}</td><td>₹${fmt(s.saleAmount??s.totalAmount)}</td><td>₹${fmt(s.paidAmount)}</td><td>${wang?'<span class="badge blue">N/A</span>':`<b>₹${fmt(s.outstanding)}</b>`}</td><td><button class="btn primary" onclick="openSaleActions('${s.id}')">Action</button></td></tr>`
+ }).join(""):`<tr><td colspan="10" class="empty">No sales</td></tr>`
+}
+function openSaleActions(id){
+ openModal(`<h3>Sales Actions</h3><div class="action-group">
+ <button class="btn" onclick="closeModal();editSale('${id}')">Edit</button>
+ ${S.role==="admin"?`<button class="btn bad" onclick="closeModal();deleteSale('${id}')">Delete</button>`:""}
+ <button class="btn primary" onclick="closeModal();previewStoreInvoice('${id}')">Invoice</button>
+ <button class="btn ok" onclick="shareStoreInvoiceWhatsApp('${id}')">Share WhatsApp</button>
+ </div>`);
+}
+async function editSale(id){
+ let s=await txGet("sales",id);if(!s)return;
+ let store=await txGet("stores",s.storeId);
+ openModal(`<h3>Edit Sale</h3><div class="grid g2">
+ <div class="field"><label>Date</label><input id="esaDate" type="date" value="${s.saleDate||today()}"></div>
+ <div class="field"><label>Store</label><input value="${esc(store?.name||s.storeName||"")}" disabled></div>
+ <div class="field"><label>Weight kg</label><input id="esaWeight" type="number" step="0.01" value="${s.weight??s.netWeight??0}"></div>
+ <div class="field"><label>Sales Rate ₹/kg</label><input id="esaRate" type="number" step="0.01" value="${s.salesRate??s.ratePerKg??0}"></div>
+ <div class="field"><label>Paid Amount ₹</label><input id="esaPaid" type="number" step="0.01" value="${s.paidAmount??0}"></div>
+ <div class="field"><label>Remarks</label><input id="esaRem" value="${esc(s.remarks||"")}"></div></div>
+ <div style="height:12px"></div><button class="btn primary" onclick="saveEditedSale('${id}')">Update Sale</button>`);
+}
+async function saveEditedSale(id){
+  let s=await txGet("sales",id);if(!s)return;
+  const weight=Number(document.getElementById("esaWeight").value),rate=Number(document.getElementById("esaRate").value),paid=Number(document.getElementById("esaPaid").value)||0;
+  if(weight<=0||rate<=0)return toast("Weight and rate required.");
+  const exactAmount=Math.round(weight*rate*100)/100,rr=invoiceRound(exactAmount),netAmount=rr.rounded;
+  s.saleDate=document.getElementById("esaDate").value||s.saleDate;
+  s.weight=weight;s.netWeight=weight;s.salesRate=rate;s.ratePerKg=rate;s.saleAmount=exactAmount;s.totalAmount=exactAmount;s.roundOff=rr.roundOff;s.netAmount=netAmount;s.invoiceNetAmount=netAmount;s.paidAmount=paid;
+  s.outstanding=Math.round(((Number(s.previousDue)||0)+netAmount-paid)*100)/100;
+  s.remarks=document.getElementById("esaRem").value.trim();s.updatedAt=iso();
+  await txPut("sales",s);queueCloud("sales","UPSERT",s);audit("sales","UPDATE",id);closeModal();refreshAll();
+}
+async function deleteSale(id){
+ requireAdmin();let s=await txGet("sales",id);if(!s)return;if(!confirm("Delete this sale and release its cage?"))return;
+ if(s.cageId){let c=await txGet("cages",s.cageId);if(c){c.isSold=false;c.saleId=null;c.updatedAt=iso();await txPut("cages",c);await setSetting("cage_state_"+c.id,{isSold:false,saleId:null,updatedAt:c.updatedAt});queueCloud("cages","UPSERT",c)}}
+ await txDel("sales",id);queueCloud("sales","DELETE",id);audit("sales","DELETE",id);refreshAll()
+}
+
+async function previewStoreInvoice(saleId){
+ const s=await txGet("sales",saleId);if(!s)return toast("Sale not found.");
+ const st=await txGet("stores",s.storeId),farmer=s.farmerId?await txGet("farmers",s.farmerId):null;
+ const wang=!!(st?.isWangkhei||s.isWangkheiSale);
+ openModal(`<div class="psm-invoice">
+   <div class="psm-brandbar">
+     <div class="psm-logo"><div class="psm-logo-mark">PSM</div></div>
+     <div class="psm-brandmain">
+       <div class="psm-brandname">PSM BROILER DISTRIBUTOR</div>
+       <div class="psm-address">Kongba Kshetri Leikai, Imphal East, Manipur - 795008</div>
+       <div class="psm-tagline">Quality Chicks · Reliable Supply · Stronger Farmers</div>
+     </div>
+     <div class="psm-support">RELIABLE<br>BROILER SUPPLY<br>FOR YOUR<br>BUSINESS</div>
+   </div>
+   <div class="psm-invoice-body">
+    <div class="psm-titleband">
+      <div><div class="psm-title">STORE SALES INVOICE</div><div class="psm-title-sub">PSM Broiler Distributor</div></div>
+      <div class="psm-meta"><div><b>Invoice No:</b> ${esc(s.invoiceNumber||s.id)}</div><div><b>Date:</b> ${esc(s.saleDate||"")}</div></div>
+    </div>
+    <div class="psm-info-grid">
+      <div class="psm-info"><h4>STORE DETAILS</h4><div class="body">
+        <div>Store Name</div><b>${esc(st?.name||s.storeName||"")}</b>
+        <div>Company Phone</div><span>7005215398</span>
+        <div>Account Type</div><span>${wang?"MPF A/C Settlement":"Regular Store Account"}</span>
+      </div></div>
+      <div class="psm-info"><h4>SALE DETAILS</h4><div class="body">
+        <div>Sale Date</div><b>${esc(s.saleDate||"")}</b>
+        <div>Farmer</div><span>${esc(farmer?.name||s.farmerName||"-")}</span>
+        <div>Sale ID</div><span class="mono">${esc(s.id)}</span>
+      </div></div>
+    </div>
+    <table class="psm-table"><thead><tr><th>Description</th><th>Cage No.</th><th>Weight (kg)</th><th>Birds</th><th>Rate</th><th>Amount</th></tr></thead><tbody>
+      <tr><td><b>Live Broiler Supply</b></td><td>${esc(s.cageNumber||s.cageId||"")}</td><td>${fmt(s.weight??s.netWeight)}</td><td>${s.birdsCount||0}</td><td>₹${fmt(s.salesRate??s.ratePerKg)}</td><td><b>₹${fmt(s.saleAmount??s.totalAmount)}</b></td></tr>
+    </tbody></table>
+    <div class="psm-totals">
+      ${wang?"":`<div class="psm-total-row"><span>Previous Due</span><b>₹${fmt(s.previousDue)}</b></div>`}
+      <div class="psm-total-row"><span>Invoice Amount</span><b>₹${fmt(s.saleAmount??s.totalAmount)}</b></div>
+      ${(()=>{const rr=invoiceRound(s.saleAmount??s.totalAmount);return `<div class="psm-total-row"><span>Round Off</span><b>${rr.roundOff>=0?"+":""}₹${fmt(rr.roundOff)}</b></div><div class="psm-total-row"><span>Net Invoice Amount</span><b>₹${fmt(rr.rounded)}</b></div>`})()}
+      <div class="psm-total-row"><span>Paid Amount</span><b>₹${fmt(s.paidAmount)}</b></div>
+      ${wang?`<div class="psm-total-row final"><span>Settlement</span><span>MPF A/C</span></div>`:`<div class="psm-total-row final"><span>Outstanding</span><span>₹${fmt(s.outstanding)}</span></div>`}
+    </div>
+    <div class="psm-thanks"><b>Thank you for your business!</b><span>Reliable broiler supply from PSM Broiler Distributor.</span></div>
+    <div class="psm-footer">
+      <div class="name">PSM Broiler Distributor</div>
+      <div class="addr">Kongba Kshetri Leikai, Imphal East, Manipur - 795008</div>
+      <div class="psm-contact"><span>☎ 7005215398</span><span>📍 Kongba Kshetri Leikai, Imphal East, Manipur - 795008</span></div>
+      <div class="psm-generated">This is a computer-generated invoice. No signature is required.</div>
+    </div>
+   </div>
+ </div>
+ <div style="height:12px"></div><div class="action-group invoice-actions">
+  <button class="btn primary" onclick="downloadStoreInvoicePdf('${saleId}')">Save PDF</button>
+  <button class="btn ok" onclick="shareStoreInvoiceWhatsApp('${saleId}')">Share WhatsApp</button>
+ </div>`);
+ audit("invoice","STORE_PREVIEW",saleId)
+}
+async function shareStoreInvoiceWhatsApp(saleId){
+ try{
+  const {blob,fileName,s,st}=await makeStoreInvoicePdf(saleId);
+  const file=new File([blob],fileName,{type:"application/pdf"});
+  const wang=!!(st?.isWangkhei||s.isWangkheiSale);
+  const msg=`PSM Store Sales Invoice\nKongba Kshetri Leikai, Imphal East, Manipur - 795008\nInvoice: ${s.invoiceNumber||s.id}\nStore: ${st?.name||s.storeName||""}\nDate: ${s.saleDate}\nWeight: ${fmt(s.weight??s.netWeight)} kg\nAmount: Rs. ${fmt(s.saleAmount??s.totalAmount)}${wang?"":`\nOutstanding: Rs. ${fmt(s.outstanding)}`}`;
+  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+    await navigator.share({title:"PSM Store Sales Invoice",text:msg,files:[file]});
+    audit("invoice","STORE_SHARE_PDF",saleId,st?.phone||"");return;
+  }
+  downloadBlob(blob,fileName);
+  const p=normalizeWhatsappPhone(st?.phone);
+  window.open(`https://wa.me/${p}?text=${encodeURIComponent(msg+"\n\nThe professional PDF invoice has been generated. Please attach the downloaded PDF.")}`,"_blank");
+  audit("invoice","STORE_WHATSAPP_FALLBACK",saleId,st?.phone||"");
+  toast("PDF saved. WhatsApp opened; attach the generated invoice.");
+ }catch(e){if(e?.name!=="AbortError")toast("Invoice share error: "+e.message)}
+}
+async function renderStores(){
+ let a=await txAll("stores"),rows=[];
+ for(let s of a.sort((a,b)=>Number(a.archived)-Number(b.archived)||a.name.localeCompare(b.name))){
+  let f=await storeSummary(s.id),wang=!!(s.isWangkhei||String(s.name).toLowerCase().includes("wangkhei"));
+  rows.push(`<tr>
+    <td class="mono">${esc(s.id)}</td>
+    <td><b>${esc(s.name)}</b>${wang?' <span class="badge blue">WANGKHEI</span>':''}${s.archived?'<span class="archive-badge">ARCHIVED</span>':''}</td>
+    <td>${esc(s.phone||"")}</td>
+    <td>${wang?'<span class="badge blue">N/A</span>':`₹${fmt(f.opening)}`}</td>
+    <td>₹${fmt(f.totalSales)}</td><td>₹${fmt(f.totalPaid)}</td>
+    <td>${wang?'<span class="badge blue">N/A</span>':`<b>₹${fmt(f.outstanding)}</b>`}</td>
+    <td>${wang||s.archived?"—":`<button class="btn ok" onclick="sendOutstandingReminder('${s.id}')">WhatsApp</button>`}</td>
+    <td><button class="btn" onclick="editStore('${s.id}')">Edit</button> ${s.archived?`<button class="btn ok" onclick="setStoreArchived('${s.id}',false)">Restore</button>`:`<button class="btn" onclick="setStoreArchived('${s.id}',true)">Archive</button>`}</td>
+  </tr>`)
+ }
+ document.getElementById("storeRows").innerHTML=rows.length?rows.join(""):`<tr><td colspan="9" class="empty">No stores</td></tr>`
+}
+
+async function editStore(storeId){
+ const s=await txGet("stores",storeId);if(!s)return toast("Store not found.");
+ openModal(`<h3>Edit Store</h3>
+ <div class="grid g2">
+   <div class="field"><label>Store Name</label><input id="esName" value="${esc(s.name||"")}"></div>
+   <div class="field"><label>Phone</label><input id="esPhone" value="${esc(s.phone||"")}"></div>
+   <div class="field"><label>Opening Due ₹</label><input id="esOpening" type="number" step="0.01" value="${Number(s.openingDue)||0}" ${s.isWangkhei?"disabled":""}></div>
+   <div class="field"><label>Wangkhei Store</label><select id="esWangkhei"><option value="false" ${!s.isWangkhei?"selected":""}>No</option><option value="true" ${s.isWangkhei?"selected":""}>Yes</option></select></div>
+ </div>
+ <div style="height:12px"></div>
+ <button class="btn primary" onclick="saveEditedStore('${storeId}')">Update Store</button>`);
+}
+async function saveEditedStore(storeId){
+ let s=await txGet("stores",storeId);if(!s)return;
+ let name=document.getElementById("esName").value.trim(),phone=document.getElementById("esPhone").value.trim();
+ let isWangkhei=document.getElementById("esWangkhei").value==="true";
+ let openingDue=isWangkhei?0:(Number(document.getElementById("esOpening").value)||0);
+ if(!name||!phone)return toast("Store name and phone required.");
+ const all=await txAll("stores"),digits=phone.replace(/\D/g,"");
+ const dn=all.find(x=>x.id!==storeId&&String(x.name||"").trim().toLowerCase()===name.toLowerCase()),dp=all.find(x=>x.id!==storeId&&String(x.phone||"").replace(/\D/g,"")===digits);
+ if(dn&&!confirm(`Duplicate warning: store "${dn.name}" already exists. Save anyway?`))return;
+ if(dp&&!confirm(`Duplicate warning: this phone already belongs to ${dp.name}. Save anyway?`))return;
+ s={...s,name,phone,isWangkhei,openingDue,updatedAt:iso()};
+ await txPut("stores",s);await setSetting("store_meta_"+s.id,{openingDue,isWangkhei,updatedAt:s.updatedAt});queueCloud("stores","UPSERT",s);audit("stores","UPDATE",storeId,name);closeModal();refreshAll()
+}
+async function sendOutstandingReminder(storeId){
+ const st=await txGet("stores",storeId);if(!st)return;
+ if(st.isWangkhei||String(st.name).toLowerCase().includes("wangkhei"))return toast("Wangkhei uses MPF A/C settlement and has no outstanding reminder.");
+ const f=await storeSummary(storeId);
+ const msg=`Payment Reminder - PSM Broiler Distributor
+Store: ${st.name}
+Outstanding Amount: Rs. ${fmt(f.outstanding)}
+As on: ${new Date().toLocaleString("en-IN")}
+
+Kindly arrange payment at the earliest. Thank you.`;
+ const p=normalizeWhatsappPhone(st.phone);window.open(`https://wa.me/${p}?text=${encodeURIComponent(msg)}`,"_blank");audit("stores","OUTSTANDING_REMINDER",storeId,`₹${fmt(f.outstanding)}`)
+}
+async function singkeSummary(){
+  const p=await setting("singke_previous_due",{amount:0});
+  const lift=await txAll("liftings");
+  const sales=await txAll("sales");
+  const stores=await txAll("stores");
+  const sets=await txAll("singke_settlements");
+  const wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>s.id));
+  const wangSales=sales.filter(s=>s.isWangkheiSale||wm.has(s.storeId));
+  const liftingPayable=lift.reduce((a,l)=>a+(Number(l.netAmount??l.payableAmount??l.liftingAmount??l.totalAmount)||0),0);
+  const wang=wangSales.reduce((a,s)=>a+(Number(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)||0),0);
+  const wangKg=wangSales.reduce((a,s)=>a+(Number(s.netWeight??s.weight??s.totalWeight)||0),0);
+  const sett=sets.reduce((a,s)=>a+(Number(s.amount)||0),0);
+  return {p,liftingPayable,wang,wangKg,sett,remain:(Number(p?.amount)||0)+liftingPayable-wang-sett};
+}
+async function renderSingke(){
+  const s=await singkeSummary();
+  document.getElementById("sPrev").textContent=fmt(s.p?.amount);
+  document.getElementById("sPrevDate").textContent=s.p?.asOf?`As of ${s.p.asOf}`:"Not set";
+  document.getElementById("sLift").textContent=fmt(s.liftingPayable);
+  document.getElementById("sWang").textContent=fmt(s.wang);
+  const kgEl=document.getElementById("sWangKg"); if(kgEl)kgEl.textContent=fmt(s.wangKg);
+  document.getElementById("sSet").textContent=fmt(s.sett);
+  document.getElementById("sRemain").textContent=fmt(s.remain);
+  const dash=document.getElementById("dashSingke"); if(dash)dash.textContent=fmt(s.remain);
+
+  const stores=await txAll("stores");
+  const wm=new Set(stores.filter(st=>st.isWangkhei||String(st.name||"").toLowerCase().includes("wangkhei")).map(st=>st.id));
+  let ev=[
+    ...(await txAll("liftings")).map(x=>({date:x.liftingDate||"",type:"Lifting Payable",ref:x.id,kg:Number(x.totalWeight)||0,debit:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,credit:0})),
+    ...(await txAll("sales")).filter(x=>x.isWangkheiSale||wm.has(x.storeId)).map(x=>({date:x.saleDate||"",type:"Wangkhei Adjustment",ref:x.invoiceNumber||x.id,kg:Number(x.netWeight??x.weight??x.totalWeight)||0,debit:0,credit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0})),
+    ...(await txAll("singke_settlements")).map(x=>({date:x.date||"",type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,debit:0,credit:Number(x.amount)||0}))
+  ].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
+
+  const from=document.getElementById("singkeFrom")?.value||"";
+  const to=document.getElementById("singkeTo")?.value||"";
+  let bal=Number(s.p?.amount)||0;
+  if(from){for(const e of ev){if(e.date&&e.date<from)bal+=e.debit-e.credit}}
+  const filtered=ev.filter(e=>(!from||e.date>=from)&&(!to||e.date<=to));
+  const rows=[];
+  for(const e of filtered){
+    bal+=e.debit-e.credit;
+    rows.push(`<tr><td>${esc(e.date)}</td><td>${esc(e.type)}</td><td class="mono">${esc(e.ref)}</td><td>${e.kg?`${fmt(e.kg)} kg`:"—"}</td><td>${e.debit?`₹${fmt(e.debit)}`:"—"}</td><td>${e.credit?`₹${fmt(e.credit)}`:"—"}</td><td><b>₹${fmt(bal)}</b></td></tr>`);
+  }
+  document.getElementById("singkeRows").innerHTML=rows.join("")||`<tr><td colspan="7" class="empty">No reconciliation transactions for the selected period</td></tr>`;
+}
+async function populateStoreSelect(){let stores=(await txAll("stores")).filter(s=>!s.archived),sel=document.getElementById("ledgerStore");let old=sel.value;sel.innerHTML=stores.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("");if(stores.some(s=>s.id===old))sel.value=old}
+async function renderLedger(){
+ await populateStoreSelect();
+ let idd=document.getElementById("ledgerStore").value;
+ document.getElementById("ledgerGeneratedAt").value=new Date().toLocaleString("en-IN");
+ if(!idd){document.getElementById("ledgerRows").innerHTML=`<tr><td colspan="6" class="empty">No store selected</td></tr>`;return}
+ let s=await txGet("stores",idd),wang=!!(s?.isWangkhei||String(s?.name||"").toLowerCase().includes("wangkhei"));
+ const rem=document.getElementById("ledgerReminderBtn");if(rem)rem.style.display=wang?"none":"inline-block";
+ let sales=(await txAll("sales")).filter(x=>x.storeId===idd).map(x=>({date:x.saleDate,type:"Sale",ref:x.invoiceNumber||x.id,debit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,credit:Number(x.paidAmount)||0})),
+ pays=(await txAll("payments")).filter(x=>x.storeId===idd).map(x=>({date:x.paymentDate,type:"Payment",ref:x.receiptNumber||x.referenceNumber||x.id,debit:0,credit:Number(x.amount)||0})),
+ ev=[...sales,...pays].sort((a,b)=>a.date.localeCompare(b.date)),bal=wang?0:(Number(s.openingDue)||0),rows=[];
+ if(!wang)rows.push(`<tr><td></td><td>Opening Due</td><td></td><td>₹${fmt(bal)}</td><td></td><td><b>₹${fmt(bal)}</b></td></tr>`);
+ for(let e of ev){bal+=e.debit-e.credit;rows.push(`<tr><td>${e.date}</td><td>${e.type}</td><td class="mono">${esc(e.ref)}</td><td>${e.debit?`₹${fmt(e.debit)}`:""}</td><td>${e.credit?`₹${fmt(e.credit)}`:""}</td><td>${wang?"—":`<b>₹${fmt(bal)}</b>`}</td></tr>`)}
+ document.getElementById("ledgerRows").innerHTML=rows.join("")||`<tr><td colspan="6" class="empty">No ledger entries</td></tr>`
+}
+async function sendLedgerReminder(){let idd=document.getElementById("ledgerStore").value;if(idd)sendOutstandingReminder(idd)}
+function printStoreLedgerPdf(){
+ const old=document.title,sel=document.getElementById("ledgerStore"),name=sel?.selectedOptions?.[0]?.text||"Store";
+ document.title=`MPF Store Ledger - ${name} - ${today()}`;
+ window.print();setTimeout(()=>document.title=old,500)
+}
+let dashboardPeriod="today";
+function setDashboardPeriod(p,btn){
+ dashboardPeriod=p;document.querySelectorAll(".dashPeriod").forEach(x=>x.classList.toggle("active",x.dataset.period===p));renderDashboard()
+}
+function dashboardRange(){
+ const now=new Date(),end=new Date(now.getFullYear(),now.getMonth(),now.getDate(),23,59,59,999),start=new Date(end);
+ if(dashboardPeriod==="today")start.setHours(0,0,0,0);
+ if(dashboardPeriod==="week"){let day=(now.getDay()+6)%7;start.setDate(now.getDate()-day);start.setHours(0,0,0,0)}
+ if(dashboardPeriod==="month"){start.setDate(1);start.setHours(0,0,0,0)}
+ if(dashboardPeriod==="year"){start.setMonth(0,1);start.setHours(0,0,0,0)}
+ return {start,end}
+}
+function inRange(d,r){let x=new Date(d+"T12:00:00");return x>=r.start&&x<=r.end}
+async function renderDashboard(){
+ let r=dashboardRange(),allLift=await txAll("liftings"),l=allLift.filter(x=>inRange(x.liftingDate,r)),allSales=await txAll("sales"),sales=allSales.filter(x=>inRange(x.saleDate,r)),cages=await txAll("cages"),stores=await txAll("stores");
+ let periodLabel=dashboardPeriod[0].toUpperCase()+dashboardPeriod.slice(1);
+ document.getElementById("mLiftLabel").textContent=`${periodLabel} Liftings`;document.getElementById("mSalesLabel").textContent=`${periodLabel} Sales`;
+ document.getElementById("mLift").textContent=l.length;document.getElementById("mLiftKg").textContent=fmt(l.reduce((a,x)=>a+(Number(x.totalWeight)||0),0))+" kg";
+ let salesAmt=sales.reduce((a,x)=>a+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0);document.getElementById("mSales").textContent=fmt(salesAmt);
+ let due=0;for(let s of stores){if(s.archived)continue;if(!(s.isWangkhei||String(s.name).toLowerCase().includes("wangkhei")))due+=(await storeSummary(s.id)).outstanding}document.getElementById("mDue").textContent=fmt(due);
+ let unsold=cages.filter(c=>!c.isSold).length;document.getElementById("mUnsold").textContent=unsold;
+ let liftMap=new Map(allLift.map(x=>[x.id,x])),cageMap=new Map(cages.map(x=>[x.id,x]));
+ let cost=0;for(let s of sales){let li=liftMap.get(s.liftingId);cost+=(Number(s.weight??s.netWeight)||0)*(Number(li?.liftingRate??li?.ratePerKg)||0)}
+ let gp=salesAmt-cost;document.getElementById("mGrossProfit").textContent=fmt(gp);document.getElementById("mGrossProfitSub").textContent=`${periodLabel}: sales − lifting cost`;
+ let att=[];
+ const ps=pendingSaveCount(),pd=pendingDeleteCount();if(ps)att.push(`${ps} Supabase upload(s) pending`);if(pd)att.push(`${pd} Supabase delete retry/retries pending`);
+ const nr=allLift.filter(x=>(Number(x.liftingRate??x.ratePerKg)||0)<=0).length;if(nr)att.push(`${nr} lifting(s) have no lifting rate`);
+ let mismatch=0;
+ for(const li of allLift){const cs=cages.filter(c=>c.liftingId===li.id),kg=cs.reduce((s,c)=>s+(Number(c.weight)||0),0),birds=cs.reduce((s,c)=>s+(Number(c.birdCount)||0),0);if(Math.abs(kg-(Number(li.totalWeight)||0))>.02||cs.length!==(Number(li.totalCages)||0)||birds!==(Number(li.totalBirds)||0))mismatch++}
+ if(mismatch)att.push(`${mismatch} lifting(s) do not match their cage totals`);
+ const overweight=allSales.filter(s=>{const c=cageMap.get(s.cageId);return c&&(Number(s.weight??s.netWeight)||0)>(Number(c.weight)||0)+.02}).length;if(overweight)att.push(`${overweight} sale(s) have billed weight greater than original cage weight`);
+ const ageDays=Math.max(1,Number(localStorage.getItem("psm_unsold_age_days")||2)),now=Date.now();
+ const aged=cages.filter(c=>!c.isSold&&(()=>{const li=liftMap.get(c.liftingId),d=new Date(li?.liftingDate||c.createdAt||0).getTime();return d&&((now-d)/86400000)>=ageDays})()).length;if(aged)att.push(`${aged} unsold cage(s) are ${ageDays}+ days old`);
+ let reminderStores=[];for(let s of stores){if(s.archived||s.isWangkhei||String(s.name).toLowerCase().includes("wangkhei"))continue;let f=await storeSummary(s.id);if(f.outstanding>0)reminderStores.push(`${s.name}: ₹${fmt(f.outstanding)}`)}
+ if(reminderStores.length)att.push(`${reminderStores.length} store(s) have outstanding dues`);
+ document.getElementById("attention").innerHTML=att.length?att.map(x=>`<div class="row">${esc(x)}</div>`).join(""):`<div class="row" style="background:#ecfdf5;color:#166534">No current reconciliation alerts.</div>`;
+ const ageEl=document.getElementById("unsoldAgeDays");if(ageEl)ageEl.value=ageDays;
+ updateSyncHealth();await renderSingke()
+}
+
+async function getDateRangeReportData(){
+ const from=document.getElementById("reportFrom")?.value||"",to=document.getElementById("reportTo")?.value||"",type=document.getElementById("reportType")?.value||"farmer";
+ const ok=d=>(!from||d>=from)&&(!to||d<=to),farmers=new Map((await txAll("farmers")).map(x=>[x.id,x])),stores=await txAll("stores"),storeMap=new Map(stores.map(x=>[x.id,x])),liftings=await txAll("liftings"),liftMap=new Map(liftings.map(x=>[x.id,x])),sales=await txAll("sales"),payments=await txAll("payments"),sets=await txAll("singke_settlements");
+ let headers=[],rows=[],title="";
+ if(type==="farmer"){title="Farmer Liftings";headers=["Date","Invoice","Farmer","Cages","Birds","Kg","Rate","Net Payable"];rows=liftings.filter(x=>ok(x.liftingDate)).map(x=>[x.liftingDate,x.invoiceNumber||x.id,farmers.get(x.farmerId)?.name||x.farmerName||"",x.totalCages||0,x.totalBirds||0,Number(x.totalWeight)||0,Number(x.liftingRate)||0,Number(x.netAmount??x.payableAmount??x.liftingAmount)||0])}
+ if(type==="sales"){title="Store Sales";headers=["Date","Invoice","Store","Cage","Kg","Rate","Net Amount","Paid","Outstanding"];rows=sales.filter(x=>ok(x.saleDate)).map(x=>[x.saleDate,x.invoiceNumber||x.id,x.storeName||storeMap.get(x.storeId)?.name||"",x.cageNumber||"",Number(x.weight??x.netWeight)||0,Number(x.salesRate??x.ratePerKg)||0,Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0,Number(x.paidAmount)||0,Number(x.outstanding)||0])}
+ if(type==="wangkhei"){title="Wangkhei Adjustments";headers=["Date","Invoice","Kg","Adjustment"];const wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>s.id));rows=sales.filter(x=>ok(x.saleDate)&&(x.isWangkheiSale||wm.has(x.storeId))).map(x=>[x.saleDate,x.invoiceNumber||x.id,Number(x.weight??x.netWeight)||0,Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0])}
+ if(type==="singke"){title="Singke Ledger";headers=["Date","Type","Reference","Kg","Debit","Credit","Running Due"];const p=await setting("singke_previous_due",{amount:0}),wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>s.id));let ev=[...liftings.map(x=>({date:x.liftingDate,type:"Lifting",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,d:Number(x.netAmount??x.payableAmount??x.liftingAmount)||0,c:0})),...sales.filter(x=>x.isWangkheiSale||wm.has(x.storeId)).map(x=>({date:x.saleDate,type:"Wangkhei",ref:x.invoiceNumber||x.id,kg:Number(x.weight??x.netWeight)||0,d:0,c:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0})),...sets.map(x=>({date:x.date,type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,d:0,c:Number(x.amount)||0}))].sort((a,b)=>String(a.date).localeCompare(String(b.date)));let bal=Number(p.amount)||0;for(const e of ev){if(from&&e.date<from){bal+=e.d-e.c;continue}if(to&&e.date>to)continue;bal+=e.d-e.c;rows.push([e.date,e.type,e.ref,e.kg,e.d,e.c,bal])}}
+ if(type==="profit"){title="Profit";headers=["Date","Invoice","Store","Sales","Cost","Gross Profit"];rows=sales.filter(x=>ok(x.saleDate)).map(x=>{const sale=Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0,cost=(Number(x.weight??x.netWeight)||0)*(Number(liftMap.get(x.liftingId)?.liftingRate)||0);return[x.saleDate,x.invoiceNumber||x.id,x.storeName||storeMap.get(x.storeId)?.name||"",sale,cost,sale-cost]})}
+ if(type==="outstanding"){title="Outstanding as of "+(to||today());headers=["Store","Opening Due","Sales","Payments","Outstanding"];for(const st of stores.filter(s=>!s.isWangkhei&&!String(s.name||"").toLowerCase().includes("wangkhei"))){const end=to||"9999-12-31",sv=sales.filter(x=>x.storeId===st.id&&x.saleDate<=end),pv=payments.filter(x=>x.storeId===st.id&&x.paymentDate<=end),saleVal=sv.reduce((s,x)=>s+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0),0),salePaid=sv.reduce((s,x)=>s+(Number(x.paidAmount)||0),0),direct=pv.reduce((s,x)=>s+(Number(x.amount)||0),0),out=(Number(st.openingDue)||0)+saleVal-salePaid-direct;rows.push([st.name,Number(st.openingDue)||0,saleVal,salePaid+direct,out])}}
+ return {from,to,type,title,headers,rows};
+}
+async function renderDateRangeReport(){
+ const rf=document.getElementById("reportFrom"),rt=document.getElementById("reportTo");if(rf&&!rf.value){const d=new Date();rf.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`}if(rt&&!rt.value)rt.value=today();
+ const r=await getDateRangeReportData(),head=document.getElementById("reportHead"),body=document.getElementById("reportRows"),sum=document.getElementById("reportSummary");
+ if(head)head.innerHTML=`<tr>${r.headers.map(h=>`<th>${esc(h)}</th>`).join("")}</tr>`;
+ if(body)body.innerHTML=r.rows.length?r.rows.map(row=>`<tr>${row.map(v=>`<td>${typeof v==="number"?fmt(v):esc(v)}</td>`).join("")}</tr>`).join(""):`<tr><td colspan="${r.headers.length}" class="empty">No records</td></tr>`;
+ if(sum)sum.textContent=`${r.title} • ${r.from||"Beginning"} to ${r.to||"Latest"} • ${r.rows.length} row(s)`;
+}
+function csvCell(v){const s=String(v??"");return /[",\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s}
+async function exportDateRangeReportCSV(){const r=await getDateRangeReportData(),txt=[r.headers,...r.rows].map(row=>row.map(csvCell).join(",")).join("\r\n");downloadBlob(new Blob(["\ufeff"+txt],{type:"text/csv;charset=utf-8"}),`PSM_${r.type}_${r.from||"all"}_${r.to||today()}.csv`)}
+function xmlEsc(v){return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+async function exportDateRangeReportExcel(){
+ const r=await getDateRangeReportData(),rows=[r.headers,...r.rows].map(row=>`<Row>${row.map(v=>`<Cell><Data ss:Type="${typeof v==="number"?"Number":"String"}">${xmlEsc(v)}</Data></Cell>`).join("")}</Row>`).join("");
+ const xml=`<?xml version="1.0"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="${xmlEsc(r.title).slice(0,31)}"><Table>${rows}</Table></Worksheet></Workbook>`;
+ downloadBlob(new Blob([xml],{type:"application/vnd.ms-excel"}),`PSM_${r.type}_${r.from||"all"}_${r.to||today()}.xls`);
+}
+
+function renderAudit(){let a=JSON.parse(localStorage.getItem("mpf_audit")||"[]");document.getElementById("auditRows").innerHTML=a.length?a.map(x=>`<tr><td>${esc(x.time.replace("T"," ").slice(0,19))}</td><td>${esc(x.role)}</td><td>${esc(x.module)}</td><td>${esc(x.action)}</td><td class="mono">${esc(x.record)}</td><td>${esc(x.note||"")}</td></tr>`).join(""):`<tr><td colspan="6" class="empty">No audit events</td></tr>`}
+function exportAudit(){let blob=new Blob([localStorage.getItem("mpf_audit")||"[]"],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="MPF_LiftDesk_Audit.json";a.click()}
+async function closeToday(){let t=today(),lift=(await txAll("liftings")).filter(x=>x.liftingDate===t),sales=(await txAll("sales")).filter(x=>x.saleDate===t),pays=(await txAll("payments")).filter(x=>x.paymentDate===t),sets=(await txAll("singke_settlements")).filter(x=>x.date===t),r={date:t,liftings:lift.length,cages:lift.reduce((a,x)=>a+(Number(x.totalCages)||0),0),kg:lift.reduce((a,x)=>a+(Number(x.totalWeight)||0),0),liftingPayable:lift.reduce((a,x)=>a+(Number(x.liftingAmount)||0),0),sales:sales.reduce((a,x)=>a+(Number(x.saleAmount)||0),0),payments:pays.reduce((a,x)=>a+(Number(x.amount)||0),0),singkeSettlements:sets.reduce((a,x)=>a+(Number(x.amount)||0),0),closedAt:iso()};let a=JSON.parse(localStorage.getItem("mpf_closings")||"[]"),i=a.findIndex(x=>x.date===t);if(i>=0)a[i]=r;else a.unshift(r);localStorage.setItem("mpf_closings",JSON.stringify(a));audit("closing","CLOSE",t);toast("Daily closing saved.");renderClosings()}
+function renderClosings(){let a=JSON.parse(localStorage.getItem("mpf_closings")||"[]");let last=a[0];document.getElementById("closingCards").innerHTML=last?`<div class="card metric"><div class="lab">Last Closing</div><div class="val">${last.date}</div><div class="mini">${last.liftings} liftings</div></div><div class="card metric"><div class="lab">Sales</div><div class="val">₹${fmt(last.sales)}</div><div class="mini">Day total</div></div><div class="card metric"><div class="lab">Lifting Payable</div><div class="val">₹${fmt(last.liftingPayable)}</div><div class="mini">${fmt(last.kg)} kg</div></div>`:"";document.getElementById("closingRows").innerHTML=a.length?a.map(x=>`<tr><td>${x.date}</td><td>${x.liftings}</td><td>${x.cages}</td><td>${fmt(x.kg)}</td><td>₹${fmt(x.liftingPayable)}</td><td>₹${fmt(x.sales)}</td><td>₹${fmt(x.payments)}</td><td>₹${fmt(x.singkeSettlements)}</td><td>${x.closedAt.replace("T"," ").slice(0,19)}</td></tr>`).join(""):`<tr><td colspan="9" class="empty">No daily closing yet</td></tr>`}
+
+async function exportData(){let o={};for(let t of TABLES)o[t]=await txAll(t);return o}
+async function exportBackup(){let payload={format:"PSM_BROILER_DISTRIBUTOR_BACKUP",version:2,createdAt:iso(),data:await exportData(),local:{audit:JSON.parse(localStorage.getItem("mpf_audit")||"[]"),closings:JSON.parse(localStorage.getItem("mpf_closings")||"[]")}},blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`PSM_Broiler_Distributor_Backup_${today()}.json`;a.click();audit("backup","EXPORT","full")}
+async function restoreBackup(file){requireAdmin();if(!file)return;let p=JSON.parse(await file.text()),data=p.data||p;if(!data.farmers)throw new Error("Invalid backup.");if(!confirm("Merge backup into current database?"))return;for(let t of TABLES)for(let r of (data[t]||[]))await txPut(t,r);if(p.local?.audit)localStorage.setItem("mpf_audit",JSON.stringify(p.local.audit));if(p.local?.closings)localStorage.setItem("mpf_closings",JSON.stringify(p.local.closings));audit("backup","RESTORE","full",file.name);toast("Backup restored.");refreshAll()}
+
+const DEFAULT_CLOUD={url:"https://tkbjsvrhysfadcczluzj.supabase.co",key:"sb_publishable_l_Tt8s_Cb-gOr1x_4wsyLA_1_RRrvxJ"};
+const AUTH_STORAGE_KEY="psm_supabase_auth_session";
+let AUTH_SESSION=null;
+function cloudCfg(){return DEFAULT_CLOUD}
+
+const REMEMBERED_EMAIL_KEY="psm_remembered_email_v1";
+
+function rememberLoginEmail(email){
+  try{if(email)localStorage.setItem(REMEMBERED_EMAIL_KEY,String(email).trim())}catch(e){}
+}
+function rememberedLoginEmail(){
+  try{return localStorage.getItem(REMEMBERED_EMAIL_KEY)||""}catch(e){return ""}
+}
+function base64urlToBytes(s){
+  s=String(s||"").replace(/-/g,"+").replace(/_/g,"/");
+  while(s.length%4)s+="=";
+  const bin=atob(s),out=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);
+  return out;
+}
+function bytesToBase64url(buf){
+  const u=buf instanceof ArrayBuffer?new Uint8Array(buf):new Uint8Array(buf?.buffer||buf||[]);
+  let s="";for(const b of u)s+=String.fromCharCode(b);
+  return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+}
+function normalizePasskeyRequestOptions(json){
+  if(globalThis.PublicKeyCredential?.parseRequestOptionsFromJSON){
+    return PublicKeyCredential.parseRequestOptionsFromJSON(json);
+  }
+  const o={...json,challenge:base64urlToBytes(json.challenge)};
+  if(Array.isArray(json.allowCredentials))o.allowCredentials=json.allowCredentials.map(c=>({...c,id:base64urlToBytes(c.id)}));
+  return o;
+}
+function normalizePasskeyCreationOptions(json){
+  if(globalThis.PublicKeyCredential?.parseCreationOptionsFromJSON){
+    return PublicKeyCredential.parseCreationOptionsFromJSON(json);
+  }
+  const o={...json,challenge:base64urlToBytes(json.challenge),user:{...json.user,id:base64urlToBytes(json.user.id)}};
+  if(Array.isArray(json.excludeCredentials))o.excludeCredentials=json.excludeCredentials.map(c=>({...c,id:base64urlToBytes(c.id)}));
+  if(o.authenticatorSelection){
+    o.authenticatorSelection={...o.authenticatorSelection};
+    if(o.authenticatorSelection.requireResidentKey==null)delete o.authenticatorSelection.requireResidentKey;
+    if(o.authenticatorSelection.residentKey==null)delete o.authenticatorSelection.residentKey;
+    if(o.authenticatorSelection.userVerification==null)delete o.authenticatorSelection.userVerification;
+  }
+  return o;
+}
+function webAuthnCredentialToJSON(cred){
+  if(typeof cred?.toJSON==="function")return cred.toJSON();
+  const r=cred.response||{};
+  const response={clientDataJSON:bytesToBase64url(r.clientDataJSON)};
+  if(r.authenticatorData)response.authenticatorData=bytesToBase64url(r.authenticatorData);
+  if(r.signature)response.signature=bytesToBase64url(r.signature);
+  if(r.userHandle)response.userHandle=bytesToBase64url(r.userHandle);
+  if(r.attestationObject)response.attestationObject=bytesToBase64url(r.attestationObject);
+  if(typeof r.getTransports==="function")response.transports=r.getTransports();
+  const out={id:cred.id,rawId:bytesToBase64url(cred.rawId),type:cred.type,response,clientExtensionResults:cred.getClientExtensionResults?.()||{}};
+  if(cred.authenticatorAttachment)out.authenticatorAttachment=cred.authenticatorAttachment;
+  return out;
+}
+function passkeyEnvironmentOK(){
+  return !!(window.isSecureContext&&window.PublicKeyCredential&&navigator.credentials);
+}
+function updatePasskeySupportUI(){
+  const ok=passkeyEnvironmentOK(),msg=ok?"Passkey / biometric authentication is supported by this browser.":"Passkeys require a supported browser and a secure HTTPS page.";
+  const note=document.getElementById("passkeyLoginNote");if(note)note.textContent=msg;
+  const status=document.getElementById("passkeySupportStatus");if(status)status.textContent=msg;
+  const loginBtn=document.getElementById("passkeyLoginBtn");if(loginBtn)loginBtn.disabled=!ok;
+  const regBtn=document.getElementById("registerPasskeyBtn");if(regBtn)regBtn.disabled=!ok;
+}
+async function supabasePasskeyLogin(){
+  if(!passkeyEnvironmentOK())throw new Error("Passkey sign-in requires a supported browser on HTTPS.");
+  const start=await authRequest("passkeys/authentication/options","POST",{});
+  const publicKey=normalizePasskeyRequestOptions(start.options);
+  const credential=await navigator.credentials.get({publicKey});
+  if(!credential)throw new Error("No passkey credential was returned.");
+  const data=await authRequest("passkeys/authentication/verify","POST",{challenge_id:start.challenge_id,credential:webAuthnCredentialToJSON(credential)});
+  saveAuthSession(data);
+  const user=data.user||await authRequest("user","GET",null,data.access_token);
+  if(user?.email)rememberLoginEmail(user.email);
+  unlockAuthenticatedApp(user);
+  return user;
+}
+async function registerDevicePasskey(){
+  try{
+    if(!passkeyEnvironmentOK())throw new Error("Passkey registration requires a supported browser on HTTPS.");
+    const token=await ensureFreshAuthToken();
+    const start=await authRequest("passkeys/registration/options","POST",{},token);
+    const publicKey=normalizePasskeyCreationOptions(start.options);
+    const credential=await navigator.credentials.create({publicKey});
+    if(!credential)throw new Error("No passkey credential was created.");
+    const result=await authRequest("passkeys/registration/verify","POST",{challenge_id:start.challenge_id,credential:webAuthnCredentialToJSON(credential)},token);
+    toast(`Passkey registered${result?.friendly_name?`: ${result.friendly_name}`:"."}`);
+    updatePasskeySupportUI();
+  }catch(e){toast(e?.message||"Unable to register passkey.")}
+}
+
+function saveAuthSession(session){
+  // Intentionally memory-only: every page load must authenticate again.
+  AUTH_SESSION=session||null;
+  try{localStorage.removeItem(AUTH_STORAGE_KEY);sessionStorage.removeItem(AUTH_STORAGE_KEY)}catch(e){}
+}
+function loadAuthSession(){
+  // Do not restore prior sessions. Password/passkey is required after every reload.
+  return null;
+}
+function authToken(){return AUTH_SESSION?.access_token||null}
+function authExpiresSoon(session){
+  if(!session?.expires_at)return true;
+  return (Number(session.expires_at)*1000-Date.now())<60000;
+}
+async function authRequest(path,method="GET",body=null,token=null){
+  const c=cloudCfg();
+  const headers={apikey:c.key,"Content-Type":"application/json"};
+  if(token)headers.Authorization=`Bearer ${token}`;
+  const r=await fetch(`${c.url}/auth/v1/${path}`,{method,headers,body:body?JSON.stringify(body):undefined});
+  const text=await r.text();let data=null;
+  try{data=text?JSON.parse(text):null}catch{data={message:text}}
+  if(!r.ok)throw new Error(data?.msg||data?.message||data?.error_description||`Authentication failed (${r.status})`);
+  return data;
+}
+async function refreshAuthSession(){
+  const current=AUTH_SESSION||loadAuthSession();
+  if(!current?.refresh_token)throw new Error("Your login session has expired.");
+  const data=await authRequest("token?grant_type=refresh_token","POST",{refresh_token:current.refresh_token});
+  saveAuthSession(data);return data;
+}
+async function getAuthenticatedUser(){
+  let s=AUTH_SESSION||loadAuthSession();
+  if(!s)return null;
+  saveAuthSession(s);
+  try{
+    if(authExpiresSoon(s))s=await refreshAuthSession();
+    const user=await authRequest("user","GET",null,s.access_token);
+    return user;
+  }catch(e){
+    try{
+      s=await refreshAuthSession();
+      return await authRequest("user","GET",null,s.access_token);
+    }catch{
+      saveAuthSession(null);return null;
+    }
+  }
+}
+function showLoginScreen(message=""){
+  document.getElementById("authScreen")?.classList.remove("auth-hidden");
+  document.querySelector(".app")?.classList.add("auth-locked");
+  const err=document.getElementById("authError");
+  if(err){err.textContent=message;err.style.display=message?"block":"none"}
+}
+function unlockAuthenticatedApp(user){
+  document.getElementById("authScreen")?.classList.add("auth-hidden");
+  document.getElementById("invoicePortal")?.classList.add("auth-hidden");
+  document.querySelector(".app")?.classList.remove("auth-locked");
+  const email=document.getElementById("authUserEmail");
+  if(email)email.textContent=user?.email||"Signed in";
+  initAppBackHistory();
+  renderAppView("home");
+}
+async function supabaseLogin(email,password){
+  const data=await authRequest("token?grant_type=password","POST",{email,password});
+  saveAuthSession(data);
+  rememberLoginEmail(email);
+  const user=data.user||await authRequest("user","GET",null,data.access_token);
+  unlockAuthenticatedApp(user);
+  return user;
+}
+async function supabaseLogout(){
+  const token=authToken();
+  try{if(token)await authRequest("logout","POST",null,token)}catch(e){console.warn("Supabase logout:",e)}
+  saveAuthSession(null);
+  location.reload();
+}
+async function requireAuthentication(){
+  // Never auto-sign-in from a previous page load.
+  AUTH_SESSION=null;
+  try{localStorage.removeItem(AUTH_STORAGE_KEY);sessionStorage.removeItem(AUTH_STORAGE_KEY)}catch(e){}
+  showLoginScreen();
+
+  const emailEl=document.getElementById("authEmail"),pwEl=document.getElementById("authPassword");
+  if(emailEl){emailEl.value=rememberedLoginEmail();setTimeout(()=>{(emailEl.value?pwEl:emailEl)?.focus()},0)}
+  updatePasskeySupportUI();
+
+  return await new Promise(resolve=>{
+    const form=document.getElementById("authForm");
+    const passkeyBtn=document.getElementById("passkeyLoginBtn");
+
+    form.onsubmit=async e=>{
+      e.preventDefault();
+      const btn=document.getElementById("authSubmit"),err=document.getElementById("authError");
+      btn.disabled=true;btn.textContent="Signing In…";err.style.display="none";
+      try{
+        const email=document.getElementById("authEmail").value.trim();
+        const password=document.getElementById("authPassword").value;
+        const user=await supabaseLogin(email,password);
+        document.getElementById("authPassword").value="";
+        resolve(user);
+      }catch(ex){
+        err.textContent=ex.message||"Unable to sign in.";
+        err.style.display="block";
+      }finally{
+        btn.disabled=false;btn.textContent="Sign In with Password";
+      }
+    };
+
+    if(passkeyBtn)passkeyBtn.onclick=async()=>{
+      const err=document.getElementById("authError");
+      passkeyBtn.disabled=true;passkeyBtn.textContent="Waiting for Passkey…";err.style.display="none";
+      try{
+        const user=await supabasePasskeyLogin();
+        resolve(user);
+      }catch(ex){
+        err.textContent=ex?.name==="NotAllowedError"?"Passkey request was cancelled or timed out.":(ex.message||"Unable to sign in with passkey.");
+        err.style.display="block";
+      }finally{
+        passkeyBtn.disabled=!passkeyEnvironmentOK();
+        passkeyBtn.textContent="🔐 Sign In with Passkey / Biometric";
+      }
+    };
+  });
+}
+async function ensureFreshAuthToken(){
+  if(!AUTH_SESSION)AUTH_SESSION=loadAuthSession();
+  if(!AUTH_SESSION)throw new Error("Not authenticated.");
+  if(authExpiresSoon(AUTH_SESSION))await refreshAuthSession();
+  return AUTH_SESSION.access_token;
+}
+async function rest(table,method="GET",body=null,query=""){
+  const c=cloudCfg(),token=await ensureFreshAuthToken();
+  let r=await fetch(`${c.url}/rest/v1/${table}${query}`,{
+    method,
+    headers:{apikey:c.key,Authorization:`Bearer ${token}`,"Content-Type":"application/json",Prefer:method==="POST"?"resolution=merge-duplicates,return=minimal":"return=minimal"},
+    body:body?JSON.stringify(body):undefined
+  });
+  if(r.status===401){
+    await refreshAuthSession();
+    const retryToken=authToken();
+    r=await fetch(`${c.url}/rest/v1/${table}${query}`,{
+      method,
+      headers:{apikey:c.key,Authorization:`Bearer ${retryToken}`,"Content-Type":"application/json",Prefer:method==="POST"?"resolution=merge-duplicates,return=minimal":"return=minimal"},
+      body:body?JSON.stringify(body):undefined
+    });
+  }
+  if(!r.ok){
+    let txt=await r.text();
+    if(r.status===401||r.status===403)throw new Error(`Supabase access denied (${r.status}). Check the user's RLS permissions.`);
+    throw new Error(`${table}: ${r.status} ${txt.slice(0,180)}`)
+  }
+  if(r.status===204)return null;
+  let txt=await r.text();return txt?JSON.parse(txt):null
+}
+async function syncAll(){toast("Automatic Supabase sync is disabled.");return false}
+const _syncBadge=document.getElementById("syncBadge"); if(_syncBadge) _syncBadge.onclick=null;
+
+
+function toCloud(t,l){let n=iso();switch(t){
+ case"farmers":return{id:String(l.id),name:l.name||"",phone:l.phone||"",village:l.farmLocation||l.village||null,capacity:l.capacity||null,created_at:l.createdAt||n,updated_at:l.updatedAt||n};
+ case"stores":return{id:String(l.id),name:l.name||"",contact_person:l.contactPerson||null,phone:l.phone||"",address:l.address||null,is_wangkhei:!!l.isWangkhei,created_at:l.createdAt||n,updated_at:l.updatedAt||n};
+ case"liftings":return{id:String(l.id),lifting_date:l.liftingDate,farmer_id:String(l.farmerId),farmer_name:l.farmerName||null,vehicle_number:l.vehicleNumber||null,driver_name:l.driverName||null,rate_per_kg:Number(l.liftingRate??l.ratePerKg)||0,total_birds:Number(l.totalBirds)||0,total_weight:Number(l.totalWeight)||0,total_amount:Number(l.liftingAmount??l.totalAmount)||0,singke_payable_amount:Number(l.singkePayableAmount??l.liftingAmount??l.totalAmount)||0,wangkhei_deductions_applied:Number(l.wangkheiDeductions)||0,remarks:l.remarks||null,created_at:l.createdAt||n,updated_at:l.updatedAt||n};
+ case"cages":{let w=Number(l.weight??l.netWeight??l.grossWeight)||0;return{id:String(l.id),lifting_id:String(l.liftingId),serial_number:String(l.cageNumber??""),gross_weight:w,tare_weight:Number(l.emptyWeight??l.tareWeight)||0,net_weight:w,birds_count:Number(l.birdCount??l.birdsCount)||0,created_at:l.createdAt||n,updated_at:l.updatedAt||l.createdAt||n}}
+ case"sales":return{id:String(l.id),sale_date:l.saleDate,store_id:String(l.storeId),store_name:l.storeName||null,is_wangkhei_store:!!l.isWangkheiSale,lifting_id:l.liftingId?String(l.liftingId):null,farmer_id:l.farmerId?String(l.farmerId):null,farmer_name:l.farmerName||null,total_birds:Number(l.birdsCount??l.totalBirds)||0,total_weight:Number(l.weight??l.netWeight??l.totalWeight)||0,rate_per_kg:Number(l.salesRate??l.ratePerKg)||0,total_amount:Number(l.saleAmount??l.totalAmount)||0,remarks:l.remarks||null,created_at:l.createdAt||n,updated_at:l.updatedAt||n};
+ case"payments":return{id:String(l.id),payment_date:l.paymentDate,store_id:String(l.storeId),store_name:l.storeName||null,amount:Number(l.amount)||0,payment_mode:String(l.paymentMode||"CASH").toUpperCase(),reference_number:l.referenceNumber||null,remarks:l.remarks||null,created_at:l.createdAt||n,updated_at:l.updatedAt||l.createdAt||n};
+ case"singke_settlements":return{id:String(l.id),settlement_date:l.date,amount:Number(l.amount)||0,payment_mode:String(l.paymentMethod||"CASH").toUpperCase(),reference_no:l.referenceNumber||null,notes:l.remarks||null,created_at:l.createdAt||n,updated_at:l.updatedAt||n};
+ case"settings":return{key:String(l.key),value:typeof l.value==="object"?l.value:{val:l.value},updated_at:l.updatedAt||n};
+ }return l}
+function fromCloud(t,r){
+  const _cloudKey=(r&&typeof r==="object")?(r.id??r.key):null;
+  if(_cloudKey!=null && isPermanentlyDeleted(t,_cloudKey)) return null;
+let n=iso();switch(t){
+ case"farmers":return{id:r.id,name:r.name,phone:r.phone,farmLocation:r.village||"",village:r.village||"",capacity:r.capacity||null,createdAt:r.created_at||n,updatedAt:r.updated_at||n};
+ case"stores":return{id:r.id,name:r.name,contactPerson:r.contact_person||"",phone:r.phone||"",address:r.address||"",openingDue:0,isWangkhei:!!r.is_wangkhei,singkeAccount:r.is_wangkhei?"Singke":"General",createdAt:r.created_at||n,updatedAt:r.updated_at||n};
+ case"liftings":return{id:r.id,liftingDate:r.lifting_date,farmerId:r.farmer_id,farmerName:r.farmer_name||"",vehicleNumber:r.vehicle_number||"",driverName:r.driver_name||"",liftingRate:Number(r.rate_per_kg)||0,ratePerKg:Number(r.rate_per_kg)||0,totalBirds:Number(r.total_birds)||0,totalWeight:Number(r.total_weight)||0,liftingAmount:Number(r.total_amount)||0,totalAmount:Number(r.total_amount)||0,singkePayableAmount:Number(r.singke_payable_amount)||Number(r.total_amount)||0,wangkheiDeductions:Number(r.wangkhei_deductions_applied)||0,remarks:r.remarks||"",payableToSingke:true,createdAt:r.created_at||n,updatedAt:r.updated_at||n};
+ case"cages":return{id:r.id,liftingId:r.lifting_id,cageNumber:r.serial_number||"",weight:Number(r.net_weight)||Number(r.gross_weight)||0,grossWeight:Number(r.gross_weight)||0,emptyWeight:Number(r.tare_weight)||0,netWeight:Number(r.net_weight)||0,birdCount:Number(r.birds_count)||0,birdsCount:Number(r.birds_count)||0,createdAt:r.created_at||n,updatedAt:r.updated_at||r.created_at||n};
+ case"sales":return{id:r.id,saleDate:r.sale_date,storeId:r.store_id,storeName:r.store_name||"",isWangkheiSale:!!r.is_wangkhei_store,liftingId:r.lifting_id||null,farmerId:r.farmer_id||null,farmerName:r.farmer_name||"",birdsCount:Number(r.total_birds)||0,weight:Number(r.total_weight)||0,netWeight:Number(r.total_weight)||0,salesRate:Number(r.rate_per_kg)||0,ratePerKg:Number(r.rate_per_kg)||0,saleAmount:Number(r.total_amount)||0,totalAmount:Number(r.total_amount)||0,createdAt:r.created_at||n,updatedAt:r.updated_at||n};
+ case"payments":return{id:r.id,paymentDate:r.payment_date,storeId:r.store_id,storeName:r.store_name||"",amount:Number(r.amount)||0,paymentMode:r.payment_mode||"Cash",referenceNumber:r.reference_number||"",remarks:r.remarks||"",createdAt:r.created_at||n,updatedAt:r.updated_at||n};
+ case"singke_settlements":return{id:r.id,date:r.settlement_date,amount:Number(r.amount)||0,paymentMethod:r.payment_mode||"Cash",referenceNumber:r.reference_no||"",remarks:r.notes||"",createdAt:r.created_at||n,updatedAt:r.updated_at||n};
+ case"settings":return{key:r.key,value:r.value?.val!==undefined?r.value.val:r.value,updatedAt:r.updated_at||n};
+ }return r}
+function stamp(x){let v=x?.updatedAt||x?.updated_at||x?.createdAt||x?.created_at;return v?Date.parse(v)||0:0}
+async function flushQueue(){
+  let q=JSON.parse(localStorage.getItem("mpf_sync_queue")||"[]"),failed=[];
+  for(let item of q){
+    try{
+      if(item.action==="DELETE"){
+        const key=item.table==="settings"?"key":"id";
+        await rest(item.table,"DELETE",null,`?${key}=eq.${encodeURIComponent(item.data)}`);
+      }else{
+        await rest(item.table,"POST",toCloud(item.table,item.data));
+      }
+    }catch(e){
+      failed.push(item);
+      console.warn("Queued Supabase operation failed:",item.table,item.action,e);
+    }
+  }
+  localStorage.setItem("mpf_sync_queue",JSON.stringify(failed));
+  updateSyncBadge();
+  return failed.length;
+}
+
+
+
+
+
+
+
+
+
+
+async function loadSettings(){updatePasskeySupportUI();
+  let p=await setting("singke_previous_due",{amount:0,asOf:"",remarks:""});
+  document.getElementById("prevDueAmt").value=Number(p?.amount)||0;
+  document.getElementById("prevDueDate").value=p?.asOf||"";
+  document.getElementById("prevDueRemarks").value=p?.remarks||"";
+  document.getElementById("roleSel").value=S.role;
+  const lastIso=localStorage.getItem("mpf_last_auto_backup")||localStorage.getItem("mpf_last_full_backup");
+  const last=document.getElementById("autoBackupLast");
+  if(last) last.textContent=lastIso?new Date(lastIso).toLocaleString():"Never";
+  const status=document.getElementById("autoBackupStatus");
+  if(status) status.textContent=navigator.onLine?"Automatic":"Offline / Pending";
+  updateSyncBadge();
+}
+async function refreshAll(){await renderDashboard();await renderFarmers();await renderFarmersCombined();await renderLiftings();await renderSales();await renderStores();await renderSingke();await populateStoreSelect();renderAudit();renderClosings();updateSyncBadge();updateSyncHealth()}
+
+const CLEAN_START_VERSION="PSM_PRODUCTION_NO_RESET";
+
+function setCleanStartMessage(msg){
+  const el=document.getElementById("cleanStartText");
+  if(el)el.textContent=msg;
+}
+function showCleanStart(){
+  const el=document.getElementById("cleanStartBanner");
+  if(el)el.style.display="flex";
+}
+function hideCleanStart(){
+  const el=document.getElementById("cleanStartBanner");
+  if(el)el.style.display="none";
+}
+
+async function clearLocalBusinessData(){
+  // Clear IndexedDB business records while keeping the authenticated Supabase session.
+  const tables=[...TABLES];
+  await new Promise((resolve,reject)=>{
+    if(!db) throw new Error("Local database is not open.");
+    const tr=db.transaction(tables,"readwrite");
+    tr.oncomplete=()=>resolve();
+    tr.onerror=()=>reject(tr.error||new Error("Local reset failed."));
+    for(const t of tables) tr.objectStore(t).clear();
+  });
+
+  // Remove local business/sync metadata, but keep login session and clean-start marker.
+  const keep=new Set([AUTH_STORAGE_KEY,"mpf_role",CLEAN_START_VERSION]);
+  const keys=[];
+  for(let i=0;i<localStorage.length;i++) keys.push(localStorage.key(i));
+  for(const k of keys){
+    if(!k)continue;
+    if(keep.has(k))continue;
+    if(k.startsWith("mpf_")||k.startsWith("psm_")) localStorage.removeItem(k);
+  }
+}
+
+async function deleteAllRowsFromSupabaseTable(table){
+  const key=table==="settings"?"key":"id";
+
+  // Read keys only for an accurate count when RLS permits SELECT.
+  const rows=(await rest(table,"GET",null,`?select=${key}`))||[];
+
+  // Delete every visible row in one authenticated PostgREST operation.
+  // The "not.is.null" filter is valid for all current primary-key columns.
+  await rest(table,"DELETE",null,`?${key}=not.is.null`);
+
+  return rows.length;
+}
+
+
+
+(async()=>{
+  // IndexedDB is opened before login so the invoice-download portal can search local invoices.
+  await openDB();
+  await requireAuthentication();
+  await purgeTombstonedLocalRows();
+  await retryPendingVerifiedDeletes();
+     await retryPendingSaves();
+
+  cleanupDeleteTombstones();
+  setRole(S.role);
+  await refreshAll();
+  // Automatic Supabase synchronization disabled.
+  localStorage.removeItem("mpf_sync_queue");
+  updateSyncBadge();
+})().catch(e=>{
+  console.error(e);
+  hideCleanStart();
+  showLoginScreen("Startup error: "+e.message);
+});
+
+window.addEventListener("online",retryPendingVerifiedDeletes);
+window.addEventListener("online",()=>{retryPendingSaves();updateSyncHealth()});
+window.addEventListener("offline",updateSyncHealth);
+</script>
+</body></html>
