@@ -1258,6 +1258,69 @@ body,.main,.view{scroll-behavior:smooth!important}
   #v-lifting,#v-sales,#v-stores{padding-bottom:64px!important}
 }
 
+
+/* ===== GLOBAL SCROLL REPAIR =====
+   Keep every main section vertically scrollable while preventing browser
+   overscroll chaining as much as pure HTML/CSS safely allows. */
+html{
+  height:auto!important;
+  min-height:100%!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  overscroll-behavior-y:contain!important;
+  touch-action:pan-y!important;
+}
+body{
+  position:static!important;
+  height:auto!important;
+  min-height:100dvh!important;
+  max-height:none!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  overscroll-behavior-y:contain!important;
+  touch-action:pan-y!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+.main,
+.view,
+.view.active{
+  position:relative!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  overflow:visible!important;
+  touch-action:pan-y!important;
+}
+.view.active{display:block!important}
+.card,.section,.panel{
+  max-height:none!important;
+}
+.tablewrap{
+  overflow-x:auto!important;
+  overflow-y:auto!important;
+  -webkit-overflow-scrolling:touch!important;
+  touch-action:pan-x pan-y!important;
+}
+.modal{
+  overflow:hidden!important;
+  touch-action:pan-y!important;
+}
+.dialog,
+.detail-floating{
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  -webkit-overflow-scrolling:touch!important;
+  overscroll-behavior:contain!important;
+  touch-action:pan-y!important;
+}
+#fullCageEntry,
+.full-page-cage,
+.cage-full-page{
+  overflow-y:auto!important;
+  -webkit-overflow-scrolling:touch!important;
+  touch-action:pan-y!important;
+}
+
 </style>
 <meta name="theme-color" content="#b91c1c">
 </head>
@@ -1993,25 +2056,8 @@ function diagnoseScrollState(){
 
 
 function initPullToRefreshBlock(){
-  let startY=0,startX=0,tracking=false;
-  const interactive=t=>t&&t.closest&&t.closest("input,textarea,select,[contenteditable='true'],.dialog,.detail-floating,.tablewrap");
-  document.addEventListener("touchstart",e=>{
-    if(e.touches.length!==1){tracking=false;return}
-    startY=e.touches[0].clientY;startX=e.touches[0].clientX;
-    tracking=window.scrollY<=0 && !interactive(e.target);
-  },{passive:true});
-
-  document.addEventListener("touchmove",e=>{
-    if(!tracking||e.touches.length!==1)return;
-    const dy=e.touches[0].clientY-startY,dx=Math.abs(e.touches[0].clientX-startX);
-    // Block only the downward pull gesture at the very top of the document.
-    if(window.scrollY<=0 && dy>8 && dy>dx){
-      e.preventDefault();
-    }
-  },{passive:false});
-
-  document.addEventListener("touchend",()=>{tracking=false},{passive:true});
-  document.addEventListener("touchcancel",()=>{tracking=false},{passive:true});
+  // Pure CSS overscroll control is used instead.
+  // Do not prevent touchmove: that can freeze normal vertical scrolling on mobile browsers.
 }
 
 function initRefreshProtection(){
@@ -2689,9 +2735,17 @@ function buildSimplePdf(lines,title="PSM Broiler Distributor"){
 
 function downloadBlob(blob,fileName){
  const name=String(fileName||"PSM_Download").trim()||"PSM_Download";
- const url=URL.createObjectURL(blob),a=document.createElement("a");
- a.href=url;a.download=name;a.rel="noopener";a.style.display="none";document.body.appendChild(a);
- try{a.click()}finally{setTimeout(()=>{a.remove();URL.revokeObjectURL(url)},30000)}
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement("a");
+ a.href=url;
+ a.download=name;
+ a.rel="noopener";
+ a.style.display="none";
+ document.body.appendChild(a);
+ requestAnimationFrame(()=>{
+   a.click();
+   setTimeout(()=>{a.remove();URL.revokeObjectURL(url)},30000);
+ });
 }
 
 
@@ -2704,902 +2758,14 @@ async function downloadPdfBlob(blob,fileName){
  const a=document.createElement("a");
  a.href=url;
  a.download=name;
- a.setAttribute("download",name);
- a.setAttribute("type","application/pdf");
+ a.rel="noopener";
  a.style.display="none";
  document.body.appendChild(a);
- a.click();
- a.remove();
- setTimeout(()=>URL.revokeObjectURL(url),30000);
-}
-
-function buildStyledInvoicePdf(kind,data){
-  const W=595,H=842;
-  const escp=s=>String(s??"").replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)").replace(/[^\x20-\x7E]/g,"?");
-  const cmds=[];
-  const rgb=(r,g,b)=>`${(r/255).toFixed(3)} ${(g/255).toFixed(3)} ${(b/255).toFixed(3)}`;
-  const rect=(x,y,w,h,fill,stroke=null)=>{if(fill)cmds.push(`${rgb(...fill)} rg ${x} ${y} ${w} ${h} re f`);if(stroke)cmds.push(`${rgb(...stroke)} RG ${x} ${y} ${w} ${h} re S`)};
-  const txt=(x,y,s,size=10,bold=false,fill=[15,23,42])=>cmds.push(`BT /${bold?"F2":"F1"} ${size} Tf ${rgb(...fill)} rg 1 0 0 1 ${x} ${y} Tm (${escp(s)}) Tj ET`);
-  const line=(x1,y1,x2,y2,stroke=[5,98,63],width=1)=>cmds.push(`${rgb(...stroke)} RG ${width} w ${x1} ${y1} m ${x2} ${y2} l S`);
-
-  // Page frame
-  rect(24,28,547,786,[255,255,255],[220,228,224]);
-
-  // Header
-  rect(30,716,535,92,[255,255,255],[215,226,222]);
-  rect(442,716,123,92,[5,98,63]);
-  rect(42,733,68,68,[5,98,63]);
-  txt(54,759,"PSM",23,true,[255,255,255]);
-  txt(124,779,"PSM BROILER DISTRIBUTOR",21,true,[7,75,56]);
-  txt(124,757,"Kongba Kshetri Leikai, Imphal East, Manipur - 795008",8.5,false);
-  txt(124,741,"Quality Chicks - Reliable Supply - Stronger Farmers",8.5,true,[11,107,75]);
-  txt(456,778,kind==="farmer"?"SUPPORTING":"RELIABLE",8.5,true,[255,255,255]);
-  txt(451,761,kind==="farmer"?"BROILER FARMERS":"BROILER SUPPLY",8.5,true,[255,255,255]);
-  txt(460,744,kind==="farmer"?"FOR A BETTER":"FOR YOUR",8.5,true,[255,255,255]);
-  txt(470,727,kind==="farmer"?"TOMORROW":"BUSINESS",8.5,true,[255,255,255]);
-
-  // Title band
-  rect(42,657,511,46,[238,247,243],[216,235,226]);
-  txt(52,676,kind==="farmer"?"FARMER LIFTING INVOICE":"STORE SALES INVOICE",18,true,[16,33,42]);
-  let invNo,date;
-  if(kind==="farmer"){invNo=data.lifting.invoiceNumber||data.lifting.id;date=data.lifting.liftingDate||""}
-  else{invNo=data.sale.invoiceNumber||data.sale.id;date=data.sale.saleDate||""}
-  txt(374,684,`Invoice No: ${invNo}`,7.5,true);
-  txt(429,667,`Date: ${date}`,7.5,true);
-
-  // Detail panels
-  rect(42,554,246,88,[249,252,251],[216,227,223]);
-  rect(307,554,246,88,[249,252,251],[216,227,223]);
-  rect(42,620,246,22,[238,247,243]);
-  rect(307,620,246,22,[238,247,243]);
-
-  if(kind==="farmer"){
-    const l=data.lifting,f=data.farmer||{};
-    txt(52,627,"FARMER DETAILS",8.5,true,[12,100,71]);
-    txt(317,627,"LIFTING DETAILS",8.5,true,[12,100,71]);
-    txt(52,601,`Farmer Name: ${f.name||l.farmerName||""}`,8.5,true);
-    txt(52,578,`Address: ${f.address||"-"}`,8.5);
-    txt(317,601,`Lifting Date: ${l.liftingDate||""}`,8.5,true);
-    txt(317,584,`Lifting ID: ${l.id}`,7.5);
-    txt(317,567,`Remarks: ${l.remarks||"-"}`,8.5);
-
-    // Cage table
-    let y=525;
-    rect(42,y,511,24,[5,98,63]);
-    txt(56,y+8,"#",8.5,true,[255,255,255]);
-    txt(108,y+8,"Cage No.",8.5,true,[255,255,255]);
-    txt(286,y+8,"Weight (kg)",8.5,true,[255,255,255]);
-    txt(429,y+8,"Birds (Nos.)",8.5,true,[255,255,255]);
-    y-=22;
-
-    const cages=data.cages||[];
-    // Dynamic row height to guarantee totals + footer remain visible.
-    const maxRows=Math.max(1,Math.min(cages.length,16));
-    const available=255;
-    const rowH=Math.max(14,Math.min(21,Math.floor(available/maxRows)));
-    cages.slice(0,16).forEach((c,i)=>{
-      rect(42,y,511,rowH,i%2?[251,253,252]:[255,255,255],[207,217,213]);
-      txt(57,y+Math.max(4,rowH/2-2),String(i+1),7.5);
-      txt(110,y+Math.max(4,rowH/2-2),String(c.cageNumber||""),7.5,true);
-      txt(294,y+Math.max(4,rowH/2-2),fmt(c.weight),7.5);
-      txt(440,y+Math.max(4,rowH/2-2),String(c.birdCount||0),7.5);
-      y-=rowH;
-    });
-
-    const totalBirds=cages.reduce((s,c)=>s+(Number(c.birdCount)||0),0);
-    const totalY=Math.max(178,y-116);
-    rect(313,totalY,240,126,[255,255,255],[212,223,218]);
-    const farmerRound=invoiceRound(l.liftingAmount??l.totalAmount);
-    const rows=[
-      ["Total Cages",cages.length],
-      ["Total Birds",totalBirds],
-      ["Total Weight",`${fmt(l.totalWeight)} kg`],
-      ["Lifting Rate",`Rs. ${fmt(l.liftingRate??l.ratePerKg)} / kg`],
-      ["Round Off",`${farmerRound.roundOff>=0?"+":""}Rs. ${fmt(farmerRound.roundOff)}`]
-    ];
-    rows.forEach((r,i)=>{const yy=totalY+102-i*18;txt(325,yy,r[0],8.5);txt(462,yy,String(r[1]),8.5,true)});
-    rect(313,totalY,240,27,[232,247,238],[180,220,196]);
-    txt(325,totalY+9,"Net Amount",11,true);
-    txt(462,totalY+9,`Rs. ${fmt(farmerRound.rounded)}`,11,true);
-
-    rect(42,125,511,36,[233,248,239]);
-    txt(52,145,"Thank you for your trust and support!",8.5,true,[11,107,75]);
-    txt(52,132,"Together for a stronger poultry farming community.",7.5,false,[11,107,75]);
-  } else {
-    const s=data.sale,st=data.store||{},farmer=data.farmer||{};
-    txt(52,627,"STORE DETAILS",8.5,true,[12,100,71]);
-    txt(317,627,"SALE DETAILS",8.5,true,[12,100,71]);
-    txt(52,601,`Store Name: ${st.name||s.storeName||""}`,8.5,true);
-    txt(52,584,"Company Phone: 7005215398",8.5);
-    txt(52,567,`Account: ${data.wangkhei?"MPF A/C":"Regular Store"}`,8.5);
-    txt(317,601,`Sale Date: ${s.saleDate||""}`,8.5,true);
-    txt(317,584,`Farmer: ${farmer.name||s.farmerName||"-"}`,8.5);
-    txt(317,567,`Sale ID: ${s.id}`,7.5);
-
-    let y=525;
-    rect(42,y,511,24,[5,98,63]);
-    ["Description","Cage","Weight","Birds","Rate","Amount"].forEach((h,i)=>txt([52,214,278,346,398,472][i],y+8,h,7.5,true,[255,255,255]));
-    y-=30;
-    rect(42,y,511,30,[255,255,255],[207,217,213]);
-    txt(52,y+11,"Live Broiler Supply",7.5,true);
-    txt(216,y+11,String(s.cageNumber||s.cageId||""),7.5);
-    txt(280,y+11,fmt(s.weight??s.netWeight),7.5);
-    txt(350,y+11,String(s.birdsCount||0),7.5);
-    txt(398,y+11,`Rs.${fmt(s.salesRate??s.ratePerKg)}`,7.5);
-    txt(472,y+11,`Rs.${fmt(s.saleAmount??s.totalAmount)}`,7.5,true);
-
-    const totalY=320;
-    rect(313,totalY,240,142,[255,255,255],[212,223,218]);
-    const storeRound=invoiceRound(s.saleAmount??s.totalAmount);
-    const rows=data.wangkhei
-      ? [["Invoice Amount",`Rs. ${fmt(storeRound.exact)}`],["Round Off",`${storeRound.roundOff>=0?"+":""}Rs. ${fmt(storeRound.roundOff)}`],["Net Invoice",`Rs. ${fmt(storeRound.rounded)}`],["Paid Amount",`Rs. ${fmt(s.paidAmount)}`],["Settlement","MPF A/C"]]
-      : [["Previous Due",`Rs. ${fmt(s.previousDue)}`],["Invoice Amount",`Rs. ${fmt(storeRound.exact)}`],["Round Off",`${storeRound.roundOff>=0?"+":""}Rs. ${fmt(storeRound.roundOff)}`],["Net Invoice",`Rs. ${fmt(storeRound.rounded)}`],["Paid Amount",`Rs. ${fmt(s.paidAmount)}`],["Outstanding",`Rs. ${fmt(s.outstanding)}`]];
-    rows.forEach((r,i)=>{const yy=totalY+116-i*18;txt(325,yy,r[0],8.5);txt(452,yy,r[1],8.5,true)});
-
-    rect(42,125,511,36,[233,248,239]);
-    txt(52,145,"Thank you for your business!",8.5,true,[11,107,75]);
-    txt(52,132,"Reliable broiler supply from PSM Broiler Distributor.",7.5,false,[11,107,75]);
-  }
-
-  // Footer always fully visible inside page margins
-  line(42,109,553,109,[5,98,63],2);
-  txt(218,91,"PSM Broiler Distributor",11,true);
-  txt(158,76,"Kongba Kshetri Leikai, Imphal East, Manipur - 795008",7.5);
-  if(kind==="store") txt(247,63,"Phone: 7005215398",7.5,true,[7,75,56]);
-  rect(42,36,511,20,[238,247,243]);
-  txt(165,43,"This is a computer-generated invoice. No signature is required.",7.5);
-
-  // Serialize one-page A4 PDF
-  const stream=cmds.join("\n");
-  const objs=[null,
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
-    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
-    "<< /Type /Pages /Kids [5 0 R] /Count 1 >>",
-    `<< /Type /Page /Parent 4 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 3 0 R >>`,
-    "<< /Type /Catalog /Pages 4 0 R >>"
-  ];
-  let out="%PDF-1.4\n",offs=[0];
-  for(let i=1;i<objs.length;i++){offs[i]=out.length;out+=`${i} 0 obj\n${objs[i]}\nendobj\n`}
-  const xref=out.length;out+=`xref\n0 ${objs.length}\n0000000000 65535 f \n`;
-  for(let i=1;i<objs.length;i++)out+=String(offs[i]).padStart(10,"0")+" 00000 n \n";
-  out+=`trailer\n<< /Size ${objs.length} /Root 6 0 R >>\nstartxref\n${xref}\n%%EOF`;
-  return new Blob([out],{type:"application/pdf"});
-}
-
-function professionalFarmerPdfLines(data){
-  const {lifting:l,farmer:f,cages}=data;
-  const lines=[
-    "__B__PSM BROILER DISTRIBUTOR",
-    "Kongba Kshetri Leikai, Imphal East, Manipur - 795008",
-    "Farmer Lifting Invoice",
-    "__HR__",
-    `Invoice ID: ${l.id}`,
-    `Lifting Date: ${l.liftingDate||""}`,
-    `Farmer Name: ${f?.name||l.farmerName||""}`,
-        "__HR__",
-    "__B__CAGE-WISE DETAILS",
-    "SL   CAGE NO.         WEIGHT (KG)        BIRDS"
-  ];
-  cages.forEach((c,i)=>lines.push(`${String(i+1).padEnd(4)} ${String(c.cageNumber||"").padEnd(16)} ${fmt(c.weight).padStart(10)}          ${String(c.birdCount||0).padStart(5)}`));
-  lines.push(
-    "__HR__",
-    `Total Cages: ${cages.length}`,
-    `Total Birds: ${cages.reduce((s,c)=>s+(Number(c.birdCount)||0),0)}`,
-    `Total Weight: ${fmt(l.totalWeight)} kg`,
-    `Lifting Rate: Rs. ${fmt(l.liftingRate??l.ratePerKg)} / kg`,
-    `Total Lifting Amount: Rs. ${fmt(l.liftingAmount??l.totalAmount)}`,
-    "__HR__",
-    `Remarks: ${l.remarks||"-"}`,
-    "",
-    "",
-    "This is a computer-generated invoice. No signature is required.",
-    "",
-    "This is a computer-generated invoice. No signature is required.","","Thank you for working with PSM Broiler Distributor."
-  );
-  return lines;
-}
-async function downloadFarmerInvoicePdf(liftingId){
- try{
-   const data=await getFarmerInvoiceData(liftingId);
-   const invoiceId=String(data.lifting.invoiceNumber||data.lifting.id||liftingId);
-   const x=await createFarmerInvoicePdf(liftingId);
-   await downloadPdfBlob(x.blob,invoiceId);
-   audit("invoice","DOWNLOAD_FARMER_PDF",liftingId,invoiceId+".pdf");
- }catch(e){toast("PDF error: "+e.message)}
-}
-
-function buildTemplateStoreInvoicePdf(data){
- const s=data.sale,st=data.store||{},farmer=data.farmer||{},wang=!!data.wangkhei,tpl=getInvoiceTemplate();
- const W=595,H=842,logoBytes=Uint8Array.from(atob(PSM_LOGO_JPEG_BASE64),c=>c.charCodeAt(0)&255),logoHex=Array.from(logoBytes,b=>b.toString(16).padStart(2,"0")).join("").toUpperCase()+">",objs=[null],add=o=>{objs.push(o);return objs.length-1};
- const font=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"),fontB=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
- const imgObj=add(`<< /Type /XObject /Subtype /Image /Width ${PSM_LOGO_JPEG_WIDTH} /Height ${PSM_LOGO_JPEG_HEIGHT} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter [/ASCIIHexDecode /DCTDecode] /Length ${logoHex.length} >>\nstream\n${logoHex}\nendstream`);
- const gs=add("<< /Type /ExtGState /ca 0.05 /CA 0.05 >>");
- const ep=x=>String(x??"").replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)").replace(/[^\x20-\x7E]/g,"?");
- const rgb=(r,g,b)=>`${(r/255).toFixed(3)} ${(g/255).toFixed(3)} ${(b/255).toFixed(3)}`;
- const c=[],rect=(x,y,w,h,fill,stroke=null)=>{if(fill)c.push(`${rgb(...fill)} rg ${x} ${y} ${w} ${h} re f`);if(stroke)c.push(`${rgb(...stroke)} RG ${x} ${y} ${w} ${h} re S`)};
- const txt=(x,y,v,size=9,b=false,fill=[17,24,39])=>c.push(`BT /${b?"F2":"F1"} ${size} Tf ${rgb(...fill)} rg 1 0 0 1 ${x} ${y} Tm (${ep(v)}) Tj ET`);
- const accent=tpl==="minimal"?[75,85,99]:tpl==="modern"?[153,27,27]:[185,28,28];
- const light=tpl==="minimal"?[248,250,252]:[255,247,247];
- rect(24,28,547,786,[255,255,255],[226,232,240]);
- c.push(`q /GS1 gs 330 0 0 220 132 300 cm /Im1 Do Q`);
- if(tpl==="modern"){rect(36,742,8,58,accent);rect(44,742,515,58,[255,255,255],[229,231,235])}
- else if(tpl==="minimal"){rect(36,742,523,58,[255,255,255],[229,231,235])}
- else if(tpl==="bold"){rect(36,730,523,70,accent)}
- else if(tpl==="compact"){rect(36,750,523,50,accent)}
- else{rect(36,742,523,58,accent)}
- rect(42,tpl==="compact"?748:746,tpl==="compact"?100:112,tpl==="compact"?46:50,[255,255,255]);c.push(`q ${tpl==="compact"?"96 0 0 43 44 750":"108 0 0 47 44 748"} cm /Im1 Do Q`);
- const headerWhite=!(tpl==="minimal"||tpl==="modern");
- txt(165,tpl==="compact"?775:774,"PSM BROILER DISTRIBUTOR",tpl==="compact"?15:17,true,headerWhite?[255,255,255]:[17,24,39]);
- txt(165,tpl==="compact"?759:756,"Kongba Kshetri Leikai, Imphal East, Manipur - 795008",7,false,headerWhite?[255,255,255]:[75,85,99]);
- txt(438,tpl==="compact"?775:774,"STORE INVOICE",9,true,headerWhite?[255,255,255]:accent);
-
- rect(36,660,523,62,light,[254,202,202]);
- txt(48,700,`Invoice: ${s.invoiceNumber||s.id}`,9,true,accent);txt(350,700,`Date: ${s.saleDate||""}`,9,true);
- txt(48,679,`Store: ${st.name||s.storeName||""}`,9,true);txt(350,679,`Phone: 7005215398`,9);
-
- rect(36,570,523,70,[255,255,255],[226,232,240]);
- txt(48,620,"SALE DETAILS",9,true,accent);
- txt(48,598,`Cage: ${s.cageNumber||s.cageId||""}`,8.5,true);
- txt(190,598,`Farmer: ${farmer.name||s.farmerName||"-"}`,8.5);
- txt(48,580,`Account: ${wang?"MPF A/C Settlement":"Regular Store Account"}`,8.5);
-
- let y=530;rect(36,y,523,24,tpl==="minimal"?[241,245,249]:accent);
- const hf=tpl==="minimal"?accent:[255,255,255];
- ["Description","Weight","Birds","Rate","Amount"].forEach((h,i)=>txt([48,250,332,395,472][i],y+8,h,8,true,hf));
- y-=34;rect(36,y,523,34,[255,255,255],[226,232,240]);
- txt(48,y+12,"Live Broiler Supply",8.5,true);txt(250,y+12,`${fmt(s.weight??s.netWeight)} kg`,8.5);
- txt(338,y+12,String(s.birdsCount||0),8.5);txt(395,y+12,`Rs. ${fmt(s.salesRate??s.ratePerKg)}`,8.5);
- txt(472,y+12,`Rs. ${fmt(s.saleAmount??s.totalAmount)}`,8.5,true);
-
- const rr=invoiceRound(s.saleAmount??s.totalAmount),net=Number(s.netAmount??s.invoiceNetAmount??rr.rounded);
- const rows=wang
-   ? [["Invoice Amount",`Rs. ${fmt(rr.exact)}`],["Round Off",`${rr.roundOff>=0?"+":""}Rs. ${fmt(rr.roundOff)}`],["Net Invoice",`Rs. ${fmt(net)}`],["Paid Amount",`Rs. ${fmt(s.paidAmount)}`],["Settlement","MPF A/C"]]
-   : [["Previous Due",`Rs. ${fmt(s.previousDue)}`],["Invoice Amount",`Rs. ${fmt(rr.exact)}`],["Round Off",`${rr.roundOff>=0?"+":""}Rs. ${fmt(rr.roundOff)}`],["Net Invoice",`Rs. ${fmt(net)}`],["Paid Amount",`Rs. ${fmt(s.paidAmount)}`],["Outstanding",`Rs. ${fmt(s.outstanding)}`]];
- const totalY=300,totalH=rows.length*24+24;rect(310,totalY,249,totalH,light,[254,202,202]);
- rows.forEach((r,i)=>{const yy=totalY+totalH-24-(i*24);txt(323,yy,r[0],8.5,i===rows.length-1);txt(457,yy,r[1],8.5,true,i===rows.length-1?accent:[17,24,39])});
-
- rect(36,150,523,42,light,[254,202,202]);txt(48,174,"Thank you for your business!",9,true,accent);txt(48,159,"Reliable broiler supply from PSM Broiler Distributor.",8);
- txt(48,105,"PSM Broiler Distributor",10,true);txt(48,88,"Kongba Kshetri Leikai, Imphal East, Manipur - 795008",7.5);txt(390,88,"Phone: 7005215398",7.5,true);
- rect(36,48,523,22,[248,250,252]);txt(156,56,"This is a computer-generated invoice. No signature is required.",7.5);
-
- const stream=c.join("\n"),content=add(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`),pages=add(""),page=add(""),catalog=add(`<< /Type /Catalog /Pages ${pages} 0 R >>`);
- objs[page]=`<< /Type /Page /Parent ${pages} 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 ${font} 0 R /F2 ${fontB} 0 R >> /XObject << /Im1 ${imgObj} 0 R >> /ExtGState << /GS1 ${gs} 0 R >> >> /Contents ${content} 0 R >>`;
- objs[pages]=`<< /Type /Pages /Kids [${page} 0 R] /Count 1 >>`;
- let out="%PDF-1.4\n",offs=[0];for(let i=1;i<objs.length;i++){offs[i]=out.length;out+=`${i} 0 obj\n${objs[i]}\nendobj\n`}
- const xref=out.length;out+=`xref\n0 ${objs.length}\n0000000000 65535 f \n`;for(let i=1;i<objs.length;i++)out+=String(offs[i]).padStart(10,"0")+" 00000 n \n";
- out+=`trailer\n<< /Size ${objs.length} /Root ${catalog} 0 R >>\nstartxref\n${xref}\n%%EOF`;
- return new Blob([Uint8Array.from(out,ch=>ch.charCodeAt(0)&255)],{type:"application/pdf"});
-}
-
-async function makeStoreInvoicePdf(saleId){
- const s=await txGet("sales",saleId);if(!s)throw new Error("Sale not found.");
- const st=await txGet("stores",s.storeId),farmer=s.farmerId?await txGet("farmers",s.farmerId):null;
- const wang=!!(st?.isWangkhei||s.isWangkheiSale);
- const safe=(st?.name||s.storeName||"Store").replace(/[^a-z0-9]+/gi,"_");
- const fileName=`PSM_Store_Invoice_${safe}_${s.saleDate||today()}.pdf`;
- return {blob:buildTemplateStoreInvoicePdf({sale:s,store:st,farmer,wangkhei:wang}),fileName,s,st};
-}
-async function downloadStoreInvoicePdf(saleId){
- try{
-   const s=await txGet("sales",saleId);if(!s)throw new Error("Sale not found.");
-   const invoiceId=String(s.invoiceNumber||s.id||saleId);
-   const x=await makeStoreInvoicePdf(saleId);
-   await downloadPdfBlob(x.blob,invoiceId);
-   audit("invoice","DOWNLOAD_STORE_PDF",saleId,invoiceId+".pdf");
- }catch(e){toast("PDF error: "+e.message)}
-}
-
-async function buildDailyOperationalSummaryPdf(dateValue=today()){
- const lift=(await txAll("liftings")).filter(x=>x.liftingDate===dateValue),sales=(await txAll("sales")).filter(x=>x.saleDate===dateValue),sett=(await txAll("singke_settlements")).filter(x=>x.date===dateValue),stores=await txAll("stores");
- const liftKg=lift.reduce((s,x)=>s+(Number(x.totalWeight)||0),0),liftAmt=lift.reduce((s,x)=>s+(Number(x.netAmount??x.payableAmount??x.liftingAmount)||0),0);
- const salesKg=sales.reduce((s,x)=>s+(Number(x.weight??x.netWeight)||0),0),salesAmt=sales.reduce((s,x)=>s+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0),0);
- const wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>s.id)),ws=sales.filter(s=>s.isWangkheiSale||wm.has(s.storeId));
- const wangKg=ws.reduce((s,x)=>s+(Number(x.weight??x.netWeight)||0),0),wangAmt=ws.reduce((s,x)=>s+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0),0);
- const settlements=sett.reduce((s,x)=>s+(Number(x.amount)||0),0),lm=new Map((await txAll("liftings")).map(x=>[x.id,x]));
- const cost=sales.reduce((a,s)=>a+(Number(s.weight??s.netWeight)||0)*(Number(lm.get(s.liftingId)?.liftingRate)||0),0),profit=salesAmt-cost;
- let outstanding=0;for(const st of stores){if(st.archived||st.isWangkhei||String(st.name||"").toLowerCase().includes("wangkhei"))continue;outstanding+=(await storeSummary(st.id)).outstanding}
- const sg=await singkeSummary();
- const lines=["__B__PSM BROILER DISTRIBUTOR","Kongba Kshetri Leikai, Imphal East, Manipur - 795008",`Daily Operational Summary - ${dateValue}`,"__HR__",`Liftings: ${lift.length}`,`Total Lifting Kg: ${fmt(liftKg)} kg`,`Lifting Payable: Rs. ${fmt(liftAmt)}`,`Sales Transactions: ${sales.length}`,`Total Sales Kg: ${fmt(salesKg)} kg`,`Sales Value: Rs. ${fmt(salesAmt)}`,`Wangkhei Adjustment: ${fmt(wangKg)} kg | Rs. ${fmt(wangAmt)}`,`Singke Settlements: Rs. ${fmt(settlements)}`,`Gross Profit: Rs. ${fmt(profit)}`,`Store Outstanding: Rs. ${fmt(outstanding)}`,`Closing Singke Balance: Rs. ${fmt(sg.remain)}`,"__HR__",`Generated: ${new Date().toLocaleString("en-IN")}`];
- return {blob:buildSimplePdf(lines,"PSM DAILY OPERATIONAL SUMMARY"),fileName:`PSM_Daily_Operational_Summary_${dateValue}.pdf`};
-}
-async function downloadDailyOperationalSummaryPdf(){try{const x=await buildDailyOperationalSummaryPdf(today());downloadPdfBlob(x.blob,x.fileName);audit("reports","DAILY_SUMMARY_PDF",today())}catch(e){toast(e.message)}}
-
-async function buildLedgerPdf(){
-  const sel=document.getElementById("ledgerStore"),storeId=sel?.value;if(!storeId)throw new Error("Select a store.");
-  const st=await txGet("stores",storeId),wang=!!(st?.isWangkhei||String(st?.name||"").toLowerCase().includes("wangkhei"));
-  const sales=(await txAll("sales")).filter(x=>x.storeId===storeId).map(x=>({date:x.saleDate,type:"Sale",ref:x.invoiceNumber||x.id,debit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,credit:Number(x.paidAmount)||0}));
-  const pays=(await txAll("payments")).filter(x=>x.storeId===storeId).map(x=>({date:x.paymentDate,type:"Payment",ref:x.receiptNumber||x.referenceNumber||x.id,debit:0,credit:Number(x.amount)||0}));
-  const ev=[...sales,...pays].sort((a,b)=>a.date.localeCompare(b.date));
-  let bal=wang?0:(Number(st.openingDue)||0);
-  const lines=["__B__PSM BROILER DISTRIBUTOR","Kongba Kshetri Leikai, Imphal East, Manipur - 795008","Store Ledger","__HR__",`Store: ${st.name}`,`Phone: ${st.phone||""}`,`Generated: ${new Date().toLocaleString("en-IN")}`,"__HR__","DATE         TYPE      REFERENCE              DEBIT       CREDIT      BALANCE"];
-  if(!wang) lines.push(`             Opening                           ${fmt(bal).padStart(10)}              ${fmt(bal).padStart(10)}`);
-  for(const e of ev){
-    bal+=e.debit-e.credit;
-    lines.push(`${String(e.date||"").padEnd(12)} ${String(e.type).padEnd(9)} ${String(e.ref||"").slice(0,20).padEnd(21)} ${e.debit?fmt(e.debit).padStart(10):"          "} ${e.credit?fmt(e.credit).padStart(10):"          "} ${wang?"N/A":fmt(bal).padStart(10)}`);
-  }
-  if(!wang){lines.push("__HR__",`Closing Outstanding: Rs. ${fmt(bal)}`)}
-  else {lines.push("__HR__","Wangkhei store uses MPF A/C settlement account; outstanding is not applicable.")}
-  const clean=st.name.replace(/[^a-z0-9]+/gi,"_");
-  return {blob:buildSimplePdf(lines,"PSM STORE LEDGER"),fileName:`PSM_Store_Ledger_${clean}_${today()}.pdf`}
-}
-async function downloadStoreLedgerPdf(){
-  try{const {blob,fileName}=await buildLedgerPdf();downloadPdfBlob(blob,fileName);audit("ledger","DOWNLOAD_PDF",document.getElementById("ledgerStore").value)}
-  catch(e){toast(e.message)}
-}
-async function getFarmerInvoiceData(liftingId){
-  const lifting=await txGet("liftings",liftingId);
-  if(!lifting) throw new Error("Lifting not found.");
-  const farmer=await txGet("farmers",lifting.farmerId);
-  const cages=(await txAll("cages")).filter(c=>c.liftingId===liftingId).sort((a,b)=>String(a.cageNumber).localeCompare(String(b.cageNumber),undefined,{numeric:true}));
-  return {lifting,farmer,cages};
-}
-function invoiceLines(data){
-  const {lifting:l,farmer:f,cages}=data;
-  const lines=[
-    "__B__PSM BROILER DISTRIBUTOR",
-    "PSM Broiler Distributor - Farmer Lifting Invoice / Lifting Log",
-    "__HR__",
-    `Invoice / Lifting ID: ${l.id}`,
-    `Lifting Date: ${l.liftingDate||""}`,
-    `Farmer: ${f?.name||l.farmerName||""}`,
-    `Phone: ${f?.phone||""}`,
-    "__HR__",
-    "__B__CAGE-WISE LIFTING DETAILS",
-    "Cage No.        Weight (kg)        Birds",
-  ];
-  cages.forEach(c=>{
-    lines.push(`${String(c.cageNumber||"").padEnd(15)} ${fmt(c.weight).padStart(10)}           ${String(c.birdCount||0).padStart(5)}`);
-  });
-  lines.push(
-    "__HR__",
-    `Total Cages: ${cages.length}`,
-    `Total Birds: ${cages.reduce((s,c)=>s+(Number(c.birdCount)||0),0)}`,
-    `Total Weight: ${fmt(cages.reduce((s,c)=>s+(Number(c.weight)||0),0))} kg`,
-    `Lifting Rate: Rs. ${fmt(l.liftingRate??l.ratePerKg)} / kg`,
-    `Total Lifting Amount: Rs. ${fmt(l.liftingAmount??l.totalAmount)}`,
-    "__HR__",
-    `Remarks: ${l.remarks||"-"}`,
-    "",
-    
-    
-    "",
-    "Generated by PSM Broiler Distributor"
-  );
-  return lines;
-}
-
-function buildMultiPageFarmerInvoicePdf(data){
- const l=data.lifting,f=data.farmer||{},cages=data.cages||[],perPage=18,tpl=getInvoiceTemplate();
- const chunks=[];for(let i=0;i<cages.length;i+=perPage)chunks.push(cages.slice(i,i+perPage));if(!chunks.length)chunks.push([]);
- const W=595,H=842,logoBytes=Uint8Array.from(atob(PSM_LOGO_JPEG_BASE64),c=>c.charCodeAt(0)&255),logoHex=Array.from(logoBytes,b=>b.toString(16).padStart(2,"0")).join("").toUpperCase()+">",objs=[null],add=o=>{objs.push(o);return objs.length-1};
- const font=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"),fontB=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
- const imgObj=add(`<< /Type /XObject /Subtype /Image /Width ${PSM_LOGO_JPEG_WIDTH} /Height ${PSM_LOGO_JPEG_HEIGHT} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter [/ASCIIHexDecode /DCTDecode] /Length ${logoHex.length} >>\nstream\n${logoHex}\nendstream`);
- const gs=add("<< /Type /ExtGState /ca 0.055 /CA 0.055 >>");
- const pageIds=[],contentIds=[];
- const ep=s=>String(s??"").replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)").replace(/[^\x20-\x7E]/g,"?");
- const rgb=(r,g,b)=>`${(r/255).toFixed(3)} ${(g/255).toFixed(3)} ${(b/255).toFixed(3)}`;
- const accent=tpl==="minimal"?[107,114,128]:tpl==="modern"?[127,29,29]:[185,28,28];
- chunks.forEach((chunk,pi)=>{
-  const c=[],rect=(x,y,w,h,fill,stroke=null)=>{if(fill)c.push(`${rgb(...fill)} rg ${x} ${y} ${w} ${h} re f`);if(stroke)c.push(`${rgb(...stroke)} RG ${x} ${y} ${w} ${h} re S`)};
-  const txt=(x,y,s,size=9,b=false,fill=[17,24,39])=>c.push(`BT /${b?"F2":"F1"} ${size} Tf ${rgb(...fill)} rg 1 0 0 1 ${x} ${y} Tm (${ep(s)}) Tj ET`);
-  rect(24,28,547,786,[255,255,255],[226,232,240]);
-  c.push(`q /GS1 gs 330 0 0 220 132 300 cm /Im1 Do Q`);
-  if(tpl==="minimal"){rect(36,742,523,58,[255,255,255],[229,231,235])}else{rect(36,742,523,58,accent)}
-  rect(42,746,112,50,[255,255,255]);c.push(`q 108 0 0 47 44 748 cm /Im1 Do Q`);
-  txt(165,774,"PSM BROILER DISTRIBUTOR",17,true,tpl==="minimal"?[17,24,39]:[255,255,255]);
-  txt(165,756,"Kongba Kshetri Leikai, Imphal East, Manipur - 795008",7,false,tpl==="minimal"?[75,85,99]:[255,255,255]);
-  txt(430,774,"FARMER INVOICE",9,true,tpl==="minimal"?accent:[255,255,255]);txt(430,756,`Page ${pi+1} of ${chunks.length}`,8,false,tpl==="minimal"?[75,85,99]:[255,255,255]);
-  rect(36,674,523,54,[255,247,247],[254,202,202]);
-  txt(48,708,`Invoice: ${l.invoiceNumber||l.id}`,9,true,[153,27,27]);txt(330,708,`Date: ${l.liftingDate||""}`,9,true);
-  txt(48,688,`Farmer: ${f.name||l.farmerName||""}`,9,true);txt(330,688,`Rate: Rs. ${fmt(l.liftingRate??l.ratePerKg)}/kg`,9,true);
-  let y=642;rect(36,y,523,24,tpl==="minimal"?[255,241,242]:accent);["#","Cage No.","Weight (kg)","Birds"].forEach((h,i)=>txt([48,105,300,455][i],y+8,h,8,true,tpl==="minimal"?[153,27,27]:[255,255,255]));y-=22;
-  const offset=pi*perPage;
-  chunk.forEach((x,j)=>{rect(36,y,523,22,j%2?[255,250,250]:[255,255,255],[241,245,249]);txt(48,y+7,String(offset+j+1),8);txt(105,y+7,String(x.cageNumber||""),8,true);txt(300,y+7,fmt(x.weight),8);txt(455,y+7,String(x.birdCount||0),8);y-=22});
-  if(pi===chunks.length-1){
-   const rr=invoiceRound(l.liftingAmount??l.totalAmount),sumY=Math.max(110,y-140);rect(300,sumY,259,126,[255,247,247],[254,202,202]);
-   const vals=[["Total Cages",cages.length],["Total Birds",cages.reduce((s,x)=>s+(Number(x.birdCount)||0),0)],["Total Weight",`${fmt(l.totalWeight)} kg`],["Exact Amount",`Rs. ${fmt(rr.exact)}`],["Round Off",`${rr.roundOff>=0?"+":""}Rs. ${fmt(rr.roundOff)}`],["Net Payable",`Rs. ${fmt(rr.rounded)}`]];
-   vals.forEach((r,i)=>{txt(314,sumY+103-i*18,r[0],8,i===5);txt(460,sumY+103-i*18,String(r[1]),8,true,[153,27,27])});
-  }
-  txt(153,47,"This is a computer-generated invoice. No signature is required.",7,false,[107,114,128]);
-  const stream=c.join("\n"),cid=add(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);contentIds.push(cid);pageIds.push(add(""));
+ requestAnimationFrame(()=>{
+   a.click();
+   setTimeout(()=>{a.remove();URL.revokeObjectURL(url)},30000);
  });
- const pagesId=add(""),catalogId=add(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`);
- pageIds.forEach((pid,i)=>objs[pid]=`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 ${font} 0 R /F2 ${fontB} 0 R >> /XObject << /Im1 ${imgObj} 0 R >> /ExtGState << /GS1 ${gs} 0 R >> >> /Contents ${contentIds[i]} 0 R >>`);
- objs[pagesId]=`<< /Type /Pages /Kids [${pageIds.map(x=>x+" 0 R").join(" ")}] /Count ${pageIds.length} >>`;
- let out="%PDF-1.4\n",offsets=[0];for(let i=1;i<objs.length;i++){offsets[i]=out.length;out+=`${i} 0 obj\n${objs[i]}\nendobj\n`}const xr=out.length;
- out+=`xref\n0 ${objs.length}\n0000000000 65535 f \n`;for(let i=1;i<objs.length;i++)out+=String(offsets[i]).padStart(10,"0")+" 00000 n \n";
- out+=`trailer\n<< /Size ${objs.length} /Root ${catalogId} 0 R >>\nstartxref\n${xr}\n%%EOF`;return new Blob([Uint8Array.from(out,c=>c.charCodeAt(0)&255)],{type:"application/pdf"});
 }
-
-async function createFarmerInvoicePdf(liftingId){
-  const data=await getFarmerInvoiceData(liftingId);
-  const clean=(data.farmer?.name||data.lifting.farmerName||"Farmer").replace(/[^a-z0-9]+/gi,"_");
-  const fileName=`PSM_Farmer_Lifting_Invoice_${clean}_${data.lifting.liftingDate||today()}.pdf`;
-  return {blob:buildMultiPageFarmerInvoicePdf(data),fileName,data};
-}
-
-async function showLiftingCompletion(lid){
- const data=await getFarmerInvoiceData(lid),l=data.lifting,f=data.farmer||{},c=data.cages,rr=invoiceRound(l.liftingAmount??l.totalAmount);
- goToView("lifting-complete");
- const el=document.getElementById("liftingCompletionSummary");if(!el)return;
- el.innerHTML=`<div class="psm-title">CAGE ENTRY SUMMARY</div><div class="sub">Invoice ${esc(l.invoiceNumber||l.id)} • ${esc(l.liftingDate)}</div>
- <div style="height:12px"></div><div class="confirm-grid">
- <div class="confirm-item"><div class="k">Farmer</div><div class="v">${esc(f.name||l.farmerName||"")}</div></div>
- <div class="confirm-item"><div class="k">Cages</div><div class="v">${c.length}</div></div>
- <div class="confirm-item"><div class="k">Birds</div><div class="v">${c.reduce((s,x)=>s+(Number(x.birdCount)||0),0)}</div></div>
- <div class="confirm-item"><div class="k">Total Kg</div><div class="v">${fmt(l.totalWeight)} kg</div></div>
- <div class="confirm-item"><div class="k">Rate</div><div class="v">₹${fmt(l.liftingRate)}/kg</div></div>
- <div class="confirm-item"><div class="k">Net Payable</div><div class="v">₹${fmt(rr.rounded)}</div></div></div>
- <div style="height:12px"></div><div class="tablewrap"><table><thead><tr><th>#</th><th>Cage</th><th>Weight kg</th><th>Birds</th></tr></thead><tbody>${c.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.cageNumber)}</td><td>${fmt(x.weight)}</td><td>${x.birdCount||0}</td></tr>`).join("")}</tbody></table></div>`;
- const ib=document.getElementById("completeInvoiceBtn"),wb=document.getElementById("completeWhatsAppBtn");if(ib)ib.onclick=()=>previewFarmerInvoice(lid);if(wb)wb.onclick=()=>shareFarmerLiftingPdf(lid);
-}
-function printLiftingCompletion(){window.print()}
-
-async function previewFarmerInvoice(liftingId){
-  try{
-    const data=await getFarmerInvoiceData(liftingId),l=data.lifting,f=data.farmer||{},cages=data.cages;
-    const rows=cages.map((c,i)=>`<tr><td>${i+1}</td><td><b>${esc(c.cageNumber)}</b></td><td>${fmt(c.weight)}</td><td>${c.birdCount||0}</td></tr>`).join("");
-    openModal(`<div class="psm-invoice"><img class="psm-invoice-watermark" src="${PSM_LOGO_DATA_URI}" alt=""><img class="psm-invoice-logo" src="${PSM_LOGO_DATA_URI}" alt="PSM logo">
-      <div class="psm-brandbar">
-        <div class="psm-logo"><div class="psm-logo-mark">PSM</div></div>
-        <div class="psm-brandmain">
-          <div class="psm-brandname">PSM BROILER DISTRIBUTOR</div>
-          <div class="psm-address">Kongba Kshetri Leikai, Imphal East, Manipur - 795008</div>
-          <div class="psm-tagline">Quality Chicks · Reliable Supply · Stronger Farmers</div>
-        </div>
-        <div class="psm-support">SUPPORTING<br>BROILER FARMERS<br>FOR A BETTER<br>TOMORROW</div>
-      </div>
-      <div class="psm-invoice-body">
-        <div class="psm-titleband">
-          <div><div class="psm-title">FARMER LIFTING INVOICE</div><div class="psm-title-sub">PSM Broiler Distributor</div></div>
-          <div class="psm-meta"><div><b>Invoice No:</b> ${esc(l.invoiceNumber||l.id)}</div><div><b>Date:</b> ${esc(l.liftingDate||"")}</div></div>
-        </div>
-        <div class="psm-info-grid">
-          <div class="psm-info"><h4>FARMER DETAILS</h4><div class="body">
-            <div>Farmer Name</div><b>${esc(f.name||l.farmerName||"")}</b>
-            <div>Address</div><span>${esc(f.address||"-")}</span>
-          </div></div>
-          <div class="psm-info"><h4>LIFTING DETAILS</h4><div class="body">
-            <div>Lifting Date</div><b>${esc(l.liftingDate||"")}</b>
-            <div>Lifting ID</div><span class="mono">${esc(l.id)}</span>
-            <div>Remarks</div><span>${esc(l.remarks||"-")}</span>
-          </div></div>
-        </div>
-        <table class="psm-table"><thead><tr><th>#</th><th>Cage No.</th><th>Weight (kg)</th><th>Birds (Nos.)</th></tr></thead><tbody>${rows}</tbody></table>
-        <div class="psm-totals">
-          <div class="psm-total-row"><span>Total Cages</span><b>${cages.length}</b></div>
-          <div class="psm-total-row"><span>Total Birds</span><b>${cages.reduce((s,c)=>s+(Number(c.birdCount)||0),0)}</b></div>
-          <div class="psm-total-row"><span>Total Weight</span><b>${fmt(l.totalWeight)} kg</b></div>
-          <div class="psm-total-row"><span>Lifting Rate</span><b>₹${fmt(l.liftingRate??l.ratePerKg)} / kg</b></div>
-          ${(()=>{const rr=invoiceRound(l.liftingAmount??l.totalAmount);return `<div class="psm-total-row"><span>Amount</span><b>₹${fmt(rr.exact)}</b></div><div class="psm-total-row"><span>Round Off</span><b>${rr.roundOff>=0?"+":""}₹${fmt(rr.roundOff)}</b></div><div class="psm-total-row final"><span>Net Amount</span><span>₹${fmt(rr.rounded)}</span></div>`})()}
-        </div>
-        <div class="psm-thanks"><b>Thank you for your trust and support!</b><span>Together for a stronger poultry farming community.</span></div>
-        <div class="psm-footer">
-          <div class="name">PSM Broiler Distributor</div>
-          <div class="addr">Kongba Kshetri Leikai, Imphal East, Manipur - 795008</div>
-          <div class="psm-contact"><span>📍 Kongba Kshetri Leikai, Imphal East, Manipur - 795008</span></div>
-          <div class="psm-generated">This is a computer-generated invoice. No signature is required.</div>
-        </div>
-      </div>
-    </div>
-    <div class="invoice-preview-template">Template: <b>${esc(invoiceTemplateLabel())}</b></div><div style="height:12px"></div><div class="action-group invoice-actions">
-      <button class="btn primary" onclick="downloadFarmerInvoicePdf('${liftingId}')">Download PDF</button><button class="btn" onclick="printInvoiceView()">Print</button><button class="btn ok" onclick="shareFarmerLiftingPdf('${liftingId}')">WhatsApp</button><button class="btn" onclick="sendFarmerInvoiceSms('${liftingId}')">SMS</button>
-    </div>`);
-    audit("invoice","PREVIEW",liftingId);
-  }catch(e){toast(e.message)}
-}
-function printInvoiceView(){window.print()}
-function normalizeWhatsappPhone(phone){
-  let p=String(phone||"").replace(/\D/g,"");
-  if(p.length===10) p="91"+p;
-  return p;
-}
-function openWhatsAppUrl(url){
-  try{sessionStorage.setItem("psm_share_return_view",PSM_CURRENT_VIEW||"home")}catch(e){}
-  const a=document.createElement("a");
-  a.href=url;a.target="_blank";a.rel="noopener noreferrer";a.style.display="none";
-  document.body.appendChild(a);
-  let w=null;
-  try{w=window.open(url,"_blank","noopener,noreferrer")}catch(e){}
-  if(!w){try{a.click()}catch(e){a.remove();toast("Unable to open WhatsApp.");return false}}
-  a.remove();return true;
-}
-
-function openSmsComposer(phone,message){
- const clean=String(phone||"").replace(/[^0-9+]/g,"");
- if(!clean)return toast("No phone number available for SMS.");
- const sep=/iPhone|iPad|iPod/i.test(navigator.userAgent)?"&":"?";
- const url=`sms:${clean}${sep}body=${encodeURIComponent(message)}`;
- const a=document.createElement("a");
- a.href=url;
- a.style.display="none";
- document.body.appendChild(a);
- try{a.click()}catch(e){location.href=url}
- a.remove();
- return true;
-}
-async function sendFarmerInvoiceSms(liftingId){
- try{
-   const data=await getFarmerInvoiceData(liftingId),f=data.farmer||{},l=data.lifting;
-   const msg=`PSM Farmer Lifting Invoice
-Invoice: ${l.invoiceNumber||l.id}
-Farmer: ${f.name||l.farmerName||""}
-Date: ${l.liftingDate||""}
-Total Cages: ${data.cages.length}
-Total Birds: ${l.totalBirds||0}
-Total Weight: ${fmt(l.totalWeight)} kg
-Rate: Rs. ${fmt(l.liftingRate??l.ratePerKg)} / kg
-Total Amount: Rs. ${fmt(l.netAmount??l.payableAmount??l.liftingAmount??l.totalAmount)}`;
-   if(openSmsComposer(f.phone,msg))audit("invoice","FARMER_SMS",liftingId,f.phone||"");
- }catch(e){toast("SMS error: "+e.message)}
-}
-async function sendStoreInvoiceSms(saleId){
- try{
-   const s=await txGet("sales",saleId);if(!s)throw new Error("Sale not found.");
-   const st=await txGet("stores",s.storeId),wang=!!(st?.isWangkhei||s.isWangkheiSale);
-   const msg=`PSM Store Sales Invoice
-Invoice: ${s.invoiceNumber||s.id}
-Store: ${st?.name||s.storeName||""}
-Date: ${s.saleDate||""}
-Weight: ${fmt(s.weight??s.netWeight)} kg
-Rate: Rs. ${fmt(s.salesRate??s.ratePerKg)} / kg
-Invoice Amount: Rs. ${fmt(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)}
-Previous Due: ${wang?"N/A":"Rs. "+fmt(s.previousDue)}
-Paid: Rs. ${fmt(s.paidAmount)}
-Total Outstanding: ${wang?"N/A":"Rs. "+fmt(s.outstanding)}`;
-   if(openSmsComposer(st?.phone,msg))audit("invoice","STORE_SMS",saleId,st?.phone||"");
- }catch(e){toast("SMS error: "+e.message)}
-}
-
-async function shareFarmerLiftingPdf(liftingId){
- try{
-  const data=await getFarmerInvoiceData(liftingId),f=data.farmer||{},l=data.lifting;
-  const msg=`PSM Farmer Lifting Invoice
-Invoice: ${l.invoiceNumber||l.id}
-Farmer: ${f.name||l.farmerName||""}
-Date: ${l.liftingDate||""}
-Total Cages: ${data.cages.length}
-Total Birds: ${l.totalBirds||0}
-Total Weight: ${fmt(l.totalWeight)} kg
-Rate: Rs. ${fmt(l.liftingRate??l.ratePerKg)} / kg
-Total Amount: Rs. ${fmt(l.netAmount??l.payableAmount??l.liftingAmount??l.totalAmount)}`;
-  const p=normalizeWhatsappPhone(f.phone);
-  openWhatsAppUrl(`https://wa.me/${p}?text=${encodeURIComponent(msg)}`);
-  audit("invoice","FARMER_WHATSAPP_TEXT",liftingId,f.phone||"");
- }catch(e){toast("WhatsApp share error: "+e.message)}
-}
-
-async function renderFarmersCombined(){
- let q=(document.getElementById("farmerSearchCombined")?.value||"").toLowerCase();
- let a=(await txAll("farmers")).filter(f=>!q||[f.id,f.name,f.phone].some(x=>String(x).toLowerCase().includes(q))).sort((a,b)=>Number(a.archived)-Number(b.archived)||String(a.name||"").localeCompare(String(b.name||"")));
- const el=document.getElementById("farmerRowsCombined");if(!el)return;
- el.innerHTML=a.length?a.map(f=>`<tr onclick="openFarmerDetails('${f.id}')" tabindex="0" onkeydown="if(event.key==='Enter')openFarmerDetails('${f.id}')"><td>${esc(simpleDate(f.createdAt))}</td><td class="mono">${esc(f.id)}</td><td>${esc(f.name)}${f.archived?' <span class="archive-badge">ARCHIVED</span>':''}</td></tr>`).join(""):`<tr><td colspan="3" class="empty">No farmers</td></tr>`;
-}
-async function renderLiftings(){
- let a=(await txAll("liftings")).sort((a,b)=>String(b.liftingDate||"").localeCompare(String(a.liftingDate||"")));
- let fm=new Map((await txAll("farmers")).map(f=>[f.id,f]));
- document.getElementById("liftingRows").innerHTML=a.length?a.map(l=>`<tr onclick="openLiftingDetails('${l.id}')" tabindex="0" onkeydown="if(event.key==='Enter')openLiftingDetails('${l.id}')"><td>${esc(l.liftingDate)}</td><td class="mono">${esc(l.invoiceNumber||l.id)}</td><td>${esc(fm.get(l.farmerId)?.name||l.farmerName||"")}</td></tr>`).join(""):`<tr><td colspan="3" class="empty">No liftings</td></tr>`;
- document.getElementById("liftQuickCount").textContent=a.length;
- document.getElementById("liftQuickCages").textContent=a.reduce((s,l)=>s+(Number(l.totalCages)||0),0);
- document.getElementById("liftQuickWeight").textContent=fmt(a.reduce((s,l)=>s+(Number(l.totalWeight)||0),0));
-}
-function openLiftingActions(id){
- openModal(`<h3>Lifting Actions</h3><div class="action-group">
- <button class="btn" onclick="closeModal();openLifting('${id}')">Edit</button>
- ${S.role==="admin"?`<button class="btn bad" onclick="closeModal();deleteLifting('${id}')">Delete</button>`:""}
- <button class="btn primary" onclick="closeModal();previewFarmerInvoice('${id}')">Invoice</button>
- <button class="btn ok" onclick="shareFarmerLiftingPdf('${id}')">Share WhatsApp</button>
- </div>`);
-}
-async function renderSales(){
- let a=(await txAll("sales")).sort((a,b)=>String(b.saleDate||"").localeCompare(String(a.saleDate||"")));
- let stores=new Map((await txAll("stores")).map(s=>[s.id,s]));
- document.getElementById("saleRows").innerHTML=a.length?a.map(s=>{
-   let st=stores.get(s.storeId);
-   return `<tr onclick="openSaleDetails('${s.id}')" tabindex="0" onkeydown="if(event.key==='Enter')openSaleDetails('${s.id}')"><td>${esc(s.saleDate)}</td><td class="mono">${esc(s.invoiceNumber||s.id)}</td><td>${esc(s.storeName||st?.name||"")}</td></tr>`
- }).join(""):`<tr><td colspan="3" class="empty">No sales</td></tr>`;
-}
-function openSaleActions(id){
- openModal(`<h3>Sales Actions</h3><div class="action-group">
- <button class="btn" onclick="closeModal();editSale('${id}')">Edit</button>
- ${S.role==="admin"?`<button class="btn bad" onclick="closeModal();deleteSale('${id}')">Delete</button>`:""}
- <button class="btn primary" onclick="closeModal();previewStoreInvoice('${id}')">Invoice</button>
- <button class="btn ok" onclick="shareStoreInvoiceWhatsApp('${id}')">Share WhatsApp</button>
- </div>`);
-}
-async function editSale(id){
- let s=await txGet("sales",id);if(!s)return;
- let store=await txGet("stores",s.storeId);
- openModal(`<h3>Edit Sale</h3><div class="grid g2">
- <div class="field"><label>Date</label><input id="esaDate" type="date" value="${s.saleDate||today()}"></div>
- <div class="field"><label>Store</label><input value="${esc(store?.name||s.storeName||"")}" disabled></div>
- <div class="field"><label>Weight kg</label><input id="esaWeight" type="number" step="0.01" value="${s.weight??s.netWeight??0}"></div>
- <div class="field"><label>Sales Rate ₹/kg</label><input id="esaRate" type="number" step="0.01" value="${s.salesRate??s.ratePerKg??0}"></div>
- <div class="field"><label>Paid Amount ₹</label><input id="esaPaid" type="number" step="0.01" value="${s.paidAmount??0}"></div>
- <div class="field"><label>Remarks</label><input id="esaRem" value="${esc(s.remarks||"")}"></div></div>
- <div style="height:12px"></div><button class="btn primary" onclick="saveEditedSale('${id}')">Update Sale</button>`);
-}
-async function saveEditedSale(id){
-  let s=await txGet("sales",id);if(!s)return;
-  const weight=Number(document.getElementById("esaWeight").value),rate=Number(document.getElementById("esaRate").value),paid=Number(document.getElementById("esaPaid").value)||0;
-  if(weight<=0||rate<=0)return toast("Weight and rate required.");
-  const exactAmount=Math.round(weight*rate*100)/100,rr=invoiceRound(exactAmount),netAmount=rr.rounded;
-  s.saleDate=document.getElementById("esaDate").value||s.saleDate;
-  s.weight=weight;s.netWeight=weight;s.salesRate=rate;s.ratePerKg=rate;s.saleAmount=exactAmount;s.totalAmount=exactAmount;s.roundOff=rr.roundOff;s.netAmount=netAmount;s.invoiceNetAmount=netAmount;s.paidAmount=paid;
-  s.outstanding=Math.round(((Number(s.previousDue)||0)+netAmount-paid)*100)/100;
-  s.remarks=document.getElementById("esaRem").value.trim();s.updatedAt=iso();
-  await txPut("sales",s);queueCloud("sales","UPSERT",s);audit("sales","UPDATE",id);clearCurrentFormDraft();closeModal();refreshAll();
-}
-async function deleteSale(id){
- requireAdmin();let s=await txGet("sales",id);if(!s)return;if(!confirm("Delete this sale and release its cage?"))return;
- if(s.cageId){let c=await txGet("cages",s.cageId);if(c){c.isSold=false;c.saleId=null;c.updatedAt=iso();await txPut("cages",c);await setSetting("cage_state_"+c.id,{isSold:false,saleId:null,updatedAt:c.updatedAt});queueCloud("cages","UPSERT",c)}}
- await txDel("sales",id);queueCloud("sales","DELETE",id);audit("sales","DELETE",id);refreshAll()
-}
-
-async function previewStoreInvoice(saleId){
- const s=await txGet("sales",saleId);if(!s)return toast("Sale not found.");
- const st=await txGet("stores",s.storeId),farmer=s.farmerId?await txGet("farmers",s.farmerId):null;
- const wang=!!(st?.isWangkhei||s.isWangkheiSale);
- openModal(`<div class="psm-invoice"><img class="psm-invoice-watermark" src="${PSM_LOGO_DATA_URI}" alt=""><img class="psm-invoice-logo" src="${PSM_LOGO_DATA_URI}" alt="PSM logo">
-   <div class="psm-brandbar">
-     <div class="psm-logo"><div class="psm-logo-mark">PSM</div></div>
-     <div class="psm-brandmain">
-       <div class="psm-brandname">PSM BROILER DISTRIBUTOR</div>
-       <div class="psm-address">Kongba Kshetri Leikai, Imphal East, Manipur - 795008</div>
-       <div class="psm-tagline">Quality Chicks · Reliable Supply · Stronger Farmers</div>
-     </div>
-     <div class="psm-support">RELIABLE<br>BROILER SUPPLY<br>FOR YOUR<br>BUSINESS</div>
-   </div>
-   <div class="psm-invoice-body">
-    <div class="psm-titleband">
-      <div><div class="psm-title">STORE SALES INVOICE</div><div class="psm-title-sub">PSM Broiler Distributor</div></div>
-      <div class="psm-meta"><div><b>Invoice No:</b> ${esc(s.invoiceNumber||s.id)}</div><div><b>Date:</b> ${esc(s.saleDate||"")}</div></div>
-    </div>
-    <div class="psm-info-grid">
-      <div class="psm-info"><h4>STORE DETAILS</h4><div class="body">
-        <div>Store Name</div><b>${esc(st?.name||s.storeName||"")}</b>
-        <div>Company Phone</div><span>7005215398</span>
-        <div>Account Type</div><span>${wang?"MPF A/C Settlement":"Regular Store Account"}</span>
-      </div></div>
-      <div class="psm-info"><h4>SALE DETAILS</h4><div class="body">
-        <div>Sale Date</div><b>${esc(s.saleDate||"")}</b>
-        <div>Farmer</div><span>${esc(farmer?.name||s.farmerName||"-")}</span>
-        <div>Sale ID</div><span class="mono">${esc(s.id)}</span>
-      </div></div>
-    </div>
-    <table class="psm-table"><thead><tr><th>Description</th><th>Cage No.</th><th>Weight (kg)</th><th>Birds</th><th>Rate</th><th>Amount</th></tr></thead><tbody>
-      <tr><td><b>Live Broiler Supply</b></td><td>${esc(s.cageNumber||s.cageId||"")}</td><td>${fmt(s.weight??s.netWeight)}</td><td>${s.birdsCount||0}</td><td>₹${fmt(s.salesRate??s.ratePerKg)}</td><td><b>₹${fmt(s.saleAmount??s.totalAmount)}</b></td></tr>
-    </tbody></table>
-    <div class="psm-totals">
-      ${wang?"":`<div class="psm-total-row"><span>Previous Due</span><b>₹${fmt(s.previousDue)}</b></div>`}
-      <div class="psm-total-row"><span>Invoice Amount</span><b>₹${fmt(s.saleAmount??s.totalAmount)}</b></div>
-      ${(()=>{const rr=invoiceRound(s.saleAmount??s.totalAmount);return `<div class="psm-total-row"><span>Round Off</span><b>${rr.roundOff>=0?"+":""}₹${fmt(rr.roundOff)}</b></div><div class="psm-total-row"><span>Net Invoice Amount</span><b>₹${fmt(rr.rounded)}</b></div>`})()}
-      <div class="psm-total-row"><span>Paid Amount</span><b>₹${fmt(s.paidAmount)}</b></div>
-      ${wang?`<div class="psm-total-row final"><span>Settlement</span><span>MPF A/C</span></div>`:`<div class="psm-total-row final"><span>Outstanding</span><span>₹${fmt(s.outstanding)}</span></div>`}
-    </div>
-    <div class="psm-thanks"><b>Thank you for your business!</b><span>Reliable broiler supply from PSM Broiler Distributor.</span></div>
-    <div class="psm-footer">
-      <div class="name">PSM Broiler Distributor</div>
-      <div class="addr">Kongba Kshetri Leikai, Imphal East, Manipur - 795008</div>
-      <div class="psm-contact"><span>☎ 7005215398</span><span>📍 Kongba Kshetri Leikai, Imphal East, Manipur - 795008</span></div>
-      <div class="psm-generated">This is a computer-generated invoice. No signature is required.</div>
-    </div>
-   </div>
- </div>
- <div class="invoice-preview-template">Template: <b>${esc(invoiceTemplateLabel())}</b></div><div style="height:12px"></div><div class="action-group invoice-actions">
-  <button class="btn primary" onclick="downloadStoreInvoicePdf('${saleId}')">Download PDF</button><button class="btn" onclick="printInvoiceView()">Print</button><button class="btn ok" onclick="shareStoreInvoiceWhatsApp('${saleId}')">WhatsApp</button><button class="btn" onclick="sendStoreInvoiceSms('${saleId}')">SMS</button>
- </div>`);
- audit("invoice","STORE_PREVIEW",saleId)
-}
-async function shareStoreInvoiceWhatsApp(saleId){
- try{
-  const s=await txGet("sales",saleId);if(!s)throw new Error("Sale not found.");
-  const st=await txGet("stores",s.storeId),wang=!!(st?.isWangkhei||s.isWangkheiSale);
-  const msg=`PSM Store Sales Invoice
-Invoice: ${s.invoiceNumber||s.id}
-Store: ${st?.name||s.storeName||""}
-Date: ${s.saleDate||""}
-Weight: ${fmt(s.weight??s.netWeight)} kg
-Rate: Rs. ${fmt(s.salesRate??s.ratePerKg)} / kg
-Invoice Amount: Rs. ${fmt(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)}
-Previous Due: ${wang?"N/A":"Rs. "+fmt(s.previousDue)}
-Paid: Rs. ${fmt(s.paidAmount)}
-Total Outstanding: ${wang?"N/A":"Rs. "+fmt(s.outstanding)}`;
-  const p=normalizeWhatsappPhone(st?.phone);
-  openWhatsAppUrl(`https://wa.me/${p}?text=${encodeURIComponent(msg)}`);
-  audit("invoice","STORE_WHATSAPP_TEXT",saleId,st?.phone||"");
- }catch(e){toast("WhatsApp share error: "+e.message)}
-}
-async function renderStores(){
- const q=(document.getElementById("storeSearch")?.value||"").trim().toLowerCase();
- let a=(await txAll("stores")).filter(s=>!q||[s.id,s.name,s.phone].some(v=>String(v||"").toLowerCase().includes(q)));
- a.sort((a,b)=>Number(a.archived)-Number(b.archived)||String(a.name||"").localeCompare(String(b.name||"")));
- const rows=a.map(s=>`<tr onclick="openStoreDetails('${s.id}')" tabindex="0" onkeydown="if(event.key==='Enter')openStoreDetails('${s.id}')"><td>${esc(simpleDate(s.createdAt))}</td><td class="mono">${esc(s.id)}</td><td>${esc(s.name)}${s.archived?' <span class="archive-badge">ARCHIVED</span>':''}</td></tr>`);
- document.getElementById("storeRows").innerHTML=rows.length?rows.join(""):`<tr><td colspan="3" class="empty">No matching stores</td></tr>`;
-}
-
-async function editStore(storeId){
- const s=await txGet("stores",storeId);if(!s)return toast("Store not found.");
- openModal(`<h3>Edit Store</h3>
- <div class="grid g2">
-   <div class="field"><label>Store Name</label><input id="esName" value="${esc(s.name||"")}"></div>
-   <div class="field"><label>Phone</label><input id="esPhone" value="${esc(s.phone||"")}"></div>
-   <div class="field"><label>Opening Due ₹</label><input id="esOpening" type="number" step="0.01" value="${Number(s.openingDue)||0}" ${s.isWangkhei?"disabled":""}></div>
-   <div class="field"><label>Wangkhei Store</label><select id="esWangkhei"><option value="false" ${!s.isWangkhei?"selected":""}>No</option><option value="true" ${s.isWangkhei?"selected":""}>Yes</option></select></div>
- </div>
- <div style="height:12px"></div>
- <button class="btn primary" onclick="saveEditedStore('${storeId}')">Update Store</button>`);
-}
-async function saveEditedStore(storeId){
- let s=await txGet("stores",storeId);if(!s)return;
- let name=document.getElementById("esName").value.trim(),phone=document.getElementById("esPhone").value.trim(),isWangkhei=document.getElementById("esWangkhei").value==="true";
- let openingDue=isWangkhei?0:(Number(document.getElementById("esOpening").value)||0);
- if(!name||!phone)return toast("Store name and phone required.");
- const all=await txAll("stores"),digits=phone.replace(/\D/g,"");
- const dn=all.find(x=>x.id!==storeId&&String(x.name||"").trim().toLowerCase()===name.toLowerCase()),dp=all.find(x=>x.id!==storeId&&String(x.phone||"").replace(/\D/g,"")===digits);
- if(dn)return toast(`Store "${dn.name}" already exists.`);
- if(dp&&!confirm(`Duplicate warning: this phone already belongs to ${dp.name}. Save anyway?`))return;
- s={...s,name,phone,isWangkhei,openingDue,updatedAt:iso()};
- await txPut("stores",s);await setSetting("store_meta_"+s.id,{openingDue,isWangkhei,updatedAt:s.updatedAt});queueCloud("stores","UPSERT",s);audit("stores","UPDATE",storeId,name);clearCurrentFormDraft();closeModal();refreshAll()
-}
-async function sendOutstandingReminder(storeId){
- const st=await txGet("stores",storeId);if(!st)return;
- if(st.isWangkhei||String(st.name).toLowerCase().includes("wangkhei"))return toast("Wangkhei uses MPF A/C settlement and has no outstanding reminder.");
- const f=await storeSummary(storeId);
- const msg=`Payment Reminder - PSM Broiler Distributor
-Store: ${st.name}
-Outstanding Amount: Rs. ${fmt(f.outstanding)}
-As on: ${new Date().toLocaleString("en-IN")}
-
-Kindly arrange payment at the earliest. Thank you.`;
- const p=normalizeWhatsappPhone(st.phone);window.open(`https://wa.me/${p}?text=${encodeURIComponent(msg)}`,"_blank");audit("stores","OUTSTANDING_REMINDER",storeId,`₹${fmt(f.outstanding)}`)
-}
-async function singkeSummary(){
-  const p=await setting("singke_previous_due",{amount:0});
-  const lift=await txAll("liftings");
-  const sales=await txAll("sales");
-  const stores=await txAll("stores");
-  const sets=await txAll("singke_settlements");
-  const wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>s.id));
-  const wangSales=sales.filter(s=>s.isWangkheiSale||wm.has(s.storeId));
-  const liftingPayable=lift.reduce((a,l)=>a+(Number(l.netAmount??l.payableAmount??l.liftingAmount??l.totalAmount)||0),0);
-  const wang=wangSales.reduce((a,s)=>a+(Number(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)||0),0);
-  const wangKg=wangSales.reduce((a,s)=>a+(Number(s.netWeight??s.weight??s.totalWeight)||0),0);
-  const sett=sets.reduce((a,s)=>a+(Number(s.amount)||0),0);
-  return {p,liftingPayable,wang,wangKg,sett,remain:(Number(p?.amount)||0)+liftingPayable-wang-sett};
-}
-async function renderSingke(){
-  const s=await singkeSummary();
-  document.getElementById("sPrev").textContent=fmt(s.p?.amount);
-  document.getElementById("sPrevDate").textContent=s.p?.asOf?`As of ${s.p.asOf}`:"Not set";
-  document.getElementById("sLift").textContent=fmt(s.liftingPayable);
-  document.getElementById("sWang").textContent=fmt(s.wang);
-  const kgEl=document.getElementById("sWangKg");if(kgEl)kgEl.textContent=fmt(s.wangKg);
-  document.getElementById("sSet").textContent=fmt(s.sett);
-  document.getElementById("sRemain").textContent=fmt(s.remain);
-  const dash=document.getElementById("dashSingke");if(dash)dash.textContent=fmt(s.remain);
-
-  const stores=await txAll("stores");
-  const wm=new Set(stores.filter(st=>st.isWangkhei||String(st.name||"").toLowerCase().includes("wangkhei")).map(st=>st.id));
-  let ev=[
-    ...(await txAll("liftings")).map(x=>({date:x.liftingDate||"",type:"Lifting Payable",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,debit:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,credit:0})),
-    ...(await txAll("sales")).filter(x=>x.isWangkheiSale||wm.has(x.storeId)).map(x=>({date:x.saleDate||"",type:"Wangkhei Adjustment",ref:x.invoiceNumber||x.id,kg:Number(x.netWeight??x.weight??x.totalWeight)||0,debit:0,credit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0})),
-    ...(await txAll("singke_settlements")).map(x=>({date:x.date||"",type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,debit:0,credit:Number(x.amount)||0}))
-  ].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
-  const from=document.getElementById("singkeFrom")?.value||"",to=document.getElementById("singkeTo")?.value||"";
-  let bal=Number(s.p?.amount)||0;if(from){for(const e of ev){if(e.date&&e.date<from)bal+=e.debit-e.credit}}
-  const filtered=ev.filter(e=>(!from||e.date>=from)&&(!to||e.date<=to));
-  window._singkeViewRows=[];
-  const rows=[];
-  filtered.forEach((e,i)=>{bal+=e.debit-e.credit;const d={...e,balance:bal};window._singkeViewRows.push(d);rows.push(`<tr onclick="openSingkeListDetails(${i})"><td>${esc(e.date)}</td><td class="mono">${esc(e.ref)}</td><td>${esc(e.type)}</td></tr>`)});
-  document.getElementById("singkeRows").innerHTML=rows.join("")||`<tr><td colspan="3" class="empty">No reconciliation transactions for the selected period</td></tr>`;
-}
-function openSingkeListDetails(i){const e=window._singkeViewRows?.[i];if(!e)return;openGenericDetails(e.type,e.ref,{date:e.date,id:e.ref,name:e.type,totalKg:e.kg?fmt(e.kg)+" kg":"—",debit:e.debit?"Rs. "+fmt(e.debit):"—",credit:e.credit?"Rs. "+fmt(e.credit):"—",runningDue:"Rs. "+fmt(e.balance)})}
-async function populateStoreSelect(){let stores=(await txAll("stores")).filter(s=>!s.archived),sel=document.getElementById("ledgerStore");let old=sel.value;sel.innerHTML=stores.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("");if(stores.some(s=>s.id===old))sel.value=old}
-async function renderLedger(){
- await populateStoreSelect();
- let idd=document.getElementById("ledgerStore").value;
- document.getElementById("ledgerGeneratedAt").value=new Date().toLocaleString("en-IN");
- if(!idd){document.getElementById("ledgerRows").innerHTML=`<tr><td colspan="3" class="empty">No store selected</td></tr>`;return}
- let s=await txGet("stores",idd),wang=!!(s?.isWangkhei||String(s?.name||"").toLowerCase().includes("wangkhei"));
- const rem=document.getElementById("ledgerReminderBtn");if(rem)rem.style.display=wang?"none":"inline-block";
- let sales=(await txAll("sales")).filter(x=>x.storeId===idd).map(x=>({date:x.saleDate,type:"Sale",ref:x.invoiceNumber||x.id,debit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,credit:Number(x.paidAmount)||0})),
- pays=(await txAll("payments")).filter(x=>x.storeId===idd).map(x=>({date:x.paymentDate,type:"Payment",ref:x.receiptNumber||x.referenceNumber||x.id,debit:0,credit:Number(x.amount)||0})),
- ev=[...sales,...pays].sort((a,b)=>String(a.date).localeCompare(String(b.date))),bal=wang?0:(Number(s.openingDue)||0),rows=[];
- window._ledgerViewRows=[];
- if(!wang){const d={date:s.createdAt?simpleDate(s.createdAt):"",type:"Opening Due",ref:s.id+"-OPEN",debit:Number(s.openingDue)||0,credit:0,balance:bal};window._ledgerViewRows.push(d);rows.push(`<tr onclick="openLedgerListDetails(0)"><td>${esc(d.date)}</td><td class="mono">${esc(d.ref)}</td><td>Opening Due</td></tr>`)}
- for(const e of ev){bal+=e.debit-e.credit;const d={...e,balance:bal},i=window._ledgerViewRows.length;window._ledgerViewRows.push(d);rows.push(`<tr onclick="openLedgerListDetails(${i})"><td>${esc(e.date)}</td><td class="mono">${esc(e.ref)}</td><td>${esc(e.type)}</td></tr>`)}
- document.getElementById("ledgerRows").innerHTML=rows.join("")||`<tr><td colspan="3" class="empty">No ledger entries</td></tr>`;
-}
-function openLedgerListDetails(i){const e=window._ledgerViewRows?.[i];if(!e)return;openGenericDetails(e.type,e.ref,{date:e.date,id:e.ref,name:e.type,debit:e.debit?"Rs. "+fmt(e.debit):"—",credit:e.credit?"Rs. "+fmt(e.credit):"—",balance:"Rs. "+fmt(e.balance)})}
-async function sendLedgerReminder(){let idd=document.getElementById("ledgerStore").value;if(idd)sendOutstandingReminder(idd)}
-function printStoreLedgerPdf(){
- const old=document.title,sel=document.getElementById("ledgerStore"),name=sel?.selectedOptions?.[0]?.text||"Store";
- document.title=`MPF Store Ledger - ${name} - ${today()}`;
- window.print();setTimeout(()=>document.title=old,500)
-}
-let dashboardPeriod="today";
-function setDashboardPeriod(p,btn){
- dashboardPeriod=p;document.querySelectorAll(".dashPeriod").forEach(x=>x.classList.toggle("active",x.dataset.period===p));renderDashboard()
-}
-function dashboardRange(){
- const now=new Date(),end=new Date(now.getFullYear(),now.getMonth(),now.getDate(),23,59,59,999),start=new Date(end);
- if(dashboardPeriod==="today")start.setHours(0,0,0,0);
- if(dashboardPeriod==="week"){let day=(now.getDay()+6)%7;start.setDate(now.getDate()-day);start.setHours(0,0,0,0)}
- if(dashboardPeriod==="month"){start.setDate(1);start.setHours(0,0,0,0)}
- if(dashboardPeriod==="year"){start.setMonth(0,1);start.setHours(0,0,0,0)}
- return {start,end}
-}
-function inRange(d,r){let x=new Date(d+"T12:00:00");return x>=r.start&&x<=r.end}
-async function renderDashboard(){
- let r=dashboardRange(),allLift=await txAll("liftings"),l=allLift.filter(x=>inRange(x.liftingDate,r)),allSales=await txAll("sales"),sales=allSales.filter(x=>inRange(x.saleDate,r)),cages=await txAll("cages"),stores=await txAll("stores");
- let periodLabel=dashboardPeriod[0].toUpperCase()+dashboardPeriod.slice(1);
- document.getElementById("mLiftLabel").textContent=`${periodLabel} Liftings`;document.getElementById("mSalesLabel").textContent=`${periodLabel} Sales`;
- document.getElementById("mLift").textContent=l.length;document.getElementById("mLiftKg").textContent=fmt(l.reduce((a,x)=>a+(Number(x.totalWeight)||0),0))+" kg";
- let salesAmt=sales.reduce((a,x)=>a+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0);document.getElementById("mSales").textContent=fmt(salesAmt);
- let due=0;for(let s of stores){if(s.archived)continue;if(!(s.isWangkhei||String(s.name).toLowerCase().includes("wangkhei")))due+=(await storeSummary(s.id)).outstanding}document.getElementById("mDue").textContent=fmt(due);
- let unsold=cages.filter(c=>!c.isSold).length;document.getElementById("mUnsold").textContent=unsold;
- let liftMap=new Map(allLift.map(x=>[x.id,x])),cageMap=new Map(cages.map(x=>[x.id,x]));
- let cost=0;for(let s of sales){let li=liftMap.get(s.liftingId);cost+=(Number(s.weight??s.netWeight)||0)*(Number(li?.liftingRate??li?.ratePerKg)||0)}
- let gp=salesAmt-cost;document.getElementById("mGrossProfit").textContent=fmt(gp);document.getElementById("mGrossProfitSub").textContent=`${periodLabel}: sales − lifting cost`;
- let att=[];
- const ps=pendingSaveCount(),pd=pendingDeleteCount();if(ps)att.push(`${ps} Supabase upload(s) pending`);if(pd)att.push(`${pd} Supabase delete retry/retries pending`);
- const nr=allLift.filter(x=>(Number(x.liftingRate??x.ratePerKg)||0)<=0).length;if(nr)att.push(`${nr} lifting(s) have no lifting rate`);
- let mismatch=0;
- for(const li of allLift){const cs=cages.filter(c=>c.liftingId===li.id),kg=cs.reduce((s,c)=>s+(Number(c.weight)||0),0),birds=cs.reduce((s,c)=>s+(Number(c.birdCount)||0),0);if(Math.abs(kg-(Number(li.totalWeight)||0))>.02||cs.length!==(Number(li.totalCages)||0)||birds!==(Number(li.totalBirds)||0))mismatch++}
- if(mismatch)att.push(`${mismatch} lifting(s) do not match their cage totals`);
- const overweight=allSales.filter(s=>{const c=cageMap.get(s.cageId);return c&&(Number(s.weight??s.netWeight)||0)>(Number(c.weight)||0)+.02}).length;if(overweight)att.push(`${overweight} sale(s) have billed weight greater than original cage weight`);
- const ageDays=Math.max(1,Number(localStorage.getItem("psm_unsold_age_days")||2)),now=Date.now();
- const aged=cages.filter(c=>!c.isSold&&(()=>{const li=liftMap.get(c.liftingId),d=new Date(li?.liftingDate||c.createdAt||0).getTime();return d&&((now-d)/86400000)>=ageDays})()).length;if(aged)att.push(`${aged} unsold cage(s) are ${ageDays}+ days old`);
- let reminderStores=[];for(let s of stores){if(s.archived||s.isWangkhei||String(s.name).toLowerCase().includes("wangkhei"))continue;let f=await storeSummary(s.id);if(f.outstanding>0)reminderStores.push(`${s.name}: ₹${fmt(f.outstanding)}`)}
- if(reminderStores.length)att.push(`${reminderStores.length} store(s) have outstanding dues`);
- document.getElementById("attention").innerHTML=att.length?att.map(x=>`<div class="row">${esc(x)}</div>`).join(""):`<div class="row" style="background:#ecfdf5;color:#166534">No current reconciliation alerts.</div>`;
- const ageEl=document.getElementById("unsoldAgeDays");if(ageEl)ageEl.value=ageDays;
- updateSyncHealth();await renderSingke()
-}
-
-async function getDateRangeReportData(){
- const from=document.getElementById("reportFrom")?.value||"",to=document.getElementById("reportTo")?.value||"",type=document.getElementById("reportType")?.value||"farmer";
- const ok=d=>(!from||d>=from)&&(!to||d<=to),farmers=new Map((await txAll("farmers")).map(x=>[x.id,x])),stores=await txAll("stores"),storeMap=new Map(stores.map(x=>[x.id,x])),liftings=await txAll("liftings"),liftMap=new Map(liftings.map(x=>[x.id,x])),sales=await txAll("sales"),payments=await txAll("payments"),sets=await txAll("singke_settlements");
- let headers=[],rows=[],title="";
- if(type==="farmer"){title="Farmer Liftings";headers=["Date","Invoice","Farmer","Cages","Birds","Kg","Rate","Net Payable"];rows=liftings.filter(x=>ok(x.liftingDate)).map(x=>[x.liftingDate,x.invoiceNumber||x.id,farmers.get(x.farmerId)?.name||x.farmerName||"",x.totalCages||0,x.totalBirds||0,Number(x.totalWeight)||0,Number(x.liftingRate)||0,Number(x.netAmount??x.payableAmount??x.liftingAmount)||0])}
- if(type==="sales"){title="Store Sales";headers=["Date","Invoice","Store","Cage","Kg","Rate","Net Amount","Paid","Outstanding"];rows=sales.filter(x=>ok(x.saleDate)).map(x=>[x.saleDate,x.invoiceNumber||x.id,x.storeName||storeMap.get(x.storeId)?.name||"",x.cageNumber||"",Number(x.weight??x.netWeight)||0,Number(x.salesRate??x.ratePerKg)||0,Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0,Number(x.paidAmount)||0,Number(x.outstanding)||0])}
- if(type==="wangkhei"){title="Wangkhei Adjustments";headers=["Date","Invoice","Kg","Adjustment"];const wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>s.id));rows=sales.filter(x=>ok(x.saleDate)&&(x.isWangkheiSale||wm.has(x.storeId))).map(x=>[x.saleDate,x.invoiceNumber||x.id,Number(x.weight??x.netWeight)||0,Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0])}
- if(type==="singke"){title="Singke Ledger";headers=["Date","Type","Reference","Kg","Debit","Credit","Running Due"];const p=await setting("singke_previous_due",{amount:0}),wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>s.id));let ev=[...liftings.map(x=>({date:x.liftingDate,type:"Lifting",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,d:Number(x.netAmount??x.payableAmount??x.liftingAmount)||0,c:0})),...sales.filter(x=>x.isWangkheiSale||wm.has(x.storeId)).map(x=>({date:x.saleDate,type:"Wangkhei",ref:x.invoiceNumber||x.id,kg:Number(x.weight??x.netWeight)||0,d:0,c:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0})),...sets.map(x=>({date:x.date,type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,d:0,c:Number(x.amount)||0}))].sort((a,b)=>String(a.date).localeCompare(String(b.date)));let bal=Number(p.amount)||0;for(const e of ev){if(from&&e.date<from){bal+=e.d-e.c;continue}if(to&&e.date>to)continue;bal+=e.d-e.c;rows.push([e.date,e.type,e.ref,e.kg,e.d,e.c,bal])}}
- if(type==="profit"){title="Profit";headers=["Date","Invoice","Store","Sales","Cost","Gross Profit"];rows=sales.filter(x=>ok(x.saleDate)).map(x=>{const sale=Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0,cost=(Number(x.weight??x.netWeight)||0)*(Number(liftMap.get(x.liftingId)?.liftingRate)||0);return[x.saleDate,x.invoiceNumber||x.id,x.storeName||storeMap.get(x.storeId)?.name||"",sale,cost,sale-cost]})}
- if(type==="outstanding"){title="Outstanding as of "+(to||today());headers=["Store","Opening Due","Sales","Payments","Outstanding"];for(const st of stores.filter(s=>!s.isWangkhei&&!String(s.name||"").toLowerCase().includes("wangkhei"))){const end=to||"9999-12-31",sv=sales.filter(x=>x.storeId===st.id&&x.saleDate<=end),pv=payments.filter(x=>x.storeId===st.id&&x.paymentDate<=end),saleVal=sv.reduce((s,x)=>s+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0),0),salePaid=sv.reduce((s,x)=>s+(Number(x.paidAmount)||0),0),direct=pv.reduce((s,x)=>s+(Number(x.amount)||0),0),out=(Number(st.openingDue)||0)+saleVal-salePaid-direct;rows.push([st.name,Number(st.openingDue)||0,saleVal,salePaid+direct,out])}}
- return {from,to,type,title,headers,rows};
-}
-async function renderDateRangeReport(){
- const rf=document.getElementById("reportFrom"),rt=document.getElementById("reportTo");
- if(rf&&!rf.value){const d=new Date();rf.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`}
- if(rt&&!rt.value)rt.value=today();
- const r=await getDateRangeReportData(),head=document.getElementById("reportHead"),body=document.getElementById("reportRows"),sum=document.getElementById("reportSummary");
- if(head)head.innerHTML=`<tr><th>Date</th><th>ID</th><th>Name</th></tr>`;
- window._reportViewData=r;
- const mapRow=(row,i)=>{
-   const type=String(r.type||"").toLowerCase();
-   if(type==="farmer") return {date:String(row[0]??""),id:String(row[1]??`R${i+1}`),name:String(row[2]??"Farmer")};
-   if(type==="sales") return {date:String(row[0]??""),id:String(row[1]??`R${i+1}`),name:String(row[2]??"Store Sale")};
-   if(type==="wangkhei") return {date:String(row[0]??""),id:String(row[1]??`R${i+1}`),name:String(row[2]??"Wangkhei Adjustment")};
-   if(type==="singke") return {date:String(row[0]??""),id:String(row[2]??row[1]??`R${i+1}`),name:String(row[1]??"Singke Transaction")};
-   if(type==="profit") return {date:String(row[0]??""),id:String(row[1]??`R${i+1}`),name:String(row[2]??"Profit")};
-   if(type==="outstanding") return {date:"—",id:String(row[0]??`R${i+1}`),name:String(row[0]??"Store")};
-   return {date:String(row[0]??""),id:String(row[1]??`R${i+1}`),name:String(row[2]??r.title)};
- };
- if(body)body.innerHTML=r.rows.length?r.rows.map((row,i)=>{
-   const m=mapRow(row,i);
-   return `<tr onclick="openReportListDetails(${i})"><td>${esc(m.date)}</td><td class="mono">${esc(m.id)}</td><td>${esc(m.name)}</td></tr>`;
- }).join(""):`<tr><td colspan="3" class="empty">No records</td></tr>`;
- if(sum)sum.textContent=`${r.title} • ${r.from||"Beginning"} to ${r.to||"Latest"} • ${r.rows.length} row(s)`;
-}
-function openReportListDetails(i){
- const r=window._reportViewData,row=r?.rows?.[i];if(!r||!row)return;
- const obj={};r.headers.forEach((h,j)=>obj[h]=row[j]);
- openGenericDetails(r.title,String(row[1]??""),obj);
-}
-function csvCell(v){const s=String(v??"");return /[",\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s}
 async function exportDateRangeReportCSV(){const r=await getDateRangeReportData(),txt=[r.headers,...r.rows].map(row=>row.map(csvCell).join(",")).join("\r\n");downloadBlob(new Blob(["\ufeff"+txt],{type:"text/csv;charset=utf-8"}),`PSM_${r.type}_${r.from||"all"}_${r.to||today()}.csv`)}
 function xmlEsc(v){return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
 async function exportDateRangeReportExcel(){
