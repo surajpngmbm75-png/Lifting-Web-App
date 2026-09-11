@@ -1449,7 +1449,7 @@ input,select,textarea,button{touch-action:manipulation}
   <div class="card metric"><div class="lab" id="mLiftLabel">Today's Liftings</div><div class="val" id="mLift">0</div><div class="mini" id="mLiftKg">0 kg</div></div>
   <div class="card metric"><div class="lab" id="mSalesLabel">Today's Sales</div><div class="val">₹<span id="mSales">0.00</span></div><div class="mini">Store billing</div></div>
   <div class="card metric"><div class="lab">Store Outstanding</div><div class="val">₹<span id="mDue">0.00</span></div><div class="mini">All stores</div></div>
-  <div class="card metric"><div class="lab">Unsold Cages</div><div class="val" id="mUnsold">0</div><div class="mini">Needs supply/billing</div></div>
+  <div class="card metric"><div class="lab">Unsold Cages</div><div class="val" id="mUnsold">0</div><div class="mini" id="mUnsoldSub">Calculated from actual cage + sale records</div></div>
   <div class="card metric"><div class="lab">Gross Profit</div><div class="val">₹<span id="mGrossProfit">0.00</span></div><div class="mini" id="mGrossProfitSub">Sales minus lifting cost</div></div>
  </div>
  <div style="height:12px"></div>
@@ -1954,12 +1954,29 @@ async function openStoreDetails(storeId){
 }
 async function openLiftingDetails(lid){
  const l=await txGet("liftings",lid);if(!l)return toast("Lifting not found.");
- const f=await txGet("farmers",l.farmerId),cs=(await txAll("cages")).filter(c=>c.liftingId===lid);
- openDetailsModal(f?.name||l.farmerName||"Lifting",`Invoice ${l.invoiceNumber||l.id}`,[
-  ["Date",l.liftingDate],["ID",l.invoiceNumber||l.id],["Farmer",f?.name||l.farmerName],["Farmer ID",l.farmerId],
-  ["Cages",cs.length],["Birds",l.totalBirds||0],["Weight",fmt(l.totalWeight)+" kg"],["Rate","Rs. "+fmt(l.liftingRate??l.ratePerKg)+" / kg"],
-  ["Exact Amount","Rs. "+fmt(l.liftingAmount??l.totalAmount)],["Net Amount","Rs. "+fmt(l.netAmount??l.payableAmount??l.liftingAmount??l.totalAmount)],["Remarks",l.remarks||"—"]
- ],`<button class="btn" onclick="closeModal();openLifting('${l.id}')">Edit</button><button class="btn primary" onclick="closeModal();previewFarmerInvoice('${l.id}')">Invoice</button><button class="btn" onclick="shareFarmerLiftingPdf('${l.id}')">WhatsApp</button><button class="btn" onclick="sendFarmerInvoiceSms('${l.id}')">SMS</button>${S.role==="admin"?`<button class="btn danger" onclick="closeModal();deleteLifting('${l.id}')">Delete</button>`:""}`);
+ await reconcileCageInventoryState({sync:false});
+ const f=await txGet("farmers",l.farmerId);
+ const cs=(await txAll("cages")).filter(c=>c.liftingId===lid).sort((a,b)=>String(a.cageNumber||"").localeCompare(String(b.cageNumber||""),undefined,{numeric:true}));
+ const sales=await txAll("sales"),saleMap=new Map(sales.map(s=>[String(s.id),s]));
+ const missing=Math.max(0,(Number(l.totalCages)||0)-cs.length);
+ const rows=cs.map((c,i)=>{
+   const sale=c.saleId?saleMap.get(String(c.saleId)):null;
+   return `<tr><td>${i+1}</td><td><b>${esc(c.cageNumber||"—")}</b></td><td>${fmt(c.weight)} kg</td><td>${c.birdCount||0}</td><td><span class="badge ${c.isSold?"orange":"green"}">${c.isSold?"Sold":"Unsold"}</span></td><td>${sale?esc(sale.storeName||sale.storeId||"—"):"—"}</td><td class="mono">${sale?esc(sale.invoiceNumber||sale.id):"—"}</td></tr>`;
+ }).join("");
+ const actions=`<button class="btn" onclick="closeModal();openLifting('${l.id}')">Edit</button><button class="btn primary" onclick="closeModal();previewFarmerInvoice('${l.id}')">Invoice</button><button class="btn" onclick="shareFarmerLiftingPdf('${l.id}')">WhatsApp</button><button class="btn" onclick="sendFarmerInvoiceSms('${l.id}')">SMS</button>${S.role==="admin"?`<button class="btn danger" onclick="closeModal();deleteLifting('${l.id}')">Delete</button>`:""}`;
+ openModal(`<div class="detail-title">${esc(f?.name||l.farmerName||"Lifting")}</div>
+ <div class="detail-sub">Invoice ${esc(l.invoiceNumber||l.id)}</div>
+ <div class="detail-grid">
+  ${detailItem("Date",l.liftingDate)}${detailItem("ID",l.invoiceNumber||l.id)}${detailItem("Farmer",f?.name||l.farmerName)}${detailItem("Farmer ID",l.farmerId)}
+  ${detailItem("Cages",`${cs.length}${missing?` of ${Number(l.totalCages)||0}`:""}`)}${detailItem("Birds",l.totalBirds||0)}${detailItem("Weight",fmt(l.totalWeight)+" kg")}${detailItem("Rate","Rs. "+fmt(l.liftingRate??l.ratePerKg)+" / kg")}
+  ${detailItem("Exact Amount","Rs. "+fmt(l.liftingAmount??l.totalAmount))}${detailItem("Net Amount","Rs. "+fmt(l.netAmount??l.payableAmount??l.liftingAmount??l.totalAmount))}${detailItem("Remarks",l.remarks||"—")}
+ </div>
+ ${missing?`<div class="row" style="margin-top:12px;padding:10px;border-radius:10px;background:#fff7ed;color:#9a3412"><b>Data warning:</b> This lifting says ${Number(l.totalCages)||0} cages, but only ${cs.length} cage detail records exist. ${missing} cage record(s) are missing.</div>`:""}
+ <div style="height:14px"></div>
+ <div class="split"><b>Cage-wise Details</b><span class="badge blue">${cs.filter(c=>!c.isSold).length} Unsold / ${cs.filter(c=>c.isSold).length} Sold</span></div>
+ <div class="tablewrap" style="margin-top:8px"><table><thead><tr><th>#</th><th>Cage No.</th><th>Weight</th><th>Birds</th><th>Status</th><th>Store</th><th>Sale Invoice</th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="empty">No cage detail records found</td></tr>`}</tbody></table></div>
+ <div class="detail-actions">${actions}</div>`);
+ const d=document.querySelector("#modal .dialog");if(d){d.classList.add("detail-floating");d.scrollTop=0}
 }
 async function openSaleDetails(sid){
  const s=await txGet("sales",sid);if(!s)return toast("Sale not found.");
@@ -2687,7 +2704,7 @@ async function savePayment(){
  await txPut("payments",r);queueCloud("payments","UPSERT",r);audit("payments","CREATE",r.id,r.receiptNumber);clearCurrentFormDraft();closeModal();refreshAll()
 }
 
-async function openSale(){let stores=(await txAll("stores")),cages=(await txAll("cages")).filter(c=>!c.isSold);if(!stores.length)return toast("Add a store first.");if(!cages.length)return toast("No unsold cages available.");let lifts=await txAll("liftings"),farmers=await txAll("farmers");let lm=new Map(lifts.map(x=>[x.id,x])),fm=new Map(farmers.map(x=>[x.id,x]));openModal(`<h3>New Store Sale</h3><div class="grid g2"><div class="field"><label>Date</label><input id="saDate" type="date" value="${today()}"></div><div class="field"><label>Store</label><select id="saStore" onchange="updateSaleStoreOutstanding()">${stores.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></div><div class="field"><label>Current Store Outstanding</label><input id="saOutstanding" value="Loading..." disabled></div><div class="field"><label>Cage</label><select id="saCage" onchange="fillSaleWeight()">${cages.map(c=>{let l=lm.get(c.liftingId),f=fm.get(c.farmerId);return `<option value="${c.id}" data-w="${c.weight}">${esc(c.cageNumber)} — ${fmt(c.weight)} kg — ${esc(f?.name||l?.farmerName||"")}</option>`}).join("")}</select></div><div class="field"><label>Billed Weight kg</label><input id="saWeight" type="number" step="0.01"></div><div class="field"><label>Sales Rate ₹/kg</label><input id="saRate" type="number" step="0.01"></div><div class="field"><label>Paid Amount ₹</label><input id="saPaid" type="number" step="0.01" value="0"></div><div class="field"><label>Payment Method</label><select id="saMode"><option>Cash</option><option>UPI</option><option>Credit</option><option>Bank</option></select></div><div class="field"><label>Remarks</label><input id="saRem"></div></div><div style="height:12px"></div><button class="btn primary" onclick="saveSale()">Save Sale</button>`);fillSaleWeight();updateSaleStoreOutstanding()}
+async function openSale(){await reconcileCageInventoryState({sync:true});let stores=(await txAll("stores")),cages=(await txAll("cages")).filter(c=>!c.isSold);if(!stores.length)return toast("Add a store first.");if(!cages.length)return toast("No unsold cages available.");let lifts=await txAll("liftings"),farmers=await txAll("farmers");let lm=new Map(lifts.map(x=>[x.id,x])),fm=new Map(farmers.map(x=>[x.id,x]));openModal(`<h3>New Store Sale</h3><div class="grid g2"><div class="field"><label>Date</label><input id="saDate" type="date" value="${today()}"></div><div class="field"><label>Store</label><select id="saStore" onchange="updateSaleStoreOutstanding()">${stores.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></div><div class="field"><label>Current Store Outstanding</label><input id="saOutstanding" value="Loading..." disabled></div><div class="field"><label>Cage</label><select id="saCage" onchange="fillSaleWeight()">${cages.map(c=>{let l=lm.get(c.liftingId),f=fm.get(c.farmerId);return `<option value="${c.id}" data-w="${c.weight}">${esc(c.cageNumber)} — ${fmt(c.weight)} kg — ${esc(f?.name||l?.farmerName||"")}</option>`}).join("")}</select></div><div class="field"><label>Billed Weight kg</label><input id="saWeight" type="number" step="0.01"></div><div class="field"><label>Sales Rate ₹/kg</label><input id="saRate" type="number" step="0.01"></div><div class="field"><label>Paid Amount ₹</label><input id="saPaid" type="number" step="0.01" value="0"></div><div class="field"><label>Payment Method</label><select id="saMode"><option>Cash</option><option>UPI</option><option>Credit</option><option>Bank</option></select></div><div class="field"><label>Remarks</label><input id="saRem"></div></div><div style="height:12px"></div><button class="btn primary" onclick="saveSale()">Save Sale</button>`);fillSaleWeight();updateSaleStoreOutstanding()}
 function fillSaleWeight(){let o=document.getElementById("saCage")?.selectedOptions[0];if(o)document.getElementById("saWeight").value=o.dataset.w||""}
 async function updateSaleStoreOutstanding(){
   const storeId=document.getElementById("saStore")?.value,el=document.getElementById("saOutstanding");if(!storeId||!el)return;
@@ -3296,7 +3313,8 @@ async function previewFarmerInvoice(liftingId){
             <div>Remarks</div><span>${esc(l.remarks||"-")}</span>
           </div></div>
         </div>
-        <table class="psm-table"><thead><tr><th>#</th><th>Cage No.</th><th>Weight (kg)</th><th>Birds (Nos.)</th></tr></thead><tbody>${rows}</tbody></table>
+        <div style="margin:12px 0 6px;font-weight:900;color:#991b1b">CAGE-WISE LIFTING DETAILS</div>
+        <table class="psm-table"><thead><tr><th>#</th><th>Cage No.</th><th>Weight (kg)</th><th>Birds (Nos.)</th></tr></thead><tbody>${rows}<tr><td colspan="2"><b>TOTAL</b></td><td><b>${fmt(cages.reduce((s,c)=>s+(Number(c.weight)||0),0))}</b></td><td><b>${cages.reduce((s,c)=>s+(Number(c.birdCount)||0),0)}</b></td></tr></tbody></table>
         <div class="psm-totals">
           <div class="psm-total-row"><span>Total Cages</span><b>${cages.length}</b></div>
           <div class="psm-total-row"><span>Total Birds</span><b>${cages.reduce((s,c)=>s+(Number(c.birdCount)||0),0)}</b></div>
@@ -3750,18 +3768,68 @@ async function syncNowFromHome(btn=null){
  finally{if(btn){btn.disabled=false;btn.textContent="Sync Now"}}
 }
 
+
+async function reconcileCageInventoryState({sync=true}={}){
+ const [cages,sales,liftings]=await Promise.all([txAll("cages"),txAll("sales"),txAll("liftings")]);
+ const saleByCage=new Map(),saleById=new Map(),saleByLegacyKey=new Map();
+ for(const s of sales){
+   saleById.set(String(s.id),s);
+   if(s.cageId)saleByCage.set(String(s.cageId),s);
+   const lk=`${String(s.liftingId||"")}|${String(s.cageNumber||"").trim().toUpperCase()}`;
+   if(s.liftingId&&s.cageNumber&&!saleByLegacyKey.has(lk))saleByLegacyKey.set(lk,s);
+ }
+ let changed=0,sold=0,unsold=0;
+ for(const cage of cages){
+   let sale=saleByCage.get(String(cage.id))||null;
+   if(!sale&&cage.saleId)sale=saleById.get(String(cage.saleId))||null;
+   if(!sale&&cage.liftingId&&cage.cageNumber){
+     sale=saleByLegacyKey.get(`${String(cage.liftingId)}|${String(cage.cageNumber).trim().toUpperCase()}`)||null;
+   }
+   const desiredSold=!!sale,desiredSaleId=sale?String(sale.id):null;
+   if(cage.isSold!==desiredSold||String(cage.saleId||"")!==String(desiredSaleId||"")){
+     cage.isSold=desiredSold;cage.saleId=desiredSaleId;cage.updatedAt=iso();
+     await txPut("cages",cage);changed++;
+     const state={isSold:desiredSold,saleId:desiredSaleId,updatedAt:cage.updatedAt};
+     await txPut("settings",{key:"cage_state_"+cage.id,value:state,updatedAt:cage.updatedAt});
+     if(sync){
+       queueCloud("cages","UPSERT",cage);
+       queueCloud("settings","UPSERT",{key:"cage_state_"+cage.id,value:state,updatedAt:cage.updatedAt});
+     }
+   }
+   if(desiredSold)sold++;else unsold++;
+ }
+ const actualByLifting=new Map();
+ for(const c of cages)actualByLifting.set(String(c.liftingId),1+(actualByLifting.get(String(c.liftingId))||0));
+ const missing=[];
+ for(const l of liftings){
+   const expected=Number(l.totalCages)||0,actual=actualByLifting.get(String(l.id))||0;
+   if(expected>actual)missing.push({liftingId:l.id,invoice:l.invoiceNumber||l.id,farmer:l.farmerName||"",expected,actual,missing:expected-actual});
+ }
+ return {cages,sales,sold,unsold,changed,missing};
+}
+
 async function renderDashboard(){
+ const inventory=await reconcileCageInventoryState({sync:false});
  let r=dashboardRange(),allLift=await txAll("liftings"),l=allLift.filter(x=>inRange(x.liftingDate,r)),allSales=await txAll("sales"),sales=allSales.filter(x=>inRange(x.saleDate,r)),cages=await txAll("cages"),stores=await txAll("stores");
  let periodLabel=dashboardPeriod[0].toUpperCase()+dashboardPeriod.slice(1);
  document.getElementById("mLiftLabel").textContent=`${periodLabel} Liftings`;document.getElementById("mSalesLabel").textContent=`${periodLabel} Sales`;
  document.getElementById("mLift").textContent=l.length;document.getElementById("mLiftKg").textContent=fmt(l.reduce((a,x)=>a+(Number(x.totalWeight)||0),0))+" kg";
  let salesAmt=sales.reduce((a,x)=>a+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0);document.getElementById("mSales").textContent=fmt(salesAmt);
  let due=0;for(let s of stores){if(s.archived)continue;if(!(s.isWangkhei||String(s.name).toLowerCase().includes("wangkhei")))due+=(await storeSummary(s.id)).outstanding}document.getElementById("mDue").textContent=fmt(due);
- let unsold=cages.filter(c=>!c.isSold).length;document.getElementById("mUnsold").textContent=unsold;
+ let unsold=inventory.unsold;document.getElementById("mUnsold").textContent=unsold;
+ const unsoldSub=document.getElementById("mUnsoldSub");
+ if(unsoldSub){
+   const missingCount=inventory.missing.reduce((a,x)=>a+x.missing,0);
+   unsoldSub.textContent=missingCount?`${missingCount} cage detail record(s) missing — review lifting log`:"Available cages not linked to a sale";
+ }
  let liftMap=new Map(allLift.map(x=>[x.id,x])),cageMap=new Map(cages.map(x=>[x.id,x]));
  let cost=0;for(let s of sales){let li=liftMap.get(s.liftingId);cost+=(Number(s.weight??s.netWeight)||0)*(Number(li?.liftingRate??li?.ratePerKg)||0)}
  let gp=salesAmt-cost;document.getElementById("mGrossProfit").textContent=fmt(gp);document.getElementById("mGrossProfitSub").textContent=`${periodLabel}: sales − lifting cost`;
  let att=[];
+ if(inventory.missing.length){
+   const totalMissing=inventory.missing.reduce((a,x)=>a+x.missing,0);
+   att.push(`${totalMissing} cage detail record(s) are missing from lifting data. Open the affected lifting(s) to review.`);
+ }
  const ps=pendingSaveCount(),pd=pendingDeleteCount();if(ps)att.push(`${ps} Supabase upload(s) pending`);if(pd)att.push(`${pd} Supabase delete retry/retries pending`);
  const nr=allLift.filter(x=>(Number(x.liftingRate??x.ratePerKg)||0)<=0).length;if(nr)att.push(`${nr} lifting(s) have no lifting rate`);
  let mismatch=0;
@@ -4329,11 +4397,7 @@ async function repairDerivedRelationsAfterSync(){
     if(!cage.farmerId&&cage.liftingId&&liftMap.get(String(cage.liftingId))?.farmerId){
       cage.farmerId=liftMap.get(String(cage.liftingId)).farmerId;changed=true;
     }
-    const cs=settingMap.get("cage_state_"+cage.id);
-    if(cs&&typeof cs==="object"){
-      if(cage.isSold!==!!cs.isSold){cage.isSold=!!cs.isSold;changed=true}
-      if((cage.saleId||null)!==(cs.saleId||null)){cage.saleId=cs.saleId||null;changed=true}
-    }
+    // Actual sales are authoritative for cage availability.
     if(changed)await txPut("cages",cage);
   }
 
@@ -4352,14 +4416,8 @@ async function repairDerivedRelationsAfterSync(){
   const farmers=await txAll("farmers");
   for(const farmer of farmers){if("archived" in farmer){delete farmer.archived;await txPut("farmers",farmer)}}
 
-  // If a sale exists but the cage-state metadata predates this sync, reconnect by sale.cageId where available.
-  for(const sale of sales){
-    if(!sale.cageId)continue;
-    const cage=await txGet("cages",sale.cageId);
-    if(cage&&(!cage.isSold||cage.saleId!==sale.id)){
-      cage.isSold=true;cage.saleId=sale.id;await txPut("cages",cage);
-    }
-  }
+  // Recalculate every cage from actual sale records so stale sync metadata cannot hide unsold cages.
+  await reconcileCageInventoryState({sync:true});
 }
 async function seedMissingRecordSnapshots(snapshotKeys,skipSnapshotKeys=new Set()){
  const pending=pendingSaveKeySet();
@@ -4525,6 +4583,7 @@ async function loadSettings(){
   updateSyncBadge();updateSyncHealth();
 }
 async function refreshAll(){
+ await reconcileCageInventoryState({sync:false});
  await renderDashboard();await renderFarmers();await renderFarmersCombined();await renderLiftings();await renderSales();await renderStores();await renderSingke();await populateStoreSelect();
  renderAudit();renderClosings();updateSyncBadge();updateSyncHealth();
  await updatePageMiniSummaries();await renderRecentActivity();
