@@ -1053,6 +1053,114 @@ tbody tr:hover{background:#fcfcfd!important}
 
 html,body{overscroll-behavior-y:contain}
 
+
+/* Compact clickable lists and floating detail view */
+.simple-list{width:100%!important;min-width:520px!important}
+.simple-list tbody tr{cursor:pointer!important;transition:background .15s ease}
+.simple-list tbody tr:hover{background:#fff5f5!important}
+.simple-list tbody tr:active{background:#feeceb!important}
+.simple-list td:nth-child(1){min-width:120px!important}
+.simple-list td:nth-child(2){min-width:150px!important;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.simple-list td:nth-child(3){min-width:220px!important;font-weight:750}
+.detail-floating{width:min(680px,calc(100vw - 24px))!important;max-width:680px!important;min-height:0!important;max-height:86dvh!important;border-radius:18px!important;margin:7dvh auto 0!important;padding:18px!important;box-shadow:0 28px 80px rgba(16,24,40,.28)!important}
+.detail-title{font-size:21px;font-weight:850;color:#101828;margin:0 42px 4px 0}
+.detail-sub{color:#667085;font-size:12px;margin-bottom:14px}
+.detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.detail-item{padding:10px 11px;border:1px solid #e4e7ec;border-radius:11px;background:#fff}
+.detail-item .k{font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:#98a2b3;font-weight:800;margin-bottom:3px}
+.detail-item .v{font-size:14px;color:#101828;font-weight:700;word-break:break-word}
+.detail-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid #e4e7ec}
+@media(max-width:620px){
+ .detail-floating{width:calc(100vw - 16px)!important;max-height:84dvh!important;margin:8dvh 8px 0!important;border-radius:16px!important;min-height:0!important}
+ .detail-grid{grid-template-columns:1fr!important}
+}
+
+
+/* ===== SCROLL RELIABILITY FIX ===== */
+html,body{
+  min-height:100%;
+  overflow-x:hidden;
+}
+body{
+  overflow-y:auto!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+.app,.shell,.main{
+  min-height:0!important;
+}
+.main{
+  overflow:visible!important;
+}
+.view{
+  min-height:0!important;
+  overflow:visible!important;
+}
+@media(max-width:820px){
+  html{
+    height:auto!important;
+    min-height:100%!important;
+    overflow-y:auto!important;
+  }
+  body{
+    height:auto!important;
+    min-height:100dvh!important;
+    max-height:none!important;
+    overflow-y:auto!important;
+    overscroll-behavior-y:auto!important;
+    touch-action:pan-y!important;
+  }
+  .app{
+    min-height:100dvh!important;
+    height:auto!important;
+    overflow:visible!important;
+  }
+  .shell{
+    display:block!important;
+    min-height:0!important;
+    height:auto!important;
+    overflow:visible!important;
+  }
+  .main{
+    height:auto!important;
+    min-height:calc(100dvh - 60px)!important;
+    max-height:none!important;
+    overflow:visible!important;
+    padding-bottom:calc(90px + env(safe-area-inset-bottom))!important;
+  }
+  .view{
+    display:none;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    overflow:visible!important;
+  }
+  .view.active{
+    display:block!important;
+  }
+  #v-singke,#v-ledger,#v-closing,#v-reports,#v-audit,#v-settings{
+    overflow:visible!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    touch-action:pan-y!important;
+  }
+  #v-singke .card,#v-ledger .card,#v-closing .card,#v-reports .card,#v-audit .card,#v-settings .card{
+    overflow:visible!important;
+  }
+  .tablewrap{
+    overflow-x:auto!important;
+    overflow-y:visible!important;
+    max-height:none!important;
+  }
+  body.mobile-keyboard-active{
+    overflow-y:auto!important;
+    height:auto!important;
+  }
+  body.mobile-keyboard-active .main{
+    overflow:visible!important;
+  }
+}
+
 </style>
 <meta name="theme-color" content="#b91c1c">
 </head>
@@ -1159,7 +1267,7 @@ html,body{overscroll-behavior-y:contain}
    <div style="height:8px"></div>
    <div class="field"><label>Search Farmer</label><input id="farmerSearchCombined" placeholder="Name, phone or ID" oninput="renderFarmersCombined()"></div>
    <div style="height:10px"></div>
-   <div class="tablewrap" style="max-height:340px"><table><thead><tr><th>ID</th><th>Name</th><th>Phone</th><th>Action</th></tr></thead><tbody id="farmerRowsCombined"></tbody></table></div>
+   <div class="tablewrap" style="max-height:340px"><table class="simple-list"><thead><tr><th>Date</th><th>ID</th><th>Name</th></tr></thead><tbody id="farmerRowsCombined"></tbody></table></div>
   </div>
   <div class="card">
    <div class="split"><div><b>Quick Lifting Summary</b><div class="sub">Current lifting totals</div></div></div>
@@ -1172,7 +1280,7 @@ html,body{overscroll-behavior-y:contain}
   </div>
  </div>
  <div style="height:12px"></div>
- <div class="card"><div class="split"><div><b>Lifting Log</b><div class="sub">Farmer invoice, WhatsApp share, edit and delete</div></div></div><div style="height:8px"></div><div class="tablewrap"><table><thead><tr><th>Date</th><th>Invoice</th><th>Farmer</th><th>Cages</th><th>Birds</th><th>Weight</th><th>Rate</th><th>Amount</th><th>Action</th></tr></thead><tbody id="liftingRows"></tbody></table></div></div>
+ <div class="card"><div class="split"><div><b>Lifting Log</b><div class="sub">Farmer invoice, WhatsApp share, edit and delete</div></div></div><div style="height:8px"></div><div class="tablewrap"><table class="simple-list"><thead><tr><th>Date</th><th>ID</th><th>Name</th></tr></thead><tbody id="liftingRows"></tbody></table></div></div>
 </section>
 
 
@@ -1215,7 +1323,7 @@ html,body{overscroll-behavior-y:contain}
 </section>
 <section id="v-sales" class="view">
  <div class="head"><div><h1>Store Sales</h1><p>Bill available cages to stores and track payments</p><div class="page-mini-summary" id="salesPageMini"></div></div><button class="btn primary" onclick="openSale()">+ New Sale</button></div>
- <div class="card"><div class="tablewrap"><table><thead><tr><th>Date</th><th>Invoice</th><th>Store</th><th>Cage</th><th>Weight</th><th>Rate</th><th>Amount</th><th>Paid</th><th>Outstanding</th><th>Action</th></tr></thead><tbody id="saleRows"></tbody></table></div></div>
+ <div class="card"><div class="tablewrap"><table class="simple-list"><thead><tr><th>Date</th><th>ID</th><th>Name</th></tr></thead><tbody id="saleRows"></tbody></table></div></div>
 </section>
 
 <section id="v-stores" class="view">
@@ -1225,7 +1333,7 @@ html,body{overscroll-behavior-y:contain}
     <label>Search Store</label>
     <input id="storeSearch" type="search" placeholder="Store name, phone or ID" autocomplete="off" oninput="renderStores()">
   </div>
-  <div class="tablewrap"><table><thead><tr><th>ID</th><th>Store</th><th>Phone</th><th>Opening Due</th><th>Sales</th><th>Paid</th><th>Outstanding</th><th>Reminder</th><th>Action</th></tr></thead><tbody id="storeRows"></tbody></table></div>
+  <div class="tablewrap"><table class="simple-list"><thead><tr><th>Date</th><th>ID</th><th>Name</th></tr></thead><tbody id="storeRows"></tbody></table></div>
  </div>
 </section>
 
@@ -1253,13 +1361,13 @@ html,body{overscroll-behavior-y:contain}
    </div>
   </div>
   <div style="height:8px"></div>
-  <div class="tablewrap"><table><thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Total Kg</th><th>Debit</th><th>Credit</th><th>Running Due</th></tr></thead><tbody id="singkeRows"></tbody></table></div>
+  <div class="tablewrap"><table class="simple-list"><thead><tr><th>Date</th><th>ID</th><th>Name</th></tr></thead><tbody id="singkeRows"></tbody></table></div>
  </div>
 </section>
 
 <section id="v-ledger" class="view">
  <div class="head"><div><h1>Store Ledger</h1><p>Sales, payments and running balance by store</p></div><div class="action-group"><button class="btn ok" id="ledgerReminderBtn" onclick="sendLedgerReminder()">WhatsApp Reminder</button><button class="btn primary" onclick="downloadStoreLedgerPdf()">Save PDF</button></div></div>
- <div class="card"><div class="toolbar"><div class="field"><label>Store</label><select id="ledgerStore" onchange="renderLedger()"></select></div><div class="field"><label>Ledger Generated At</label><input id="ledgerGeneratedAt" disabled></div></div><div style="height:10px"></div><div class="tablewrap"><table><thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead><tbody id="ledgerRows"></tbody></table></div></div>
+ <div class="card"><div class="toolbar"><div class="field"><label>Store</label><select id="ledgerStore" onchange="renderLedger()"></select></div><div class="field"><label>Ledger Generated At</label><input id="ledgerGeneratedAt" disabled></div></div><div style="height:10px"></div><div class="tablewrap"><table class="simple-list"><thead><tr><th>Date</th><th>ID</th><th>Name</th></tr></thead><tbody id="ledgerRows"></tbody></table></div></div>
 </section>
 
 
@@ -1288,12 +1396,12 @@ html,body{overscroll-behavior-y:contain}
 
 <section id="v-closing" class="view">
  <div class="head"><div><h1>Daily Closing</h1><p>Operational and financial day-end snapshot</p></div><button class="btn primary" onclick="closeToday()">Close / Recalculate Today</button></div>
- <div id="closingCards" class="grid g3"></div><div style="height:12px"></div><div class="card"><div class="tablewrap"><table><thead><tr><th>Date</th><th>Liftings</th><th>Cages</th><th>Kg</th><th>Lifting Payable</th><th>Sales</th><th>Payments</th><th>MPF A/C Settlements</th><th>Closed At</th></tr></thead><tbody id="closingRows"></tbody></table></div></div>
+ <div id="closingCards" class="grid g3"></div><div style="height:12px"></div><div class="card"><div class="tablewrap"><table class="simple-list"><thead><tr><th>Date</th><th>ID</th><th>Name</th></tr></thead><tbody id="closingRows"></tbody></table></div></div>
 </section>
 
 <section id="v-audit" class="view">
  <div class="head"><div><h1>Audit Log</h1><p>Local immutable-style history of important changes</p></div><button class="btn" onclick="exportAudit()">Export Audit</button></div>
- <div class="card"><div class="tablewrap"><table><thead><tr><th>Time</th><th>Role</th><th>Module</th><th>Action</th><th>Record</th><th>Note</th></tr></thead><tbody id="auditRows"></tbody></table></div></div>
+ <div class="card"><div class="tablewrap"><table class="simple-list"><thead><tr><th>Date</th><th>ID</th><th>Name</th></tr></thead><tbody id="auditRows"></tbody></table></div></div>
 </section>
 
 <section id="v-settings" class="view">
@@ -1450,6 +1558,73 @@ function updateSyncHealth(){
  const al=document.getElementById("autoBackupLast");if(al)al.textContent=formatLocalDateTime(last);
  const d=document.getElementById("syncDetail");if(d)d.textContent=online?`${saves} pending upload(s), ${dels} delete retry/retries. Cloud download is disabled.`:"Offline. Local work is safe and will retry when online.";
 }
+
+async function nextSimpleId(table,prefix){
+ const rows=await txAll(table),used=new Set(rows.map(r=>String(r.id||"")));
+ for(let i=0;i<20;i++){
+   const t=Date.now().toString(36).toUpperCase();
+   let rnd="";
+   if(globalThis.crypto&&crypto.getRandomValues){
+     const a=new Uint32Array(1);crypto.getRandomValues(a);rnd=a[0].toString(36).toUpperCase().slice(-4);
+   }else rnd=Math.random().toString(36).slice(2,6).toUpperCase();
+   const candidate=`${prefix}${t}${rnd}`;
+   if(!used.has(candidate))return candidate;
+   await new Promise(r=>setTimeout(r,1));
+ }
+ return `${prefix}${Date.now()}${Math.floor(Math.random()*10000)}`;
+}
+function simpleDate(v){
+ if(!v)return "—";
+ const s=String(v);
+ return s.includes("T")?s.slice(0,10):s;
+}
+function detailItem(k,v){return `<div class="detail-item"><div class="k">${esc(k)}</div><div class="v">${esc(v==null||v===""?"—":String(v))}</div></div>`}
+function openDetailsModal(title,sub,items,actions=""){
+ openModal(`<div class="detail-title">${esc(title)}</div><div class="detail-sub">${esc(sub||"")}</div><div class="detail-grid">${items.map(x=>detailItem(x[0],x[1])).join("")}</div>${actions?`<div class="detail-actions">${actions}</div>`:""}`);
+ const d=document.querySelector("#modal .dialog");if(d)d.classList.add("detail-floating");
+}
+async function openFarmerDetails(fid){
+ const f=await txGet("farmers",fid);if(!f)return toast("Farmer not found.");
+ const lift=(await txAll("liftings")).filter(x=>x.farmerId===fid);
+ openDetailsModal(f.name,`Farmer ${f.id}`,[
+  ["Date",simpleDate(f.createdAt)],["Farmer ID",f.id],["Name",f.name],["Phone",f.phone],
+  ["Status",f.archived?"Archived":"Active"],["Liftings",lift.length],["Created",f.createdAt?new Date(f.createdAt).toLocaleString("en-IN"):"—"],["Updated",f.updatedAt?new Date(f.updatedAt).toLocaleString("en-IN"):"—"]
+ ],`<button class="btn primary" onclick="closeModal();openFarmerById('${f.id}')">Edit</button>${f.archived?`<button class="btn" onclick="closeModal();setFarmerArchived('${f.id}',false)">Restore</button>`:`<button class="btn" onclick="closeModal();setFarmerArchived('${f.id}',true)">Archive</button>`}`);
+}
+async function openFarmerById(fid){const f=await txGet("farmers",fid);if(f)openFarmer(f)}
+async function openStoreDetails(storeId){
+ const s=await txGet("stores",storeId);if(!s)return toast("Store not found.");
+ const f=await storeSummary(storeId),wang=!!(s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei"));
+ openDetailsModal(s.name,`Store ${s.id}`,[
+  ["Date",simpleDate(s.createdAt)],["Store ID",s.id],["Name",s.name],["Phone",s.phone],
+  ["Opening Due",wang?"N/A":"Rs. "+fmt(f.opening)],["Sales","Rs. "+fmt(f.totalSales)],["Paid","Rs. "+fmt(f.totalPaid)],["Outstanding",wang?"N/A":"Rs. "+fmt(f.outstanding)],
+  ["Status",s.archived?"Archived":"Active"],["Account",wang?"MPF A/C":"General"]
+ ],`<button class="btn primary" onclick="closeModal();editStore('${s.id}')">Edit</button>${!wang&&!s.archived?`<button class="btn" onclick="closeModal();sendOutstandingReminder('${s.id}')">WhatsApp</button>`:""}${s.archived?`<button class="btn" onclick="closeModal();setStoreArchived('${s.id}',false)">Restore</button>`:`<button class="btn" onclick="closeModal();setStoreArchived('${s.id}',true)">Archive</button>`}`);
+}
+async function openLiftingDetails(lid){
+ const l=await txGet("liftings",lid);if(!l)return toast("Lifting not found.");
+ const f=await txGet("farmers",l.farmerId),cs=(await txAll("cages")).filter(c=>c.liftingId===lid);
+ openDetailsModal(f?.name||l.farmerName||"Lifting",`Invoice ${l.invoiceNumber||l.id}`,[
+  ["Date",l.liftingDate],["ID",l.invoiceNumber||l.id],["Farmer",f?.name||l.farmerName],["Farmer ID",l.farmerId],
+  ["Cages",cs.length],["Birds",l.totalBirds||0],["Weight",fmt(l.totalWeight)+" kg"],["Rate","Rs. "+fmt(l.liftingRate??l.ratePerKg)+" / kg"],
+  ["Exact Amount","Rs. "+fmt(l.liftingAmount??l.totalAmount)],["Net Amount","Rs. "+fmt(l.netAmount??l.payableAmount??l.liftingAmount??l.totalAmount)],["Remarks",l.remarks||"—"]
+ ],`<button class="btn" onclick="closeModal();openLifting('${l.id}')">Edit</button><button class="btn primary" onclick="closeModal();previewFarmerInvoice('${l.id}')">Invoice</button><button class="btn" onclick="shareFarmerLiftingPdf('${l.id}')">WhatsApp</button>${S.role==="admin"?`<button class="btn danger" onclick="closeModal();deleteLifting('${l.id}')">Delete</button>`:""}`);
+}
+async function openSaleDetails(sid){
+ const s=await txGet("sales",sid);if(!s)return toast("Sale not found.");
+ const st=await txGet("stores",s.storeId),f=await txGet("farmers",s.farmerId),wang=!!(st?.isWangkhei||s.isWangkheiSale);
+ openDetailsModal(st?.name||s.storeName||"Sale",`Invoice ${s.invoiceNumber||s.id}`,[
+  ["Date",s.saleDate],["ID",s.invoiceNumber||s.id],["Store",st?.name||s.storeName],["Store ID",s.storeId],
+  ["Farmer",f?.name||s.farmerName||"—"],["Cage",s.cageNumber||s.cageId],["Birds",s.birdsCount||0],["Weight",fmt(s.weight??s.netWeight)+" kg"],
+  ["Rate","Rs. "+fmt(s.salesRate??s.ratePerKg)+" / kg"],["Invoice Amount","Rs. "+fmt(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)],
+  ["Previous Due",wang?"N/A":"Rs. "+fmt(s.previousDue)],["Paid","Rs. "+fmt(s.paidAmount)],["Outstanding",wang?"N/A":"Rs. "+fmt(s.outstanding)],["Payment",s.paymentMethod||"—"],["Remarks",s.remarks||"—"]
+ ],`<button class="btn" onclick="closeModal();editSale('${s.id}')">Edit</button><button class="btn primary" onclick="closeModal();previewStoreInvoice('${s.id}')">Invoice</button><button class="btn" onclick="shareStoreInvoiceWhatsApp('${s.id}')">WhatsApp</button>${S.role==="admin"?`<button class="btn danger" onclick="closeModal();deleteSale('${s.id}')">Delete</button>`:""}`);
+}
+function openGenericDetails(title,sub,obj){
+ const entries=Object.entries(obj||{}).map(([k,v])=>[k.replace(/([A-Z])/g," $1").replace(/^./,c=>c.toUpperCase()),v]);
+ openDetailsModal(title,sub,entries);
+}
+
 async function nextSequentialNumber(kind,dateValue){
  const year=String(dateValue||today()).slice(0,4);
  const cfg={lifting:["PSM-L","liftings","invoiceNumber"],sale:["PSM-S","sales","invoiceNumber"],settlement:["PSM-RS","singke_settlements","receiptNumber"],payment:["PSM-RP","payments","receiptNumber"]}[kind];
@@ -1487,6 +1662,7 @@ function closeMobileMoreMenu(){
  const menu=document.getElementById("mobileMoreMenu");if(!menu)return;
  menu.classList.remove("open");
  menu.setAttribute("aria-hidden","true");
+ document.body.classList.remove("mobile-keyboard-active");
  if(window.innerWidth>820)menu.style.display="none";
 }
 function mobileMoreNavigate(v){
@@ -1545,10 +1721,13 @@ function runViewHooks(v){
 function renderAppView(v){
   const target=document.getElementById("v-"+v);if(!target)return false;
   closeMobileMoreMenu();
+  document.body.classList.remove("mobile-keyboard-active");
   document.querySelectorAll(".view").forEach(x=>{x.classList.remove("active");x.style.display="none"});
   target.classList.add("active");target.style.display="block";PSM_CURRENT_VIEW=v;
   document.querySelectorAll("aside .nav[data-view]").forEach(x=>x.classList.toggle("active",x.dataset.view===v));
-  syncMobileMoreActive(v);mobilePrimaryActionForView(v);runViewHooks(v);setTimeout(()=>{enhanceMobileTables();updatePageMiniSummaries()},0);window.scrollTo({top:0,behavior:"auto"});return true
+  syncMobileMoreActive(v);mobilePrimaryActionForView(v);runViewHooks(v);setTimeout(()=>{enhanceMobileTables();updatePageMiniSummaries()},0);
+  try{window.scrollTo(0,0)}catch(e){document.documentElement.scrollTop=0;document.body.scrollTop=0}
+  return true
 }
 function pushAppView(v){
   if(!renderAppView(v))return;
@@ -1578,6 +1757,19 @@ function handleRootBackExit(){
     window.close();
   }catch(e){}
   setTimeout(()=>history.back(),30);
+}
+
+
+function diagnoseScrollState(){
+ const el=document.documentElement,b=document.body,m=document.querySelector(".main");
+ return {
+  viewport:window.innerHeight,
+  documentHeight:Math.max(el.scrollHeight,b.scrollHeight),
+  scrollY:window.scrollY,
+  bodyOverflow:getComputedStyle(b).overflowY,
+  mainOverflow:m?getComputedStyle(m).overflowY:"n/a",
+  currentView:PSM_CURRENT_VIEW
+ };
 }
 
 function initRefreshProtection(){
@@ -1802,8 +1994,19 @@ function queueCount(){return 0}
 function setRole(v){S.role=v;localStorage.setItem("mpf_role",v);document.getElementById("roleBadge").textContent=v.toUpperCase();document.getElementById("roleSel").value=v;audit("security","ROLE",v);refreshAll()}
 
 document.querySelectorAll(".nav").forEach(b=>b.onclick=()=>nav(b.dataset.view));
-function openModal(html){const body=document.getElementById("modalBody"),modal=document.getElementById("modal"),dialog=document.querySelector("#modal .dialog");body.innerHTML=html;if(dialog)dialog.scrollTop=0;modal.classList.add("open");setTimeout(()=>{setupDraftTracking();if(isMobileLayout()){if(dialog)dialog.scrollTop=0;window.scrollTo(0,0)}},0)}
-function closeModal(){document.getElementById("modal").classList.remove("open");document.querySelector("#modal .dialog")?.classList.remove("lifting-cage-dialog")}
+function openModal(html){
+ const d=document.querySelector("#modal .dialog");if(d)d.classList.remove("lifting-cage-dialog","detail-floating");
+ document.getElementById("modalBody").innerHTML=html;
+ if(d)d.scrollTop=0;
+ document.getElementById("modal").classList.add("open");
+ setupDraftTracking();
+ setTimeout(()=>{if(d)d.scrollTop=0},0);
+}
+function closeModal(){
+ const m=document.getElementById("modal");if(m)m.classList.remove("open");
+ const d=document.querySelector("#modal .dialog");if(d)d.classList.remove("lifting-cage-dialog","detail-floating");
+ document.body.classList.remove("mobile-keyboard-active");
+}
 function attemptCloseModal(){
   if(hasUnsavedDraft()&&draftEligible()){
     if(!confirm("You have unsaved changes. Close this form and keep the draft for later?"))return false;
@@ -1821,8 +2024,8 @@ async function saveFarmer(fid){
  if(dupPhone&&!confirm(`Duplicate warning: this phone already belongs to ${dupPhone.name}. Save anyway?`))return;
  if(dupName&&!confirm(`Duplicate warning: farmer name "${dupName.name}" already exists. Save anyway?`))return;
  let old=fid?await txGet("farmers",fid):null;
- let r={...(old||{}),id:fid||id("FARM"),name,phone,archived:old?.archived||false,createdAt:old?.createdAt||iso(),updatedAt:iso()};
- await txPut("farmers",r);audit("farmers",old?"UPDATE":"CREATE",r.id);queueCloud("farmers","UPSERT",r);closeModal();refreshAll()
+ let r={...(old||{}),id:fid||await nextSimpleId("farmers","F"),name,phone,archived:old?.archived||false,createdAt:old?.createdAt||iso(),updatedAt:iso()};
+ await txPut("farmers",r);audit("farmers",old?"UPDATE":"CREATE",r.id);queueCloud("farmers","UPSERT",r);clearCurrentFormDraft();closeModal();refreshAll()
 }
 async function deleteFarmer(fid){requireAdmin();let ls=await txAll("liftings");if(ls.some(x=>x.farmerId===fid))return toast("Cannot delete farmer with lifting history.");if(confirm("Delete farmer?")){await txDel("farmers",fid);audit("farmers","DELETE",fid);queueCloud("farmers","DELETE",fid);refreshAll()}}
 
@@ -2029,13 +2232,14 @@ async function saveLifting(editId="",confirmed=false){
   const p=window._pendingLiftingConfirm;
   if(!p)return toast("Please confirm the lifting first.");
   const {draft,farmer,cages,totalKg,totalBirds,exact,rr}=p;
-  const old=editId?await txGet("liftings",editId):null,lid=editId||id("LIFT");
+  const old=editId?await txGet("liftings",editId):null;
+  const invoiceNumber=old?.invoiceNumber||await nextSequentialNumber("lifting",draft.date);
+  const lid=editId||invoiceNumber;
   if(editId){
     const oldC=(await txAll("cages")).filter(c=>c.liftingId===editId);
     if(oldC.some(c=>c.isSold))return toast("Cannot edit lifting with sold cages.");
     for(const c of oldC){await txDel("cages",c.id);queueCloud("cages","DELETE",c.id)}
   }
-  const invoiceNumber=old?.invoiceNumber||await nextSequentialNumber("lifting",draft.date);
   const dupInv=(await txAll("liftings")).find(x=>x.id!==lid&&x.invoiceNumber===invoiceNumber);
   if(dupInv)return toast("Invoice number conflict detected. Please try again.");
   const r={...(old||{}),id:lid,invoiceNumber,farmerId:draft.farmerId,farmerName:farmer.name,liftingDate:draft.date,totalCages:cages.length,totalWeight:totalKg,totalBirds,liftingRate:Number(draft.rate),liftingAmount:exact,totalAmount:exact,roundOff:rr.roundOff,netAmount:rr.rounded,payableAmount:rr.rounded,remarks:draft.remarks,payableToSingke:true,createdAt:old?.createdAt||iso(),updatedAt:iso()};
@@ -2066,7 +2270,7 @@ async function saveStore(){
  let dn=all.find(s=>String(s.name||"").trim().toLowerCase()===name.toLowerCase()),dp=all.find(s=>String(s.phone||"").replace(/\D/g,"")===digits);
  if(dn&&!confirm(`Duplicate warning: store "${dn.name}" already exists. Save anyway?`))return;
  if(dp&&!confirm(`Duplicate warning: this phone already belongs to ${dp.name}. Save anyway?`))return;
- let r={id:id("STORE"),name,phone,openingDue,isWangkhei,archived:false,singkeAccount:isWangkhei?"Singke":"General",createdAt:iso(),updatedAt:iso()};
+ let r={id:await nextSimpleId("stores","S"),name,phone,openingDue,isWangkhei,archived:false,singkeAccount:isWangkhei?"Singke":"General",createdAt:iso(),updatedAt:iso()};
  await txPut("stores",r);queueCloud("stores","UPSERT",r);await setSetting("store_meta_"+r.id,{openingDue,isWangkhei});audit("stores","CREATE",r.id);clearCurrentFormDraft();closeModal();refreshAll()
 }
 async function openPayment(){let stores=(await txAll("stores")).filter(s=>!s.archived);if(!stores.length)return toast("Add a store first.");openModal(`<h3>Record Store Payment</h3><div class="grid g2"><div class="field"><label>Store</label><select id="pStore">${stores.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></div><div class="field"><label>Date</label><input id="pDate" type="date" value="${today()}"></div><div class="field"><label>Amount ₹</label><input id="pAmt" type="number" step="0.01"></div><div class="field"><label>Mode</label><select id="pMode"><option>Cash</option><option>UPI</option><option>Bank</option><option>Cheque</option></select></div><div class="field"><label>Reference</label><input id="pRef"></div><div class="field"><label>Remarks</label><input id="pRem"></div></div><div style="height:12px"></div><button class="btn primary" onclick="savePayment()">Save Payment</button>`)}
@@ -2102,7 +2306,7 @@ async function saveSale(){
   const exactAmount=Math.round(weight*rate*100)/100,rr=invoiceRound(exactAmount),netAmount=rr.rounded;
   const saleDup=(await txAll("sales")).find(x=>x.storeId===storeId&&x.cageId===cageId&&x.saleDate===date&&Math.abs(Number(x.weight??x.netWeight)-weight)<0.01&&Math.abs(Number(x.salesRate??x.ratePerKg)-rate)<0.01);
    if(saleDup&&!confirm(`Possible duplicate sale found (${saleDup.invoiceNumber||saleDup.id}) for the same store, cage, date, weight and rate. Save another sale anyway?`))return;
-   const sid=id("SALE"),inv=await nextSequentialNumber("sale",date);
+   const inv=await nextSequentialNumber("sale",date),sid=inv;
   let r={id:sid,invoiceNumber:inv,storeId,storeName:store.name,saleDate:date,liftingId:cage.liftingId,farmerId:cage.farmerId,cageId,cageNumber:cage.cageNumber,birdsCount:cage.birdCount,netWeight:weight,weight,salesRate:rate,ratePerKg:rate,saleAmount:exactAmount,totalAmount:exactAmount,roundOff:rr.roundOff,netAmount,invoiceNetAmount:netAmount,paidAmount:paid,previousDue:fin.outstanding,outstanding:Math.round((fin.outstanding+netAmount-paid)*100)/100,paymentMethod:document.getElementById("saMode").value,remarks:document.getElementById("saRem").value.trim(),isWangkheiSale:!!store.isWangkhei,createdAt:iso(),updatedAt:iso()};
   if((await txAll("sales")).some(x=>x.id!==sid&&x.invoiceNumber===inv))return toast("Invoice number conflict detected. Please retry.");await txPut("sales",r);cage.isSold=true;cage.saleId=sid;cage.updatedAt=iso();await txPut("cages",cage);
   queueCloud("sales","UPSERT",r);queueCloud("cages","UPSERT",cage);await setSetting("cage_state_"+cage.id,{isSold:true,saleId:sid,updatedAt:cage.updatedAt});
@@ -2229,6 +2433,36 @@ function downloadBlob(blob,fileName){
   document.body.appendChild(a);
   try{a.dispatchEvent(new MouseEvent("click",{view:window,bubbles:true,cancelable:true}))}catch(e){a.click()}
   setTimeout(()=>{a.remove();URL.revokeObjectURL(url)},10000);
+}
+
+
+function downloadPdfBlob(blob,fileName){
+ return new Promise((resolve,reject)=>{
+  try{
+   const name=/\.pdf$/i.test(String(fileName||""))?String(fileName):String(fileName||"PSM_Invoice")+".pdf";
+   const pdfBlob=blob.type==="application/pdf"?blob:new Blob([blob],{type:"application/pdf"});
+   const url=URL.createObjectURL(pdfBlob);
+   const a=document.createElement("a");
+   a.href=url;a.download=name;a.type="application/pdf";a.rel="noopener";a.style.display="none";
+   document.body.appendChild(a);
+   let clicked=false;
+   try{a.click();clicked=true}catch(e){}
+   setTimeout(()=>{a.remove();URL.revokeObjectURL(url)},15000);
+   if(clicked){resolve();return}
+
+   const reader=new FileReader();
+   reader.onerror=()=>reject(new Error("Unable to prepare PDF download."));
+   reader.onload=()=>{
+     const b=document.createElement("a");
+     b.href=String(reader.result||"").replace(/^data:[^;]+;/,"data:application/pdf;");
+     b.download=name;b.type="application/pdf";b.style.display="none";
+     document.body.appendChild(b);
+     try{b.click();resolve()}catch(e){reject(e)}
+     setTimeout(()=>b.remove(),1000);
+   };
+   reader.readAsDataURL(pdfBlob);
+  }catch(e){reject(e)}
+ });
 }
 
 function buildStyledInvoicePdf(kind,data){
@@ -2418,15 +2652,15 @@ function professionalFarmerPdfLines(data){
   return lines;
 }
 async function downloadFarmerInvoicePdf(liftingId){
-  try{
-    const data=await getFarmerInvoiceData(liftingId);
-    const clean=(data.farmer?.name||data.lifting.farmerName||"Farmer").replace(/[^a-z0-9]+/gi,"_");
-    const fileName=`PSM_Farmer_Lifting_Invoice_${clean}_${data.lifting.liftingDate||today()}.pdf`;
-    const blob=buildMultiPageFarmerInvoicePdf(data);
-    downloadBlob(blob,fileName);
-    audit("invoice","DOWNLOAD_PDF",liftingId);
-    toast("PDF invoice downloaded.");
-  }catch(e){toast("Invoice download error: "+e.message)}
+ try{
+  const data=await getFarmerInvoiceData(liftingId);
+  const clean=(data.farmer?.name||data.lifting.farmerName||"Farmer").replace(/[^a-z0-9]+/gi,"_");
+  const fileName=`PSM_Farmer_Lifting_Invoice_${clean}_${data.lifting.liftingDate||today()}.pdf`;
+  const blob=buildMultiPageFarmerInvoicePdf(data);
+  await downloadPdfBlob(blob,fileName);
+  audit("invoice","DOWNLOAD_PDF",liftingId);
+  toast("PDF invoice downloaded.");
+ }catch(e){toast("Invoice download error: "+e.message)}
 }
 
 function buildTemplateStoreInvoicePdf(data){
@@ -2501,12 +2735,12 @@ async function makeStoreInvoicePdf(saleId){
  return {blob:buildTemplateStoreInvoicePdf({sale:s,store:st,farmer,wangkhei:wang}),fileName,s,st};
 }
 async function downloadStoreInvoicePdf(saleId){
-  try{
-    const {blob,fileName}=await makeStoreInvoicePdf(saleId);
-    downloadBlob(blob,fileName);
-    audit("invoice","STORE_DOWNLOAD_PDF",saleId);
-    toast("PDF invoice downloaded.");
-  }catch(e){toast("Invoice download error: "+e.message)}
+ try{
+  const {blob,fileName}=await makeStoreInvoicePdf(saleId);
+  await downloadPdfBlob(blob,fileName);
+  audit("invoice","STORE_DOWNLOAD_PDF",saleId);
+  toast("PDF invoice downloaded.");
+ }catch(e){toast("Invoice download error: "+e.message)}
 }
 
 async function buildDailyOperationalSummaryPdf(dateValue=today()){
@@ -2725,11 +2959,10 @@ function openWhatsAppUrl(url){
   a.remove();return true;
 }
 async function shareFarmerLiftingPdf(liftingId){
-  try{
-    const {blob,fileName,data}=await createFarmerInvoicePdf(liftingId);
-    const f=data.farmer||{},l=data.lifting;
-    const file=(typeof File!=="undefined")?new File([blob],fileName,{type:"application/pdf"}):null;
-    const msg=`PSM Farmer Lifting Invoice
+ try{
+  const data=await getFarmerInvoiceData(liftingId),f=data.farmer||{},l=data.lifting;
+  const msg=`PSM Farmer Lifting Invoice
+Invoice: ${l.invoiceNumber||l.id}
 Farmer: ${f.name||l.farmerName||""}
 Date: ${l.liftingDate||""}
 Total Cages: ${data.cages.length}
@@ -2737,40 +2970,25 @@ Total Birds: ${l.totalBirds||0}
 Total Weight: ${fmt(l.totalWeight)} kg
 Rate: Rs. ${fmt(l.liftingRate??l.ratePerKg)} / kg
 Total Amount: Rs. ${fmt(l.netAmount??l.payableAmount??l.liftingAmount??l.totalAmount)}`;
-
-    downloadBlob(blob,fileName);
-
-    if(file&&navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-      try{
-        await navigator.share({title:"PSM Farmer Lifting Invoice",text:msg,files:[file]});
-        audit("invoice","SHARE_PDF",liftingId,f.phone||"");
-        return;
-      }catch(e){if(e?.name==="AbortError")return}
-    }
-
-    const p=normalizeWhatsappPhone(f.phone);
-    openWhatsAppUrl(`https://wa.me/${p}?text=${encodeURIComponent(msg+"\n\nPDF invoice has been downloaded. Please attach the PDF in WhatsApp.")}`);
-    toast("PDF downloaded. WhatsApp opened.");
-  }catch(e){if(e?.name!=="AbortError")toast("Invoice share error: "+e.message)}
+  const p=normalizeWhatsappPhone(f.phone);
+  openWhatsAppUrl(`https://wa.me/${p}?text=${encodeURIComponent(msg)}`);
+  audit("invoice","FARMER_WHATSAPP_TEXT",liftingId,f.phone||"");
+ }catch(e){toast("WhatsApp share error: "+e.message)}
 }
 
 async function renderFarmersCombined(){
  let q=(document.getElementById("farmerSearchCombined")?.value||"").toLowerCase();
- let a=(await txAll("farmers")).filter(f=>!q||[f.id,f.name,f.phone].some(x=>String(x).toLowerCase().includes(q))).sort((a,b)=>Number(a.archived)-Number(b.archived)||a.name.localeCompare(b.name));
- const el=document.getElementById("farmerRowsCombined"); if(!el)return;
- el.innerHTML=a.length?a.map(f=>`<tr><td class="mono">${esc(f.id)}</td><td><b>${esc(f.name)}</b>${f.archived?'<span class="archive-badge">ARCHIVED</span>':''}</td><td>${esc(f.phone)}</td><td><div class="action-group"><button class="btn" onclick='openFarmer(${JSON.stringify(f).replaceAll("'","&#39;")})'>Edit</button>${f.archived?`<button class="btn ok" onclick="setFarmerArchived('${f.id}',false)">Restore</button>`:`<button class="btn" onclick="setFarmerArchived('${f.id}',true)">Archive</button>`}</div></td></tr>`).join(""):`<tr><td colspan="4" class="empty">No farmers</td></tr>`;
+ let a=(await txAll("farmers")).filter(f=>!q||[f.id,f.name,f.phone].some(x=>String(x).toLowerCase().includes(q))).sort((a,b)=>Number(a.archived)-Number(b.archived)||String(a.name||"").localeCompare(String(b.name||"")));
+ const el=document.getElementById("farmerRowsCombined");if(!el)return;
+ el.innerHTML=a.length?a.map(f=>`<tr onclick="openFarmerDetails('${f.id}')" tabindex="0" onkeydown="if(event.key==='Enter')openFarmerDetails('${f.id}')"><td>${esc(simpleDate(f.createdAt))}</td><td class="mono">${esc(f.id)}</td><td>${esc(f.name)}${f.archived?' <span class="archive-badge">ARCHIVED</span>':''}</td></tr>`).join(""):`<tr><td colspan="3" class="empty">No farmers</td></tr>`;
 }
 async function renderLiftings(){
-  let a=(await txAll("liftings")).sort((a,b)=>String(b.liftingDate||"").localeCompare(String(a.liftingDate||"")));
-  let fm=new Map((await txAll("farmers")).map(f=>[f.id,f]));
-  document.getElementById("liftingRows").innerHTML=a.length?a.map(l=>`<tr>
-    <td>${esc(l.liftingDate)}</td><td class="mono">${esc(l.invoiceNumber||l.id)}</td><td>${esc(fm.get(l.farmerId)?.name||l.farmerName||"")}</td>
-    <td>${l.totalCages||0}</td><td>${l.totalBirds||0}</td><td>${fmt(l.totalWeight)} kg</td><td>₹${fmt(l.liftingRate??l.ratePerKg)}</td><td><b>₹${fmt(l.netAmount??l.payableAmount??l.liftingAmount??l.totalAmount)}</b></td>
-    <td><button class="btn primary" onclick="openLiftingActions('${l.id}')">Action</button></td>
-  </tr>`).join(""):`<tr><td colspan="9" class="empty">No liftings</td></tr>`;
-  document.getElementById("liftQuickCount").textContent=a.length;
-  document.getElementById("liftQuickCages").textContent=a.reduce((s,l)=>s+(Number(l.totalCages)||0),0);
-  document.getElementById("liftQuickWeight").textContent=fmt(a.reduce((s,l)=>s+(Number(l.totalWeight)||0),0));
+ let a=(await txAll("liftings")).sort((a,b)=>String(b.liftingDate||"").localeCompare(String(a.liftingDate||"")));
+ let fm=new Map((await txAll("farmers")).map(f=>[f.id,f]));
+ document.getElementById("liftingRows").innerHTML=a.length?a.map(l=>`<tr onclick="openLiftingDetails('${l.id}')" tabindex="0" onkeydown="if(event.key==='Enter')openLiftingDetails('${l.id}')"><td>${esc(l.liftingDate)}</td><td class="mono">${esc(l.invoiceNumber||l.id)}</td><td>${esc(fm.get(l.farmerId)?.name||l.farmerName||"")}</td></tr>`).join(""):`<tr><td colspan="3" class="empty">No liftings</td></tr>`;
+ document.getElementById("liftQuickCount").textContent=a.length;
+ document.getElementById("liftQuickCages").textContent=a.reduce((s,l)=>s+(Number(l.totalCages)||0),0);
+ document.getElementById("liftQuickWeight").textContent=fmt(a.reduce((s,l)=>s+(Number(l.totalWeight)||0),0));
 }
 function openLiftingActions(id){
  openModal(`<h3>Lifting Actions</h3><div class="action-group">
@@ -2784,9 +3002,9 @@ async function renderSales(){
  let a=(await txAll("sales")).sort((a,b)=>String(b.saleDate||"").localeCompare(String(a.saleDate||"")));
  let stores=new Map((await txAll("stores")).map(s=>[s.id,s]));
  document.getElementById("saleRows").innerHTML=a.length?a.map(s=>{
-   let st=stores.get(s.storeId),wang=!!(st?.isWangkhei||s.isWangkheiSale);
-   return `<tr><td>${esc(s.saleDate)}</td><td class="mono">${esc(s.invoiceNumber||s.id)}</td><td>${esc(s.storeName||st?.name||"")}</td><td>${esc(s.cageNumber||s.cageId||"")}</td><td>${fmt(s.weight??s.netWeight)} kg</td><td>₹${fmt(s.salesRate??s.ratePerKg)}</td><td>₹${fmt(s.saleAmount??s.totalAmount)}</td><td>₹${fmt(s.paidAmount)}</td><td>${wang?'<span class="badge blue">N/A</span>':`<b>₹${fmt(s.outstanding)}</b>`}</td><td><button class="btn primary" onclick="openSaleActions('${s.id}')">Action</button></td></tr>`
- }).join(""):`<tr><td colspan="10" class="empty">No sales</td></tr>`
+   let st=stores.get(s.storeId);
+   return `<tr onclick="openSaleDetails('${s.id}')" tabindex="0" onkeydown="if(event.key==='Enter')openSaleDetails('${s.id}')"><td>${esc(s.saleDate)}</td><td class="mono">${esc(s.invoiceNumber||s.id)}</td><td>${esc(s.storeName||st?.name||"")}</td></tr>`
+ }).join(""):`<tr><td colspan="3" class="empty">No sales</td></tr>`;
 }
 function openSaleActions(id){
  openModal(`<h3>Sales Actions</h3><div class="action-group">
@@ -2882,55 +3100,29 @@ async function previewStoreInvoice(saleId){
 }
 async function shareStoreInvoiceWhatsApp(saleId){
  try{
-  const {blob,fileName,s,st}=await makeStoreInvoicePdf(saleId);
-  const wang=!!(st?.isWangkhei||s.isWangkheiSale);
-  const file=(typeof File!=="undefined")?new File([blob],fileName,{type:"application/pdf"}):null;
-  const rate=Number(s.salesRate??s.ratePerKg)||0;
-  const previousDue=Number(s.previousDue)||0;
-  const totalOutstanding=Number(s.outstanding)||0;
+  const s=await txGet("sales",saleId);if(!s)throw new Error("Sale not found.");
+  const st=await txGet("stores",s.storeId),wang=!!(st?.isWangkhei||s.isWangkheiSale);
   const msg=`PSM Store Sales Invoice
 Invoice: ${s.invoiceNumber||s.id}
 Store: ${st?.name||s.storeName||""}
 Date: ${s.saleDate||""}
 Weight: ${fmt(s.weight??s.netWeight)} kg
-Rate: Rs. ${fmt(rate)} / kg
+Rate: Rs. ${fmt(s.salesRate??s.ratePerKg)} / kg
 Invoice Amount: Rs. ${fmt(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)}
-Previous Due: ${wang?"N/A":"Rs. "+fmt(previousDue)}
-Total Outstanding: ${wang?"N/A":"Rs. "+fmt(totalOutstanding)}`;
-
-  downloadBlob(blob,fileName);
-
-  if(file&&navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-    try{
-      await navigator.share({title:"PSM Store Sales Invoice",text:msg,files:[file]});
-      audit("invoice","STORE_SHARE_PDF",saleId,st?.phone||"");
-      return;
-    }catch(e){if(e?.name==="AbortError")return}
-  }
-
+Previous Due: ${wang?"N/A":"Rs. "+fmt(s.previousDue)}
+Paid: Rs. ${fmt(s.paidAmount)}
+Total Outstanding: ${wang?"N/A":"Rs. "+fmt(s.outstanding)}`;
   const p=normalizeWhatsappPhone(st?.phone);
-  openWhatsAppUrl(`https://wa.me/${p}?text=${encodeURIComponent(msg+"\n\nPDF invoice has been downloaded. Please attach the PDF in WhatsApp.")}`);
-  audit("invoice","STORE_WHATSAPP_FALLBACK",saleId,st?.phone||"");
-  toast("PDF downloaded. WhatsApp opened.");
- }catch(e){if(e?.name!=="AbortError")toast("Invoice share error: "+e.message)}
+  openWhatsAppUrl(`https://wa.me/${p}?text=${encodeURIComponent(msg)}`);
+  audit("invoice","STORE_WHATSAPP_TEXT",saleId,st?.phone||"");
+ }catch(e){toast("WhatsApp share error: "+e.message)}
 }
 async function renderStores(){
  const q=(document.getElementById("storeSearch")?.value||"").trim().toLowerCase();
- let a=(await txAll("stores")).filter(s=>!q||[s.id,s.name,s.phone].some(v=>String(v||"").toLowerCase().includes(q))),rows=[];
- for(let s of a.sort((a,b)=>Number(a.archived)-Number(b.archived)||String(a.name||"").localeCompare(String(b.name||"")))){
-  let f=await storeSummary(s.id),wang=!!(s.isWangkhei||String(s.name).toLowerCase().includes("wangkhei"));
-  rows.push(`<tr>
-    <td class="mono">${esc(s.id)}</td>
-    <td><b>${esc(s.name)}</b>${wang?' <span class="badge blue">WANGKHEI</span>':''}${s.archived?'<span class="archive-badge">ARCHIVED</span>':''}</td>
-    <td>${esc(s.phone||"")}</td>
-    <td>${wang?'<span class="badge blue">N/A</span>':`₹${fmt(f.opening)}`}</td>
-    <td>₹${fmt(f.totalSales)}</td><td>₹${fmt(f.totalPaid)}</td>
-    <td>${wang?'<span class="badge blue">N/A</span>':`<b>₹${fmt(f.outstanding)}</b>`}</td>
-    <td>${wang||s.archived?"—":`<button class="btn ok" onclick="sendOutstandingReminder('${s.id}')">WhatsApp</button>`}</td>
-    <td><button class="btn" onclick="editStore('${s.id}')">Edit</button> ${s.archived?`<button class="btn ok" onclick="setStoreArchived('${s.id}',false)">Restore</button>`:`<button class="btn" onclick="setStoreArchived('${s.id}',true)">Archive</button>`}</td>
-  </tr>`)
- }
- document.getElementById("storeRows").innerHTML=rows.length?rows.join(""):`<tr><td colspan="9" class="empty">No matching stores</td></tr>`
+ let a=(await txAll("stores")).filter(s=>!q||[s.id,s.name,s.phone].some(v=>String(v||"").toLowerCase().includes(q)));
+ a.sort((a,b)=>Number(a.archived)-Number(b.archived)||String(a.name||"").localeCompare(String(b.name||"")));
+ const rows=a.map(s=>`<tr onclick="openStoreDetails('${s.id}')" tabindex="0" onkeydown="if(event.key==='Enter')openStoreDetails('${s.id}')"><td>${esc(simpleDate(s.createdAt))}</td><td class="mono">${esc(s.id)}</td><td>${esc(s.name)}${s.archived?' <span class="archive-badge">ARCHIVED</span>':''}</td></tr>`);
+ document.getElementById("storeRows").innerHTML=rows.length?rows.join(""):`<tr><td colspan="3" class="empty">No matching stores</td></tr>`;
 }
 
 async function editStore(storeId){
@@ -2990,46 +3182,44 @@ async function renderSingke(){
   document.getElementById("sPrevDate").textContent=s.p?.asOf?`As of ${s.p.asOf}`:"Not set";
   document.getElementById("sLift").textContent=fmt(s.liftingPayable);
   document.getElementById("sWang").textContent=fmt(s.wang);
-  const kgEl=document.getElementById("sWangKg"); if(kgEl)kgEl.textContent=fmt(s.wangKg);
+  const kgEl=document.getElementById("sWangKg");if(kgEl)kgEl.textContent=fmt(s.wangKg);
   document.getElementById("sSet").textContent=fmt(s.sett);
   document.getElementById("sRemain").textContent=fmt(s.remain);
-  const dash=document.getElementById("dashSingke"); if(dash)dash.textContent=fmt(s.remain);
+  const dash=document.getElementById("dashSingke");if(dash)dash.textContent=fmt(s.remain);
 
   const stores=await txAll("stores");
   const wm=new Set(stores.filter(st=>st.isWangkhei||String(st.name||"").toLowerCase().includes("wangkhei")).map(st=>st.id));
   let ev=[
-    ...(await txAll("liftings")).map(x=>({date:x.liftingDate||"",type:"Lifting Payable",ref:x.id,kg:Number(x.totalWeight)||0,debit:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,credit:0})),
+    ...(await txAll("liftings")).map(x=>({date:x.liftingDate||"",type:"Lifting Payable",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,debit:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,credit:0})),
     ...(await txAll("sales")).filter(x=>x.isWangkheiSale||wm.has(x.storeId)).map(x=>({date:x.saleDate||"",type:"Wangkhei Adjustment",ref:x.invoiceNumber||x.id,kg:Number(x.netWeight??x.weight??x.totalWeight)||0,debit:0,credit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0})),
     ...(await txAll("singke_settlements")).map(x=>({date:x.date||"",type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,debit:0,credit:Number(x.amount)||0}))
   ].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
-
-  const from=document.getElementById("singkeFrom")?.value||"";
-  const to=document.getElementById("singkeTo")?.value||"";
-  let bal=Number(s.p?.amount)||0;
-  if(from){for(const e of ev){if(e.date&&e.date<from)bal+=e.debit-e.credit}}
+  const from=document.getElementById("singkeFrom")?.value||"",to=document.getElementById("singkeTo")?.value||"";
+  let bal=Number(s.p?.amount)||0;if(from){for(const e of ev){if(e.date&&e.date<from)bal+=e.debit-e.credit}}
   const filtered=ev.filter(e=>(!from||e.date>=from)&&(!to||e.date<=to));
+  window._singkeViewRows=[];
   const rows=[];
-  for(const e of filtered){
-    bal+=e.debit-e.credit;
-    rows.push(`<tr><td>${esc(e.date)}</td><td>${esc(e.type)}</td><td class="mono">${esc(e.ref)}</td><td>${e.kg?`${fmt(e.kg)} kg`:"—"}</td><td>${e.debit?`₹${fmt(e.debit)}`:"—"}</td><td>${e.credit?`₹${fmt(e.credit)}`:"—"}</td><td><b>₹${fmt(bal)}</b></td></tr>`);
-  }
-  document.getElementById("singkeRows").innerHTML=rows.join("")||`<tr><td colspan="7" class="empty">No reconciliation transactions for the selected period</td></tr>`;
+  filtered.forEach((e,i)=>{bal+=e.debit-e.credit;const d={...e,balance:bal};window._singkeViewRows.push(d);rows.push(`<tr onclick="openSingkeListDetails(${i})"><td>${esc(e.date)}</td><td class="mono">${esc(e.ref)}</td><td>${esc(e.type)}</td></tr>`)});
+  document.getElementById("singkeRows").innerHTML=rows.join("")||`<tr><td colspan="3" class="empty">No reconciliation transactions for the selected period</td></tr>`;
 }
+function openSingkeListDetails(i){const e=window._singkeViewRows?.[i];if(!e)return;openGenericDetails(e.type,e.ref,{date:e.date,id:e.ref,name:e.type,totalKg:e.kg?fmt(e.kg)+" kg":"—",debit:e.debit?"Rs. "+fmt(e.debit):"—",credit:e.credit?"Rs. "+fmt(e.credit):"—",runningDue:"Rs. "+fmt(e.balance)})}
 async function populateStoreSelect(){let stores=(await txAll("stores")).filter(s=>!s.archived),sel=document.getElementById("ledgerStore");let old=sel.value;sel.innerHTML=stores.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("");if(stores.some(s=>s.id===old))sel.value=old}
 async function renderLedger(){
  await populateStoreSelect();
  let idd=document.getElementById("ledgerStore").value;
  document.getElementById("ledgerGeneratedAt").value=new Date().toLocaleString("en-IN");
- if(!idd){document.getElementById("ledgerRows").innerHTML=`<tr><td colspan="6" class="empty">No store selected</td></tr>`;return}
+ if(!idd){document.getElementById("ledgerRows").innerHTML=`<tr><td colspan="3" class="empty">No store selected</td></tr>`;return}
  let s=await txGet("stores",idd),wang=!!(s?.isWangkhei||String(s?.name||"").toLowerCase().includes("wangkhei"));
  const rem=document.getElementById("ledgerReminderBtn");if(rem)rem.style.display=wang?"none":"inline-block";
  let sales=(await txAll("sales")).filter(x=>x.storeId===idd).map(x=>({date:x.saleDate,type:"Sale",ref:x.invoiceNumber||x.id,debit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,credit:Number(x.paidAmount)||0})),
  pays=(await txAll("payments")).filter(x=>x.storeId===idd).map(x=>({date:x.paymentDate,type:"Payment",ref:x.receiptNumber||x.referenceNumber||x.id,debit:0,credit:Number(x.amount)||0})),
- ev=[...sales,...pays].sort((a,b)=>a.date.localeCompare(b.date)),bal=wang?0:(Number(s.openingDue)||0),rows=[];
- if(!wang)rows.push(`<tr><td></td><td>Opening Due</td><td></td><td>₹${fmt(bal)}</td><td></td><td><b>₹${fmt(bal)}</b></td></tr>`);
- for(let e of ev){bal+=e.debit-e.credit;rows.push(`<tr><td>${e.date}</td><td>${e.type}</td><td class="mono">${esc(e.ref)}</td><td>${e.debit?`₹${fmt(e.debit)}`:""}</td><td>${e.credit?`₹${fmt(e.credit)}`:""}</td><td>${wang?"—":`<b>₹${fmt(bal)}</b>`}</td></tr>`)}
- document.getElementById("ledgerRows").innerHTML=rows.join("")||`<tr><td colspan="6" class="empty">No ledger entries</td></tr>`
+ ev=[...sales,...pays].sort((a,b)=>String(a.date).localeCompare(String(b.date))),bal=wang?0:(Number(s.openingDue)||0),rows=[];
+ window._ledgerViewRows=[];
+ if(!wang){const d={date:s.createdAt?simpleDate(s.createdAt):"",type:"Opening Due",ref:s.id+"-OPEN",debit:Number(s.openingDue)||0,credit:0,balance:bal};window._ledgerViewRows.push(d);rows.push(`<tr onclick="openLedgerListDetails(0)"><td>${esc(d.date)}</td><td class="mono">${esc(d.ref)}</td><td>Opening Due</td></tr>`)}
+ for(const e of ev){bal+=e.debit-e.credit;const d={...e,balance:bal},i=window._ledgerViewRows.length;window._ledgerViewRows.push(d);rows.push(`<tr onclick="openLedgerListDetails(${i})"><td>${esc(e.date)}</td><td class="mono">${esc(e.ref)}</td><td>${esc(e.type)}</td></tr>`)}
+ document.getElementById("ledgerRows").innerHTML=rows.join("")||`<tr><td colspan="3" class="empty">No ledger entries</td></tr>`;
 }
+function openLedgerListDetails(i){const e=window._ledgerViewRows?.[i];if(!e)return;openGenericDetails(e.type,e.ref,{date:e.date,id:e.ref,name:e.type,debit:e.debit?"Rs. "+fmt(e.debit):"—",credit:e.credit?"Rs. "+fmt(e.credit):"—",balance:"Rs. "+fmt(e.balance)})}
 async function sendLedgerReminder(){let idd=document.getElementById("ledgerStore").value;if(idd)sendOutstandingReminder(idd)}
 function printStoreLedgerPdf(){
  const old=document.title,sel=document.getElementById("ledgerStore"),name=sel?.selectedOptions?.[0]?.text||"Store";
@@ -3089,11 +3279,32 @@ async function getDateRangeReportData(){
  return {from,to,type,title,headers,rows};
 }
 async function renderDateRangeReport(){
- const rf=document.getElementById("reportFrom"),rt=document.getElementById("reportTo");if(rf&&!rf.value){const d=new Date();rf.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`}if(rt&&!rt.value)rt.value=today();
+ const rf=document.getElementById("reportFrom"),rt=document.getElementById("reportTo");
+ if(rf&&!rf.value){const d=new Date();rf.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`}
+ if(rt&&!rt.value)rt.value=today();
  const r=await getDateRangeReportData(),head=document.getElementById("reportHead"),body=document.getElementById("reportRows"),sum=document.getElementById("reportSummary");
- if(head)head.innerHTML=`<tr>${r.headers.map(h=>`<th>${esc(h)}</th>`).join("")}</tr>`;
- if(body)body.innerHTML=r.rows.length?r.rows.map(row=>`<tr>${row.map(v=>`<td>${typeof v==="number"?fmt(v):esc(v)}</td>`).join("")}</tr>`).join(""):`<tr><td colspan="${r.headers.length}" class="empty">No records</td></tr>`;
+ if(head)head.innerHTML=`<tr><th>Date</th><th>ID</th><th>Name</th></tr>`;
+ window._reportViewData=r;
+ const mapRow=(row,i)=>{
+   const type=String(r.type||"").toLowerCase();
+   if(type==="farmer") return {date:String(row[0]??""),id:String(row[1]??`R${i+1}`),name:String(row[2]??"Farmer")};
+   if(type==="sales") return {date:String(row[0]??""),id:String(row[1]??`R${i+1}`),name:String(row[2]??"Store Sale")};
+   if(type==="wangkhei") return {date:String(row[0]??""),id:String(row[1]??`R${i+1}`),name:String(row[2]??"Wangkhei Adjustment")};
+   if(type==="singke") return {date:String(row[0]??""),id:String(row[2]??row[1]??`R${i+1}`),name:String(row[1]??"Singke Transaction")};
+   if(type==="profit") return {date:String(row[0]??""),id:String(row[1]??`R${i+1}`),name:String(row[2]??"Profit")};
+   if(type==="outstanding") return {date:"—",id:String(row[0]??`R${i+1}`),name:String(row[0]??"Store")};
+   return {date:String(row[0]??""),id:String(row[1]??`R${i+1}`),name:String(row[2]??r.title)};
+ };
+ if(body)body.innerHTML=r.rows.length?r.rows.map((row,i)=>{
+   const m=mapRow(row,i);
+   return `<tr onclick="openReportListDetails(${i})"><td>${esc(m.date)}</td><td class="mono">${esc(m.id)}</td><td>${esc(m.name)}</td></tr>`;
+ }).join(""):`<tr><td colspan="3" class="empty">No records</td></tr>`;
  if(sum)sum.textContent=`${r.title} • ${r.from||"Beginning"} to ${r.to||"Latest"} • ${r.rows.length} row(s)`;
+}
+function openReportListDetails(i){
+ const r=window._reportViewData,row=r?.rows?.[i];if(!r||!row)return;
+ const obj={};r.headers.forEach((h,j)=>obj[h]=row[j]);
+ openGenericDetails(r.title,String(row[1]??""),obj);
 }
 function csvCell(v){const s=String(v??"");return /[",\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s}
 async function exportDateRangeReportCSV(){const r=await getDateRangeReportData(),txt=[r.headers,...r.rows].map(row=>row.map(csvCell).join(",")).join("\r\n");downloadBlob(new Blob(["\ufeff"+txt],{type:"text/csv;charset=utf-8"}),`PSM_${r.type}_${r.from||"all"}_${r.to||today()}.csv`)}
@@ -3104,10 +3315,20 @@ async function exportDateRangeReportExcel(){
  downloadBlob(new Blob([xml],{type:"application/vnd.ms-excel"}),`PSM_${r.type}_${r.from||"all"}_${r.to||today()}.xls`);
 }
 
-function renderAudit(){let a=JSON.parse(localStorage.getItem("mpf_audit")||"[]");document.getElementById("auditRows").innerHTML=a.length?a.map(x=>`<tr><td>${esc(x.time.replace("T"," ").slice(0,19))}</td><td>${esc(x.role)}</td><td>${esc(x.module)}</td><td>${esc(x.action)}</td><td class="mono">${esc(x.record)}</td><td>${esc(x.note||"")}</td></tr>`).join(""):`<tr><td colspan="6" class="empty">No audit events</td></tr>`}
+function renderAudit(){
+ let a=JSON.parse(localStorage.getItem("mpf_audit")||"[]");window._auditViewRows=a;
+ document.getElementById("auditRows").innerHTML=a.length?a.map((x,i)=>`<tr onclick="openAuditListDetails(${i})"><td>${esc(simpleDate(x.time))}</td><td class="mono">${esc(x.record||("A"+(i+1)))}</td><td>${esc((x.module||"")+" · "+(x.action||""))}</td></tr>`).join(""):`<tr><td colspan="3" class="empty">No audit events</td></tr>`;
+}
+function openAuditListDetails(i){const x=window._auditViewRows?.[i];if(!x)return;openGenericDetails("Audit Event",x.record||"",{date:x.time,id:x.record||"",name:(x.module||"")+" · "+(x.action||""),role:x.role,module:x.module,action:x.action,note:x.note||"—"})}
 function exportAudit(){let blob=new Blob([localStorage.getItem("mpf_audit")||"[]"],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="MPF_LiftDesk_Audit.json";a.click()}
 async function closeToday(){let t=today(),lift=(await txAll("liftings")).filter(x=>x.liftingDate===t),sales=(await txAll("sales")).filter(x=>x.saleDate===t),pays=(await txAll("payments")).filter(x=>x.paymentDate===t),sets=(await txAll("singke_settlements")).filter(x=>x.date===t),r={date:t,liftings:lift.length,cages:lift.reduce((a,x)=>a+(Number(x.totalCages)||0),0),kg:lift.reduce((a,x)=>a+(Number(x.totalWeight)||0),0),liftingPayable:lift.reduce((a,x)=>a+(Number(x.liftingAmount)||0),0),sales:sales.reduce((a,x)=>a+(Number(x.saleAmount)||0),0),payments:pays.reduce((a,x)=>a+(Number(x.amount)||0),0),singkeSettlements:sets.reduce((a,x)=>a+(Number(x.amount)||0),0),closedAt:iso()};let a=JSON.parse(localStorage.getItem("mpf_closings")||"[]"),i=a.findIndex(x=>x.date===t);if(i>=0)a[i]=r;else a.unshift(r);localStorage.setItem("mpf_closings",JSON.stringify(a));audit("closing","CLOSE",t);toast("Daily closing saved.");renderClosings()}
-function renderClosings(){let a=JSON.parse(localStorage.getItem("mpf_closings")||"[]");let last=a[0];document.getElementById("closingCards").innerHTML=last?`<div class="card metric"><div class="lab">Last Closing</div><div class="val">${last.date}</div><div class="mini">${last.liftings} liftings</div></div><div class="card metric"><div class="lab">Sales</div><div class="val">₹${fmt(last.sales)}</div><div class="mini">Day total</div></div><div class="card metric"><div class="lab">Lifting Payable</div><div class="val">₹${fmt(last.liftingPayable)}</div><div class="mini">${fmt(last.kg)} kg</div></div>`:"";document.getElementById("closingRows").innerHTML=a.length?a.map(x=>`<tr><td>${x.date}</td><td>${x.liftings}</td><td>${x.cages}</td><td>${fmt(x.kg)}</td><td>₹${fmt(x.liftingPayable)}</td><td>₹${fmt(x.sales)}</td><td>₹${fmt(x.payments)}</td><td>₹${fmt(x.singkeSettlements)}</td><td>${x.closedAt.replace("T"," ").slice(0,19)}</td></tr>`).join(""):`<tr><td colspan="9" class="empty">No daily closing yet</td></tr>`}
+function renderClosings(){
+ let a=JSON.parse(localStorage.getItem("mpf_closings")||"[]"),last=a[0];
+ document.getElementById("closingCards").innerHTML=last?`<div class="card metric"><div class="lab">Last Closing</div><div class="val">${last.date}</div><div class="mini">${last.liftings} liftings</div></div><div class="card metric"><div class="lab">Sales</div><div class="val">₹${fmt(last.sales)}</div><div class="mini">Day total</div></div><div class="card metric"><div class="lab">Lifting Payable</div><div class="val">₹${fmt(last.liftingPayable)}</div><div class="mini">${fmt(last.kg)} kg</div></div>`:"";
+ window._closingViewRows=a;
+ document.getElementById("closingRows").innerHTML=a.length?a.map((x,i)=>`<tr onclick="openClosingListDetails(${i})"><td>${esc(x.date)}</td><td class="mono">${esc("CLOSE-"+x.date)}</td><td>Daily Closing</td></tr>`).join(""):`<tr><td colspan="3" class="empty">No daily closing yet</td></tr>`;
+}
+function openClosingListDetails(i){const x=window._closingViewRows?.[i];if(!x)return;openGenericDetails("Daily Closing","CLOSE-"+x.date,{date:x.date,id:"CLOSE-"+x.date,name:"Daily Closing",liftings:x.liftings,cages:x.cages,kg:fmt(x.kg),liftingPayable:"Rs. "+fmt(x.liftingPayable),sales:"Rs. "+fmt(x.sales),payments:"Rs. "+fmt(x.payments),mpfSettlements:"Rs. "+fmt(x.singkeSettlements),closedAt:x.closedAt})}
 
 async function exportData(){let o={};for(let t of TABLES)o[t]=await txAll(t);return o}
 async function exportBackup(){let payload={format:"PSM_BROILER_DISTRIBUTOR_BACKUP",version:2,createdAt:iso(),data:await exportData(),local:{audit:JSON.parse(localStorage.getItem("mpf_audit")||"[]"),closings:JSON.parse(localStorage.getItem("mpf_closings")||"[]")}},blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`PSM_Broiler_Distributor_Backup_${today()}.json`;a.click();audit("backup","EXPORT","full")}
