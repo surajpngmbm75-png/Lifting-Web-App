@@ -1161,6 +1161,77 @@ body{
   }
 }
 
+
+/* ===== FULL-SCREEN DETAILS + SMOOTH SCROLL ===== */
+html{scroll-behavior:smooth!important}
+html,body,.main,.view,.dialog,.tablewrap,.mobile-more-sheet{-webkit-overflow-scrolling:touch!important}
+body,.main,.view{scroll-behavior:smooth!important}
+.detail-floating{
+  position:fixed!important;inset:0!important;width:100vw!important;max-width:none!important;
+  height:100dvh!important;min-height:100dvh!important;max-height:100dvh!important;
+  margin:0!important;border:0!important;border-radius:0!important;
+  padding:20px 18px calc(28px + env(safe-area-inset-bottom))!important;
+  overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain!important;
+  -webkit-overflow-scrolling:touch!important;scroll-behavior:smooth!important;box-shadow:none!important;
+}
+#modal.open:has(.detail-floating){padding:0!important;background:#fff!important;overflow:hidden!important}
+.detail-floating .close{position:sticky!important;top:0!important;float:right!important;z-index:30!important;background:#fff!important;margin-bottom:6px!important}
+.detail-floating .detail-actions{position:sticky!important;bottom:-1px!important;background:rgba(255,255,255,.98)!important;backdrop-filter:blur(10px);padding:12px 0 calc(8px + env(safe-area-inset-bottom))!important;z-index:20!important}
+@media(max-width:820px){
+  body,.main,.view,#v-singke,#v-ledger,#v-closing,#v-reports,#v-audit,#v-settings{scroll-behavior:smooth!important;-webkit-overflow-scrolling:touch!important}
+  .detail-floating{padding:14px 12px calc(24px + env(safe-area-inset-bottom))!important}
+  .detail-grid{grid-template-columns:1fr!important}
+}
+
+
+/* ===== SECTION FLOATING ACTIONS ===== */
+.mobile-section-actions{display:none}
+@media(max-width:820px){
+  .mobile-section-actions{
+    position:fixed;
+    left:10px;
+    right:10px;
+    bottom:calc(76px + env(safe-area-inset-bottom));
+    z-index:118;
+    display:none;
+    gap:8px;
+    align-items:center;
+    justify-content:center;
+    pointer-events:none;
+  }
+  .mobile-section-actions.show{
+    display:flex;
+  }
+  .mobile-section-actions .btn{
+    pointer-events:auto;
+    flex:1 1 0;
+    min-height:48px;
+    border-radius:14px!important;
+    box-shadow:0 8px 24px rgba(15,23,42,.18);
+    font-weight:800;
+    white-space:nowrap;
+  }
+  .mobile-section-actions .btn.primary{
+    box-shadow:0 8px 24px rgba(180,35,24,.22);
+  }
+
+  /* Extra page room so content is never hidden behind the floating action row + footer. */
+  #v-lifting,#v-sales,#v-stores{
+    padding-bottom:74px!important;
+  }
+
+  body.mobile-keyboard-active .mobile-section-actions{
+    display:none!important;
+  }
+}
+
+
+@media(max-width:820px){
+  html,body{
+    overscroll-behavior-y:none!important;
+  }
+}
+
 </style>
 <meta name="theme-color" content="#b91c1c">
 </head>
@@ -1190,6 +1261,7 @@ body{
  <div style="display:flex;gap:8px;align-items:center"><span class="mobile-back-hint" aria-hidden="true"></span><span id="authUserEmail" class="user-email"></span><span id="roleBadge" class="badge blue">ADMIN</span><button class="logout-btn" onclick="supabaseLogout()">Logout</button></div>
 </header>
 <div class="shell">
+<div id="mobileSectionActions" class="mobile-section-actions" aria-hidden="true"></div>
 <aside>
  <div class="nav-group">Operations</div>
  <button class="nav active" data-view="home" aria-label="Home"><span class="nav-icon" aria-hidden="true">🏠</span><span class="nav-label">Home</span></button>
@@ -1211,7 +1283,7 @@ body{
   <button class="mobile-more-backdrop" type="button" aria-label="Close more menu" ></button>
   <div class="mobile-more-sheet" role="dialog" aria-label="More navigation">
     <div class="mobile-more-handle"></div>
-    <div class="mobile-more-title"><b>More</b><button type="button" class="mobile-more-close" >✕</button></div>
+    <div class="mobile-more-title"><b>More</b><button type="button" class="mobile-more-close" aria-label="Close More menu" onclick="closeMobileMoreMenu()">✕</button></div>
     <div class="mobile-more-grid">
       <button type="button" class="mobile-more-item" data-more-view="singke"><span>🤝</span><b>MPF A/C</b></button>
       <button type="button" class="mobile-more-item" data-more-view="ledger"><span>📚</span><b>Ledger</b></button>
@@ -1464,7 +1536,31 @@ async function updatePageMiniSummaries(){
  }catch(e){}
 }
 
-function mobilePrimaryActionForView(v){ return; }
+function mobilePrimaryActionForView(v){
+ const host=document.getElementById("mobileSectionActions");if(!host)return;
+ host.innerHTML="";host.classList.remove("show");host.setAttribute("aria-hidden","true");
+ if(!isMobileLayout())return;
+
+ let actions=[];
+ if(v==="lifting"){
+   actions=[
+     {label:"Add Farmer",cls:"btn",fn:"openFarmer()"},
+     {label:"New Lifting",cls:"btn primary",fn:"openLifting()"}
+   ];
+ }else if(v==="sales"){
+   actions=[
+     {label:"New Sale",cls:"btn primary",fn:"openSale()"}
+   ];
+ }else if(v==="stores"){
+   actions=[
+     {label:"Add Store",cls:"btn",fn:"openStore()"},
+     {label:"Payment",cls:"btn primary",fn:"openPayment()"}
+   ];
+ }else return;
+
+ host.innerHTML=actions.map(a=>`<button type="button" class="${a.cls}" onclick="${a.fn}">${a.label}</button>`).join("");
+ host.classList.add("show");host.setAttribute("aria-hidden","false");
+}
 function enhanceMobileTables(){
  document.querySelectorAll(".tablewrap").forEach(w=>w.classList.remove("mobile-card-table"));
  document.querySelectorAll(".tablewrap td[data-label]").forEach(td=>td.removeAttribute("data-label"));
@@ -1581,7 +1677,7 @@ function simpleDate(v){
 function detailItem(k,v){return `<div class="detail-item"><div class="k">${esc(k)}</div><div class="v">${esc(v==null||v===""?"—":String(v))}</div></div>`}
 function openDetailsModal(title,sub,items,actions=""){
  openModal(`<div class="detail-title">${esc(title)}</div><div class="detail-sub">${esc(sub||"")}</div><div class="detail-grid">${items.map(x=>detailItem(x[0],x[1])).join("")}</div>${actions?`<div class="detail-actions">${actions}</div>`:""}`);
- const d=document.querySelector("#modal .dialog");if(d)d.classList.add("detail-floating");
+ const d=document.querySelector("#modal .dialog");if(d){d.classList.add("detail-floating");d.scrollTop=0}
 }
 async function openFarmerDetails(fid){
  const f=await txGet("farmers",fid);if(!f)return toast("Farmer not found.");
@@ -1652,6 +1748,7 @@ function openMobileMoreMenu(){
  const menu=document.getElementById("mobileMoreMenu");if(!menu)return;
  document.body.classList.remove("mobile-keyboard-active");
  menu.style.display="block";
+ void menu.offsetWidth;
  menu.classList.add("open");
  menu.setAttribute("aria-hidden","false");
  syncMobileMoreActive(PSM_CURRENT_VIEW);
@@ -1663,7 +1760,9 @@ function closeMobileMoreMenu(){
  menu.classList.remove("open");
  menu.setAttribute("aria-hidden","true");
  document.body.classList.remove("mobile-keyboard-active");
- if(window.innerWidth>820)menu.style.display="none";
+ const sheet=menu.querySelector(".mobile-more-sheet");
+ if(sheet)sheet.blur();
+ setTimeout(()=>{if(!menu.classList.contains("open"))menu.style.display="none"},190);
 }
 function mobileMoreNavigate(v){
  if(!secondaryMobileView(v))return;
@@ -1684,9 +1783,16 @@ function initMobileMoreNavigation(){
      const v=item.dataset.moreView;if(v)mobileMoreNavigate(v);
    });
  });
+ const closeBtn=document.querySelector("#mobileMoreMenu .mobile-more-close");
+ if(closeBtn&&!closeBtn.dataset.moreBound){
+   closeBtn.dataset.moreBound="1";
+   closeBtn.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();closeMobileMoreMenu()});
+   closeBtn.addEventListener("touchend",e=>{e.preventDefault();e.stopPropagation();closeMobileMoreMenu()},{passive:false});
+ }
  const backdrop=document.querySelector("#mobileMoreMenu .mobile-more-backdrop");
  if(backdrop&&!backdrop.dataset.moreBound){
-   backdrop.dataset.moreBound="1";backdrop.addEventListener("click",e=>{e.preventDefault();closeMobileMoreMenu()});
+   backdrop.dataset.moreBound="1";
+   backdrop.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();closeMobileMoreMenu()});
  }
  document.addEventListener("keydown",e=>{if(e.key==="Escape"&&document.getElementById("mobileMoreMenu")?.classList.contains("open"))closeMobileMoreMenu()});
 }
@@ -1770,6 +1876,29 @@ function diagnoseScrollState(){
   mainOverflow:m?getComputedStyle(m).overflowY:"n/a",
   currentView:PSM_CURRENT_VIEW
  };
+}
+
+
+function initPullToRefreshBlock(){
+  let startY=0,startX=0,tracking=false;
+  const interactive=t=>t&&t.closest&&t.closest("input,textarea,select,[contenteditable='true'],.dialog,.detail-floating,.tablewrap");
+  document.addEventListener("touchstart",e=>{
+    if(e.touches.length!==1){tracking=false;return}
+    startY=e.touches[0].clientY;startX=e.touches[0].clientX;
+    tracking=window.scrollY<=0 && !interactive(e.target);
+  },{passive:true});
+
+  document.addEventListener("touchmove",e=>{
+    if(!tracking||e.touches.length!==1)return;
+    const dy=e.touches[0].clientY-startY,dx=Math.abs(e.touches[0].clientX-startX);
+    // Block only the downward pull gesture at the very top of the document.
+    if(window.scrollY<=0 && dy>8 && dy>dx){
+      e.preventDefault();
+    }
+  },{passive:false});
+
+  document.addEventListener("touchend",()=>{tracking=false},{passive:true});
+  document.addEventListener("touchcancel",()=>{tracking=false},{passive:true});
 }
 
 function initRefreshProtection(){
@@ -1856,13 +1985,13 @@ function enqueueSaveRetry(table,data){
 }
 async function retryPendingSaves(){
   if(!navigator.onLine){updateSyncHealth();return}
-  const items=loadSaveRetryQueue(); if(!items.length){updateSyncHealth();return}
+  const items=loadSaveRetryQueue();if(!items.length){updateSyncHealth();return}
   const keep=[];
   for(const item of items){
     try{
-      if(isPermanentlyDeleted(item.table,item.data?.id??item.data?.key))continue;
-      await rest(item.table,"POST",toCloud(item.table,item.data));
-      markCloudSuccess();
+      const key=item.data?.id??item.data?.key;
+      if(key!=null&&isPermanentlyDeleted(item.table,key))continue;
+      await pushRecordToCloud(item.table,item.data);
     }catch(e){
       item.attempts=(item.attempts||0)+1;item.updatedAt=iso();keep.push(item);
     }
@@ -1877,20 +2006,19 @@ function queueCloud(table,action,data){
     addPermanentTombstone(table,keyValue);
     queueVerifiedDelete(table,keyValue);
     updateSyncHealth();
-    deleteCloudRecordVerified(table,keyValue).then(()=>updateSyncHealth()).catch(()=>updateSyncHealth());
+    deleteCloudRecordVerified(table,keyValue).then(()=>backgroundBidirectionalSync()).catch(()=>updateSyncHealth());
     return;
   }
   const keyValue=data?.id??data?.key;
-  if(keyValue!=null && isPermanentlyDeleted(table,keyValue))return;
+  if(keyValue!=null&&isPermanentlyDeleted(table,keyValue))return;
   (async()=>{
     try{
-      await rest(table,"POST",toCloud(table,data));
-      markCloudSuccess();
+      await pushRecordToCloud(table,data);
       const k=saveRetryKey(table,data);
       saveSaveRetryQueue(loadSaveRetryQueue().filter(x=>x.k!==k));
     }catch(e){
       enqueueSaveRetry(table,data);
-      toast("Saved locally. Supabase save will retry automatically.");
+      toast("Saved locally. Cloud synchronization will retry automatically.");
     }
     updateSyncHealth();
   })();
@@ -1950,18 +2078,18 @@ async function verifyCloudDeleted(table,keyValue){
   return !Array.isArray(rows) || rows.length===0;
 }
 async function deleteCloudRecordVerified(table,keyValue){
+  const deletedAt=loadPermanentTombstones()[tombstoneKey(table,keyValue)]?.deletedAt||iso();
   addPermanentTombstone(table,keyValue);
   queueVerifiedDelete(table,keyValue);
   try{
-    if(!AUTH_SESSION) AUTH_SESSION=loadAuthSession();
-    if(!AUTH_SESSION) throw new Error("Not authenticated.");
+    if(!AUTH_SESSION)AUTH_SESSION=loadAuthSession();
+    if(!AUTH_SESSION)throw new Error("Not authenticated.");
     const key=table==="settings"?"key":"id";
     await rest(table,"DELETE",null,`?${key}=eq.${encodeURIComponent(keyValue)}`);
-    if(!(await verifyCloudDeleted(table,keyValue))){
-      throw new Error("Supabase still contains this record after DELETE.");
-    }
+    if(!(await verifyCloudDeleted(table,keyValue)))throw new Error("Supabase still contains this record after DELETE.");
+    if(table!=="settings")await publishDeleteTombstone(table,keyValue,deletedAt);
     let q=loadDeleteRetryQueue();
-    q=q.filter(x=>!(x.table===table && String(x.key)===String(keyValue)));
+    q=q.filter(x=>!(x.table===table&&String(x.key)===String(keyValue)));
     saveDeleteRetryQueue(q);
     markCloudSuccess();
     return true;
@@ -2144,7 +2272,12 @@ function handleCageEnter(e,input){
 function collectLiftingCageDraft(){
  const nums=[...document.querySelectorAll(".ciNum")],ws=[...document.querySelectorAll(".ciWeight")],bs=[...document.querySelectorAll(".ciBirds")],cages=[];
  if(!nums.length)throw new Error("Add at least one cage.");
- for(let i=0;i<nums.length;i++){const w=Number(ws[i].value),b=Number(bs[i].value),n=nums[i].value.trim();if(!n||w<=0||b<=0)throw new Error(`Cage ${i+1} needs weight, bird count and cage number.`);cages.push({cageNumber:n,weight:w,birdCount:b})}
+ for(let i=0;i<nums.length;i++){
+   const w=Number(ws[i].value),b=Number(bs[i].value),n=String(nums[i].value||"").trim().toUpperCase();
+   nums[i].value=n;
+   if(!n||w<=0||b<=0)throw new Error(`Cage ${i+1} needs weight, bird count and cage number.`);
+   cages.push({cageNumber:n,weight:w,birdCount:b});
+ }
  return cages;
 }
 
@@ -2181,13 +2314,14 @@ function updateCageEntrySummary(){
 }
 
 function addCageInput(prefill={}){
-  const host=document.getElementById("cageInputs"); if(!host)return;
+  const host=document.getElementById("cageInputs");if(!host)return;
   const d=document.createElement("div");d.className="cage-entry-row";
   const n=host.querySelectorAll(".cage-entry-row").length+1;
+  const cageValue=String(prefill.cageNumber??"").toUpperCase();
   d.innerHTML=`
     <div class="field"><div class="cage-index">Cage ${n}</div><label>Weight (kg)</label><input class="ciWeight" type="number" step="0.01" inputmode="decimal" value="${prefill.weight??""}" placeholder="0.00" oninput="updateCageEntrySummary()" onkeydown="handleCageEnter(event,this)"></div>
     <div class="field"><label>Birds (Nos.)</label><input class="ciBirds" type="number" inputmode="numeric" value="${prefill.birdCount??""}" placeholder="0" oninput="updateCageEntrySummary()" onkeydown="handleCageEnter(event,this)"></div>
-    <div class="field"><label>Cage No.</label><input class="ciNum" value="${prefill.cageNumber??n}" placeholder="${n}" onkeydown="handleCageEnter(event,this)"></div>
+    <div class="field"><label>Cage No.</label><input class="ciNum" value="${esc(cageValue)}" placeholder="Enter cage no." autocomplete="off" autocapitalize="characters" oninput="this.value=this.value.toUpperCase()" onkeydown="handleCageEnter(event,this)"></div>
     <button type="button" class="btn danger cage-remove" onclick="removeCageInput(this)">Remove</button>`;
   host.appendChild(d);renumberCageRows();updateCageEntrySummary();setTimeout(()=>d.querySelector(".ciWeight")?.focus(),0);
 }
@@ -2257,10 +2391,18 @@ async function deleteLifting(lid){requireAdmin();let cages=(await txAll("cages")
 async function openStore(){openModal(`<h3>Add Store</h3><div class="grid g2"><div class="field"><label>Store Name</label><input id="stName"></div><div class="field"><label>Phone</label><input id="stPhone"></div><div class="field"><label>Opening Due ₹</label><input id="stDue" type="number" step="0.01"></div><div class="field"><label>Wangkhei / Singke deduction store?</label><select id="stW"><option value="0">No</option><option value="1">Yes</option></select></div></div><div style="height:12px"></div><button class="btn primary" onclick="saveStore()">Save Store</button>`)}
 
 async function setFarmerArchived(idv,value){
- const r=await txGet("farmers",idv);if(!r)return;r.archived=!!value;r.updatedAt=iso();await txPut("farmers",r);queueCloud("farmers","UPSERT",r);audit("farmers",value?"ARCHIVE":"RESTORE",idv);refreshAll()
+ const r=await txGet("farmers",idv);if(!r)return;
+ r.archived=!!value;r.updatedAt=iso();await txPut("farmers",r);
+ queueCloud("farmers","UPSERT",r);
+ await setSetting("farmer_state_"+r.id,{archived:!!value,updatedAt:r.updatedAt});
+ audit("farmers",value?"ARCHIVE":"RESTORE",idv);refreshAll()
 }
 async function setStoreArchived(idv,value){
- const r=await txGet("stores",idv);if(!r)return;r.archived=!!value;r.updatedAt=iso();await txPut("stores",r);queueCloud("stores","UPSERT",r);audit("stores",value?"ARCHIVE":"RESTORE",idv);refreshAll()
+ const r=await txGet("stores",idv);if(!r)return;
+ r.archived=!!value;r.updatedAt=iso();await txPut("stores",r);
+ queueCloud("stores","UPSERT",r);
+ await setSetting("store_state_"+r.id,{archived:!!value,updatedAt:r.updatedAt});
+ audit("stores",value?"ARCHIVE":"RESTORE",idv);refreshAll()
 }
 
 async function saveStore(){
@@ -2390,7 +2532,7 @@ function buildSimplePdf(lines,title="PSM Broiler Distributor"){
   const objs=[null];const add=o=>{objs.push(o);return objs.length-1};
   const font=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
   const fontB=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
-  const imgObj=add(`<< /Type /XObject /Subtype /Image /Width ${PSM_LOGO_JPEG_WIDTH} /Height ${PSM_LOGO_JPEG_HEIGHT} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${logoBin.length} >>\nstream\n${logoBin}\nendstream`);
+  const imgObj=add(`<< /Type /XObject /Subtype /Image /Width ${PSM_LOGO_JPEG_WIDTH} /Height ${PSM_LOGO_JPEG_HEIGHT} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter [/ASCIIHexDecode /DCTDecode] /Length ${logoHex.length} >>\nstream\n${logoHex}\nendstream`);
   const pageIds=[],contentIds=[];
   pages.forEach((p,pi)=>{
     let y=top,content="";
@@ -2436,33 +2578,28 @@ function downloadBlob(blob,fileName){
 }
 
 
-function downloadPdfBlob(blob,fileName){
- return new Promise((resolve,reject)=>{
-  try{
-   const name=/\.pdf$/i.test(String(fileName||""))?String(fileName):String(fileName||"PSM_Invoice")+".pdf";
-   const pdfBlob=blob.type==="application/pdf"?blob:new Blob([blob],{type:"application/pdf"});
-   const url=URL.createObjectURL(pdfBlob);
-   const a=document.createElement("a");
-   a.href=url;a.download=name;a.type="application/pdf";a.rel="noopener";a.style.display="none";
-   document.body.appendChild(a);
-   let clicked=false;
-   try{a.click();clicked=true}catch(e){}
-   setTimeout(()=>{a.remove();URL.revokeObjectURL(url)},15000);
-   if(clicked){resolve();return}
+async function downloadPdfBlob(blob,fileName){
+ const name=/\.pdf$/i.test(String(fileName||""))?String(fileName):String(fileName||"PSM_Invoice")+".pdf";
+ const pdfBlob=blob.type==="application/pdf"?blob:new Blob([blob],{type:"application/pdf"});
+ const bytes=new Uint8Array(await pdfBlob.arrayBuffer());
+ let binary="";const chunk=0x8000;
+ for(let i=0;i<bytes.length;i+=chunk)binary+=String.fromCharCode(...bytes.subarray(i,i+chunk));
+ const base64=btoa(binary);
 
-   const reader=new FileReader();
-   reader.onerror=()=>reject(new Error("Unable to prepare PDF download."));
-   reader.onload=()=>{
-     const b=document.createElement("a");
-     b.href=String(reader.result||"").replace(/^data:[^;]+;/,"data:application/pdf;");
-     b.download=name;b.type="application/pdf";b.style.display="none";
-     document.body.appendChild(b);
-     try{b.click();resolve()}catch(e){reject(e)}
-     setTimeout(()=>b.remove(),1000);
-   };
-   reader.readAsDataURL(pdfBlob);
-  }catch(e){reject(e)}
- });
+ try{
+   if(window.Android&&typeof window.Android.downloadPdf==="function"){
+     window.Android.downloadPdf(name,base64);return;
+   }
+   if(window.Android&&typeof window.Android.saveBase64File==="function"){
+     window.Android.saveBase64File(name,"application/pdf",base64);return;
+   }
+ }catch(e){console.warn("Android PDF bridge:",e)}
+
+ const a=document.createElement("a");
+ a.href=`data:application/pdf;base64,${base64}`;
+ a.download=name;a.setAttribute("download",name);a.type="application/pdf";a.rel="noopener";a.style.display="none";
+ document.body.appendChild(a);
+ try{a.click()}finally{setTimeout(()=>a.remove(),1200)}
 }
 
 function buildStyledInvoicePdf(kind,data){
@@ -2665,9 +2802,9 @@ async function downloadFarmerInvoicePdf(liftingId){
 
 function buildTemplateStoreInvoicePdf(data){
  const s=data.sale,st=data.store||{},farmer=data.farmer||{},wang=!!data.wangkhei,tpl=getInvoiceTemplate();
- const W=595,H=842,logoBin=atob(PSM_LOGO_JPEG_BASE64),objs=[null],add=o=>{objs.push(o);return objs.length-1};
+ const W=595,H=842,logoBytes=Uint8Array.from(atob(PSM_LOGO_JPEG_BASE64),c=>c.charCodeAt(0)&255),logoHex=Array.from(logoBytes,b=>b.toString(16).padStart(2,"0")).join("").toUpperCase()+">",objs=[null],add=o=>{objs.push(o);return objs.length-1};
  const font=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"),fontB=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
- const imgObj=add(`<< /Type /XObject /Subtype /Image /Width ${PSM_LOGO_JPEG_WIDTH} /Height ${PSM_LOGO_JPEG_HEIGHT} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${logoBin.length} >>\nstream\n${logoBin}\nendstream`);
+ const imgObj=add(`<< /Type /XObject /Subtype /Image /Width ${PSM_LOGO_JPEG_WIDTH} /Height ${PSM_LOGO_JPEG_HEIGHT} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter [/ASCIIHexDecode /DCTDecode] /Length ${logoHex.length} >>\nstream\n${logoHex}\nendstream`);
  const gs=add("<< /Type /ExtGState /ca 0.05 /CA 0.05 >>");
  const ep=x=>String(x??"").replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)").replace(/[^\x20-\x7E]/g,"?");
  const rgb=(r,g,b)=>`${(r/255).toFixed(3)} ${(g/255).toFixed(3)} ${(b/255).toFixed(3)}`;
@@ -2756,7 +2893,7 @@ async function buildDailyOperationalSummaryPdf(dateValue=today()){
  const lines=["__B__PSM BROILER DISTRIBUTOR","Kongba Kshetri Leikai, Imphal East, Manipur - 795008",`Daily Operational Summary - ${dateValue}`,"__HR__",`Liftings: ${lift.length}`,`Total Lifting Kg: ${fmt(liftKg)} kg`,`Lifting Payable: Rs. ${fmt(liftAmt)}`,`Sales Transactions: ${sales.length}`,`Total Sales Kg: ${fmt(salesKg)} kg`,`Sales Value: Rs. ${fmt(salesAmt)}`,`Wangkhei Adjustment: ${fmt(wangKg)} kg | Rs. ${fmt(wangAmt)}`,`Singke Settlements: Rs. ${fmt(settlements)}`,`Gross Profit: Rs. ${fmt(profit)}`,`Store Outstanding: Rs. ${fmt(outstanding)}`,`Closing Singke Balance: Rs. ${fmt(sg.remain)}`,"__HR__",`Generated: ${new Date().toLocaleString("en-IN")}`];
  return {blob:buildSimplePdf(lines,"PSM DAILY OPERATIONAL SUMMARY"),fileName:`PSM_Daily_Operational_Summary_${dateValue}.pdf`};
 }
-async function downloadDailyOperationalSummaryPdf(){try{const x=await buildDailyOperationalSummaryPdf(today());downloadBlob(x.blob,x.fileName);audit("reports","DAILY_SUMMARY_PDF",today())}catch(e){toast(e.message)}}
+async function downloadDailyOperationalSummaryPdf(){try{const x=await buildDailyOperationalSummaryPdf(today());downloadPdfBlob(x.blob,x.fileName);audit("reports","DAILY_SUMMARY_PDF",today())}catch(e){toast(e.message)}}
 
 async function buildLedgerPdf(){
   const sel=document.getElementById("ledgerStore"),storeId=sel?.value;if(!storeId)throw new Error("Select a store.");
@@ -2777,7 +2914,7 @@ async function buildLedgerPdf(){
   return {blob:buildSimplePdf(lines,"PSM STORE LEDGER"),fileName:`PSM_Store_Ledger_${clean}_${today()}.pdf`}
 }
 async function downloadStoreLedgerPdf(){
-  try{const {blob,fileName}=await buildLedgerPdf();downloadBlob(blob,fileName);audit("ledger","DOWNLOAD_PDF",document.getElementById("ledgerStore").value)}
+  try{const {blob,fileName}=await buildLedgerPdf();downloadPdfBlob(blob,fileName);audit("ledger","DOWNLOAD_PDF",document.getElementById("ledgerStore").value)}
   catch(e){toast(e.message)}
 }
 async function getFarmerInvoiceData(liftingId){
@@ -2825,7 +2962,7 @@ function invoiceLines(data){
 function buildMultiPageFarmerInvoicePdf(data){
  const l=data.lifting,f=data.farmer||{},cages=data.cages||[],perPage=18,tpl=getInvoiceTemplate();
  const chunks=[];for(let i=0;i<cages.length;i+=perPage)chunks.push(cages.slice(i,i+perPage));if(!chunks.length)chunks.push([]);
- const W=595,H=842,logoBin=atob(PSM_LOGO_JPEG_BASE64),objs=[null],add=o=>{objs.push(o);return objs.length-1};
+ const W=595,H=842,logoBytes=Uint8Array.from(atob(PSM_LOGO_JPEG_BASE64),c=>c.charCodeAt(0)&255),logoHex=Array.from(logoBytes,b=>b.toString(16).padStart(2,"0")).join("").toUpperCase()+">",objs=[null],add=o=>{objs.push(o);return objs.length-1};
  const font=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"),fontB=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
  const imgObj=add(`<< /Type /XObject /Subtype /Image /Width ${PSM_LOGO_JPEG_WIDTH} /Height ${PSM_LOGO_JPEG_HEIGHT} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${logoBin.length} >>\nstream\n${logoBin}\nendstream`);
  const gs=add("<< /Type /ExtGState /ca 0.055 /CA 0.055 >>");
@@ -3586,6 +3723,302 @@ async function syncAll(){toast("Automatic Supabase sync is disabled.");return fa
 const _syncBadge=document.getElementById("syncBadge"); if(_syncBadge) _syncBadge.onclick=null;
 
 
+
+/* ===== BACKGROUND BIDIRECTIONAL CLOUD SYNC =====
+   Uses:
+   1) the existing business tables for compatibility, and
+   2) full-record snapshots stored in Supabase settings as sync_record:* keys.
+   Deletions are propagated with sync_delete:* tombstones so another device
+   cannot accidentally resurrect a deleted record.
+*/
+const PSM_BIDI_SYNC_INTERVAL_MS=20000;
+const PSM_BIDI_LAST_SYNC_KEY="psm_bidi_last_sync_v1";
+let PSM_BIDI_SYNC_TIMER=null;
+let PSM_BIDI_SYNC_RUNNING=false;
+
+function cloudRecordKey(table,data){return String(data?.id??data?.key??"")}
+function cloudRecordUpdatedAt(data){return String(data?.updatedAt??data?.updated_at??data?.createdAt??data?.created_at??"")}
+function timeValue(v){const n=Date.parse(v||"");return Number.isFinite(n)?n:0}
+function syncSnapshotSettingKey(table,key){return `sync_record:${table}:${String(key)}`}
+function syncDeleteSettingKey(table,key){return `sync_delete:${table}:${String(key)}`}
+function isInternalSyncSettingKey(key){return /^sync_(record|delete):/.test(String(key||""))}
+function pendingSaveKeySet(){return new Set(loadSaveRetryQueue().map(x=>x.k))}
+function compareRecordTime(local,remote){
+  const a=timeValue(cloudRecordUpdatedAt(local)),b=timeValue(cloudRecordUpdatedAt(remote));
+  if(a===b)return 0;
+  return a>b?1:-1;
+}
+function cloneJson(v){try{return JSON.parse(JSON.stringify(v))}catch(e){return v}}
+
+async function postInternalSetting(key,value,updatedAt=iso()){
+  const row={key:String(key),value:typeof value==="object"&&value!==null?value:{val:value},updatedAt};
+  await rest("settings","POST",toCloud("settings",row));
+}
+async function publishRecordSnapshot(table,data){
+  if(table==="settings")return;
+  const key=cloudRecordKey(table,data);if(!key)return;
+  await postInternalSetting(syncSnapshotSettingKey(table,key),{table,key,record:cloneJson(data),updatedAt:cloudRecordUpdatedAt(data)||iso()},cloudRecordUpdatedAt(data)||iso());
+}
+async function publishDeleteTombstone(table,keyValue,deletedAt=iso()){
+  if(table==="settings")return;
+  await postInternalSetting(syncDeleteSettingKey(table,keyValue),{table,key:String(keyValue),deletedAt},deletedAt);
+}
+async function pushRecordToCloud(table,data){
+  if(!data)return;
+  const key=cloudRecordKey(table,data);
+  if(key&&isPermanentlyDeleted(table,key))return;
+  await rest(table,"POST",toCloud(table,data));
+  if(table!=="settings")await publishRecordSnapshot(table,data);
+  markCloudSuccess();
+}
+async function cloudFetchAll(table){
+  const all=[],limit=1000;
+  for(let offset=0;offset<100000;offset+=limit){
+    const sep="?";
+    const rows=await rest(table,"GET",null,`${sep}select=*&limit=${limit}&offset=${offset}`);
+    if(!Array.isArray(rows))break;
+    all.push(...rows);
+    if(rows.length<limit)break;
+  }
+  return all;
+}
+function fromCloudRecord(t,c){
+  if(!c)return null;
+  const n=iso();
+  switch(t){
+    case"farmers":return{
+      id:String(c.id),name:c.name||"",phone:c.phone||"",farmLocation:c.village||"",village:c.village||"",
+      capacity:c.capacity??null,archived:false,createdAt:c.created_at||n,updatedAt:c.updated_at||c.created_at||n
+    };
+    case"stores":return{
+      id:String(c.id),name:c.name||"",contactPerson:c.contact_person||"",phone:c.phone||"",address:c.address||"",
+      isWangkhei:!!c.is_wangkhei,archived:false,singkeAccount:c.is_wangkhei?"Singke":"General",
+      openingDue:0,createdAt:c.created_at||n,updatedAt:c.updated_at||c.created_at||n
+    };
+    case"liftings":return{
+      id:String(c.id),invoiceNumber:String(c.id),liftingDate:c.lifting_date||"",farmerId:String(c.farmer_id||""),
+      farmerName:c.farmer_name||"",vehicleNumber:c.vehicle_number||"",driverName:c.driver_name||"",
+      liftingRate:Number(c.rate_per_kg)||0,totalBirds:Number(c.total_birds)||0,totalWeight:Number(c.total_weight)||0,
+      liftingAmount:Number(c.total_amount)||0,totalAmount:Number(c.total_amount)||0,
+      netAmount:Number(c.singke_payable_amount??c.total_amount)||0,payableAmount:Number(c.singke_payable_amount??c.total_amount)||0,
+      wangkheiDeductions:Number(c.wangkhei_deductions_applied)||0,remarks:c.remarks||"",
+      payableToSingke:true,createdAt:c.created_at||n,updatedAt:c.updated_at||c.created_at||n
+    };
+    case"cages":{
+      const w=Number(c.net_weight??c.gross_weight)||0;
+      return{id:String(c.id),liftingId:String(c.lifting_id||""),farmerId:"",cageNumber:String(c.serial_number||"").toUpperCase(),
+        weight:w,birdCount:Number(c.birds_count)||0,isSold:false,saleId:null,createdAt:c.created_at||n,updatedAt:c.updated_at||c.created_at||n};
+    }
+    case"sales":return{
+      id:String(c.id),invoiceNumber:String(c.id),saleDate:c.sale_date||"",storeId:String(c.store_id||""),storeName:c.store_name||"",
+      isWangkheiSale:!!c.is_wangkhei_store,liftingId:c.lifting_id?String(c.lifting_id):null,farmerId:c.farmer_id?String(c.farmer_id):null,
+      farmerName:c.farmer_name||"",birdsCount:Number(c.total_birds)||0,netWeight:Number(c.total_weight)||0,weight:Number(c.total_weight)||0,
+      salesRate:Number(c.rate_per_kg)||0,ratePerKg:Number(c.rate_per_kg)||0,saleAmount:Number(c.total_amount)||0,
+      totalAmount:Number(c.total_amount)||0,netAmount:Number(c.total_amount)||0,invoiceNetAmount:Number(c.total_amount)||0,
+      paidAmount:0,previousDue:0,outstanding:Number(c.total_amount)||0,remarks:c.remarks||"",
+      createdAt:c.created_at||n,updatedAt:c.updated_at||c.created_at||n
+    };
+    case"payments":return{
+      id:String(c.id),receiptNumber:String(c.id),paymentDate:c.payment_date||"",storeId:String(c.store_id||""),storeName:c.store_name||"",
+      amount:Number(c.amount)||0,paymentMode:c.payment_mode||"CASH",referenceNumber:c.reference_number||"",remarks:c.remarks||"",
+      createdAt:c.created_at||n,updatedAt:c.updated_at||c.created_at||n
+    };
+    case"singke_settlements":return{
+      id:String(c.id),receiptNumber:String(c.id),date:c.settlement_date||"",amount:Number(c.amount)||0,
+      paymentMethod:c.payment_mode||"CASH",referenceNumber:c.reference_no||"",remarks:c.notes||"",
+      createdAt:c.created_at||n,updatedAt:c.updated_at||c.created_at||n
+    };
+    case"settings":return{
+      key:String(c.key),value:c.value,updatedAt:c.updated_at||n
+    };
+  }
+  return null;
+}
+async function applyRemoteDelete(table,key,deletedAt){
+  if(!TABLES.includes(table)||table==="settings")return false;
+  const local=await txGet(table,key);
+  const localTime=timeValue(cloudRecordUpdatedAt(local));
+  const deleteTime=timeValue(deletedAt);
+  // A newer local edit wins and will be uploaded again; otherwise deletion wins.
+  if(local && localTime>deleteTime){
+    enqueueSaveRetry(table,local);
+    return false;
+  }
+  addPermanentTombstone(table,key);
+  try{await txDel(table,key)}catch(e){}
+  saveSaveRetryQueue(loadSaveRetryQueue().filter(x=>x.k!==`${table}:${String(key)}`));
+  return true;
+}
+async function mergeRemoteRecord(table,remoteRecord){
+  if(!remoteRecord)return false;
+  const key=cloudRecordKey(table,remoteRecord);if(!key)return false;
+  if(isPermanentlyDeleted(table,key))return false;
+
+  const local=await txGet(table,key);
+  if(!local){
+    try{await txPut(table,remoteRecord);return true}
+    catch(e){console.warn("Cloud→device insert failed",table,key,e);return false}
+  }
+
+  const cmp=compareRecordTime(local,remoteRecord);
+  if(cmp<0){
+    try{await txPut(table,{...local,...remoteRecord});return true}
+    catch(e){console.warn("Cloud→device update failed",table,key,e);return false}
+  }
+  if(cmp>0){
+    enqueueSaveRetry(table,local);
+  }
+  return false;
+}
+async function mergeOrdinaryCloudSetting(c){
+  const key=String(c?.key||"");if(!key||isInternalSyncSettingKey(key))return false;
+  const remote=fromCloudRecord("settings",c);if(!remote)return false;
+  const local=await txGet("settings",key);
+  if(!local||compareRecordTime(local,remote)<0){
+    await txPut("settings",remote);return true;
+  }
+  if(compareRecordTime(local,remote)>0)enqueueSaveRetry("settings",local);
+  return false;
+}
+async function repairDerivedRelationsAfterSync(){
+  const liftings=await txAll("liftings"),cages=await txAll("cages"),sales=await txAll("sales"),settings=await txAll("settings");
+  const liftMap=new Map(liftings.map(x=>[String(x.id),x]));
+  const settingMap=new Map(settings.map(x=>[String(x.key),x.value]));
+
+  for(const cage of cages){
+    let changed=false;
+    if(!cage.farmerId&&cage.liftingId&&liftMap.get(String(cage.liftingId))?.farmerId){
+      cage.farmerId=liftMap.get(String(cage.liftingId)).farmerId;changed=true;
+    }
+    const cs=settingMap.get("cage_state_"+cage.id);
+    if(cs&&typeof cs==="object"){
+      if(cage.isSold!==!!cs.isSold){cage.isSold=!!cs.isSold;changed=true}
+      if((cage.saleId||null)!==(cs.saleId||null)){cage.saleId=cs.saleId||null;changed=true}
+    }
+    if(changed)await txPut("cages",cage);
+  }
+
+  const stores=await txAll("stores");
+  for(const store of stores){
+    let changed=false;
+    const sm=settingMap.get("store_meta_"+store.id);
+    if(sm&&typeof sm==="object"){
+      if(Number(store.openingDue||0)!==Number(sm.openingDue||0)){store.openingDue=Number(sm.openingDue)||0;changed=true}
+      if(store.isWangkhei!==!!sm.isWangkhei){store.isWangkhei=!!sm.isWangkhei;changed=true}
+    }
+    const ss=settingMap.get("store_state_"+store.id);
+    if(ss&&typeof ss==="object"&&store.archived!==!!ss.archived){store.archived=!!ss.archived;changed=true}
+    if(changed)await txPut("stores",store);
+  }
+
+  const farmers=await txAll("farmers");
+  for(const farmer of farmers){
+    const fm=settingMap.get("farmer_state_"+farmer.id);
+    if(fm&&typeof fm==="object"&&farmer.archived!==!!fm.archived){farmer.archived=!!fm.archived;await txPut("farmers",farmer)}
+  }
+
+  // If a sale exists but the cage-state metadata predates this sync, reconnect by sale.cageId where available.
+  for(const sale of sales){
+    if(!sale.cageId)continue;
+    const cage=await txGet("cages",sale.cageId);
+    if(cage&&(!cage.isSold||cage.saleId!==sale.id)){
+      cage.isSold=true;cage.saleId=sale.id;await txPut("cages",cage);
+    }
+  }
+}
+async function seedMissingRecordSnapshots(snapshotKeys){
+  const pending=pendingSaveKeySet();
+  for(const table of TABLES){
+    if(table==="settings")continue;
+    const rows=await txAll(table);
+    for(const row of rows){
+      const key=cloudRecordKey(table,row);if(!key||isPermanentlyDeleted(table,key))continue;
+      const snapshotKey=syncSnapshotSettingKey(table,key);
+      if(!snapshotKeys.has(snapshotKey) || pending.has(`${table}:${key}`)){
+        try{await pushRecordToCloud(table,row)}
+        catch(e){enqueueSaveRetry(table,row)}
+      }
+    }
+  }
+}
+async function backgroundBidirectionalSync(options={}){
+  if(PSM_BIDI_SYNC_RUNNING||!db||!navigator.onLine||!AUTH_SESSION)return false;
+  PSM_BIDI_SYNC_RUNNING=true;
+  let localChanged=false;
+  try{
+    // 1) Push local pending work first.
+    await retryPendingVerifiedDeletes();
+    await retryPendingSaves();
+
+    // 2) Pull settings first because it carries full snapshots and delete tombstones.
+    const cloudSettings=await cloudFetchAll("settings");
+    const snapshotKeys=new Set();
+    const snapshots=[];
+    const deletes=[];
+    for(const c of cloudSettings){
+      const key=String(c?.key||"");
+      if(key.startsWith("sync_record:")){
+        snapshotKeys.add(key);
+        const v=c.value&&typeof c.value==="object"?c.value:{};
+        if(v.table&&v.record)snapshots.push({table:String(v.table),record:v.record,updatedAt:c.updated_at||v.updatedAt||""});
+      }else if(key.startsWith("sync_delete:")){
+        const v=c.value&&typeof c.value==="object"?c.value:{};
+        if(v.table&&v.key!=null)deletes.push({table:String(v.table),key:String(v.key),deletedAt:v.deletedAt||c.updated_at||""});
+      }else{
+        if(await mergeOrdinaryCloudSetting(c))localChanged=true;
+      }
+    }
+
+    // Apply deletion markers before any records.
+    deletes.sort((a,b)=>timeValue(a.deletedAt)-timeValue(b.deletedAt));
+    for(const d of deletes)if(await applyRemoteDelete(d.table,d.key,d.deletedAt))localChanged=true;
+
+    // Full-record snapshots are the preferred source because they preserve local-only fields.
+    for(const s of snapshots){
+      if(!TABLES.includes(s.table)||s.table==="settings")continue;
+      const rec={...s.record};
+      if(!rec.updatedAt&&s.updatedAt)rec.updatedAt=s.updatedAt;
+      if(await mergeRemoteRecord(s.table,rec))localChanged=true;
+    }
+
+    // 3) Pull business tables as compatibility fallback for older records without snapshots.
+    for(const table of TABLES){
+      if(table==="settings")continue;
+      let cloudRows=[];
+      try{cloudRows=await cloudFetchAll(table)}catch(e){console.warn("Cloud pull skipped",table,e);continue}
+      for(const c of cloudRows){
+        const key=String(c?.id??"");
+        if(!key||snapshotKeys.has(syncSnapshotSettingKey(table,key)))continue;
+        const rec=fromCloudRecord(table,c);
+        if(rec&&await mergeRemoteRecord(table,rec))localChanged=true;
+      }
+    }
+
+    await repairDerivedRelationsAfterSync();
+
+    // 4) Ensure this device's local records have full snapshots for other devices.
+    await seedMissingRecordSnapshots(snapshotKeys);
+    await retryPendingSaves();
+
+    localStorage.setItem(PSM_BIDI_LAST_SYNC_KEY,iso());
+    markCloudSuccess();
+    if(localChanged)await refreshAll();
+    return true;
+  }catch(e){
+    console.warn("Background bidirectional sync:",e);
+    return false;
+  }finally{
+    PSM_BIDI_SYNC_RUNNING=false;
+  }
+}
+function startBackgroundBidirectionalSync(){
+  stopBackgroundBidirectionalSync();
+  PSM_BIDI_SYNC_TIMER=setInterval(()=>backgroundBidirectionalSync(),PSM_BIDI_SYNC_INTERVAL_MS);
+}
+function stopBackgroundBidirectionalSync(){
+  if(PSM_BIDI_SYNC_TIMER){clearInterval(PSM_BIDI_SYNC_TIMER);PSM_BIDI_SYNC_TIMER=null}
+}
+
 function toCloud(t,l){let n=iso();switch(t){
  case"farmers":return{id:String(l.id),name:l.name||"",phone:l.phone||"",village:l.farmLocation||l.village||null,capacity:l.capacity||null,created_at:l.createdAt||n,updated_at:l.updatedAt||n};
  case"stores":return{id:String(l.id),name:l.name||"",contact_person:l.contactPerson||null,phone:l.phone||"",address:l.address||null,is_wangkhei:!!l.isWangkhei,created_at:l.createdAt||n,updated_at:l.updatedAt||n};
@@ -3691,20 +4124,22 @@ async function deleteAllRowsFromSupabaseTable(table){
   await openDB();
   await purgeTombstonedLocalRows();
   await retryPendingVerifiedDeletes();
-     await retryPendingSaves();
+  await retryPendingSaves();
+  await backgroundBidirectionalSync({force:true});
 
   cleanupDeleteTombstones();
   setRole(S.role);
   await refreshAll();
   initAppBackNavigation();
   initRefreshProtection();
+  initPullToRefreshBlock();
   initMobileFormKeyboardHandling();
   initMobileMoreNavigation();
   initMobileTableCards();
   initDraftProtection();
   mobilePrimaryActionForView(PSM_CURRENT_VIEW);
-  // Automatic Supabase synchronization disabled.
   localStorage.removeItem("mpf_sync_queue");
+  startBackgroundBidirectionalSync();
   updateSyncBadge();
 })().catch(e=>{
   console.error(e);
@@ -3717,14 +4152,15 @@ function restoreViewAfterExternalShare(){
  let v="";try{v=sessionStorage.getItem("psm_share_return_view")||""}catch(e){}
  if(v&&document.getElementById("v-"+v)&&PSM_CURRENT_VIEW!==v)renderAppView(v);
 }
-window.addEventListener("focus",restoreViewAfterExternalShare);
-document.addEventListener("visibilitychange",()=>{if(!document.hidden)restoreViewAfterExternalShare()});
+window.addEventListener("focus",()=>{restoreViewAfterExternalShare();backgroundBidirectionalSync()});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden){restoreViewAfterExternalShare();backgroundBidirectionalSync()}});
 
-window.addEventListener("online",retryPendingVerifiedDeletes);
-window.addEventListener("online",()=>{retryPendingSaves();updateSyncHealth()});
+window.addEventListener("online",()=>{retryPendingVerifiedDeletes();backgroundBidirectionalSync()});
+window.addEventListener("online",()=>{retryPendingSaves();backgroundBidirectionalSync();updateSyncHealth()});
 window.addEventListener("offline",updateSyncHealth);
 window.addEventListener("resize",()=>{
   if(window.innerWidth>820)closeMobileMoreMenu();
+  mobilePrimaryActionForView(PSM_CURRENT_VIEW);
 });
 </script>
 </body></html>
