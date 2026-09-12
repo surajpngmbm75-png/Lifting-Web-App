@@ -1601,13 +1601,13 @@ body:has(#v-sale-cages.active) #draftRecoveryBar{display:none!important}
  </div>
  <div style="height:12px"></div>
  <div class="card">
-  <div class="split"><div><b>Lifting Log</b><div class="sub">Farmer invoice, WhatsApp share, edit and delete</div></div></div>
+  <div class="split"><div><b>Lifting Log</b><div class="sub">Only the lifting rate can be edited from this log.</div></div></div>
   <div class="field" style="max-width:520px;margin-top:10px">
    <label>Search Lifting</label>
    <input id="liftingSearch" type="search" placeholder="Farmer name, phone, ID, invoice or date" autocomplete="off" oninput="renderLiftings()">
   </div>
   <div style="height:8px"></div>
-  <div class="tablewrap"><table class="simple-list"><thead><tr><th>Date</th><th>ID</th><th>Name</th></tr></thead><tbody id="liftingRows"></tbody></table></div>
+  <div class="tablewrap"><table class="simple-list"><thead><tr><th>Date</th><th>ID</th><th>Name</th><th>Rate</th><th></th></tr></thead><tbody id="liftingRows"></tbody></table></div>
  </div>
 </section>
 
@@ -2119,7 +2119,7 @@ async function openLiftingDetails(lid){
    const sale=c.saleId?saleMap.get(String(c.saleId)):null;
    return `<tr><td>${i+1}</td><td><b>${esc(c.cageNumber||"—")}</b></td><td>${fmt(c.weight)} kg</td><td>${c.birdCount||0}</td><td><span class="badge ${c.isSold?"orange":"green"}">${c.isSold?"Sold":"Unsold"}</span></td><td>${sale?esc(sale.storeName||sale.storeId||"—"):"—"}</td><td class="mono">${sale?esc(sale.invoiceNumber||sale.id):"—"}</td></tr>`;
  }).join("");
- const actions=`<button class="btn" onclick="closeModal();openLifting('${l.id}')">Edit</button><button class="btn primary" onclick="closeModal();previewFarmerInvoice('${l.id}')">Invoice</button><button class="btn" onclick="shareFarmerLiftingPdf('${l.id}')">WhatsApp</button><button class="btn" onclick="sendFarmerInvoiceSms('${l.id}')">SMS</button>${S.role==="admin"?`<button class="btn danger" onclick="closeModal();deleteLifting('${l.id}')">Delete</button>`:""}`;
+ const actions=`<button class="btn" onclick="closeModal();openLiftingRateEditor('${l.id}')">Edit Rate</button><button class="btn primary" onclick="closeModal();previewFarmerInvoice('${l.id}')">Invoice</button><button class="btn" onclick="shareFarmerLiftingPdf('${l.id}')">WhatsApp</button><button class="btn" onclick="sendFarmerInvoiceSms('${l.id}')">SMS</button>${S.role==="admin"?`<button class="btn danger" onclick="closeModal();deleteLifting('${l.id}')">Delete</button>`:""}`;
  openModal(`<div class="detail-title">${esc(f?.name||l.farmerName||"Lifting")}</div>
  <div class="detail-sub">Invoice ${esc(l.invoiceNumber||l.id)}</div>
  <div class="detail-grid">
@@ -3943,6 +3943,59 @@ async function renderFarmersCombined(){
  const el=document.getElementById("farmerRowsCombined");if(!el)return;
  el.innerHTML=a.length?a.map(f=>`<tr onclick="openFarmerDetails('${f.id}')" tabindex="0" onkeydown="if(event.key==='Enter')openFarmerDetails('${f.id}')"><td>${esc(simpleDate(f.createdAt))}</td><td class="mono">${esc(f.id)}</td><td>${esc(f.name)}</td></tr>`).join(""):`<tr><td colspan="3" class="empty">No farmers</td></tr>`;
 }
+
+async function openLiftingRateEditor(liftingId){
+ const l=await txGet("liftings",liftingId);
+ if(!l)return toast("Lifting not found.");
+ const f=await txGet("farmers",l.farmerId);
+ const current=Number(l.liftingRate??l.ratePerKg)||0;
+ openModal(`<h3>Edit Lifting Rate</h3>
+  <div class="sub" style="margin-bottom:12px">Only the rate can be changed. Farmer, date, cages, weight and birds remain unchanged.</div>
+  <div class="detail-grid" style="margin-bottom:12px">
+   ${detailItem("Farmer",f?.name||l.farmerName||"")}
+   ${detailItem("Invoice",l.invoiceNumber||l.id)}
+   ${detailItem("Date",l.liftingDate||"")}
+   ${detailItem("Total Weight",fmt(l.totalWeight)+" kg")}
+  </div>
+  <div class="field">
+   <label>Lifting Rate ₹ / kg</label>
+   <input id="editLiftingRateOnly" type="number" step="0.01" min="0.01" inputmode="decimal" value="${current}">
+  </div>
+  <div class="action-group" style="margin-top:14px">
+   <button class="btn" type="button" onclick="closeModal()">Cancel</button>
+   <button class="btn primary" type="button" onclick="saveLiftingRateOnly('${l.id}')">Save Rate</button>
+  </div>`);
+ setTimeout(()=>{const x=document.getElementById("editLiftingRateOnly");if(x){x.focus();x.select()}},50);
+}
+
+async function saveLiftingRateOnly(liftingId){
+ const l=await txGet("liftings",liftingId);
+ if(!l)return toast("Lifting not found.");
+ const rate=Number(document.getElementById("editLiftingRateOnly")?.value);
+ if(!(rate>0))return toast("Enter a valid lifting rate.");
+
+ const weight=Number(l.totalWeight)||0;
+ const exact=Math.round(weight*rate*100)/100;
+ const rr=invoiceRound(exact);
+ const updated={
+   ...l,
+   liftingRate:rate,
+   ratePerKg:rate,
+   liftingAmount:exact,
+   totalAmount:exact,
+   roundOff:rr.roundOff,
+   netAmount:rr.rounded,
+   payableAmount:rr.rounded,
+   updatedAt:iso()
+ };
+ await txPut("liftings",updated);
+ queueCloud("liftings","UPSERT",updated);
+ audit("liftings","UPDATE_RATE",liftingId,`Rate ₹${fmt(rate)}/kg`);
+ closeModal();
+ await refreshAll();
+ toast("Lifting rate updated.");
+}
+
 async function renderLiftings(){
  const q=(document.getElementById("liftingSearch")?.value||"").trim().toLowerCase();
  let a=(await txAll("liftings")).sort((a,b)=>String(b.liftingDate||"").localeCompare(String(a.liftingDate||"")));
@@ -3951,7 +4004,7 @@ async function renderLiftings(){
    const f=fm.get(l.farmerId);
    return [l.liftingDate,l.invoiceNumber,l.id,l.farmerId,l.farmerName,f?.name,f?.phone].some(v=>String(v||"").toLowerCase().includes(q));
  });
- document.getElementById("liftingRows").innerHTML=a.length?a.map(l=>`<tr onclick="openLiftingDetails('${l.id}')" tabindex="0" onkeydown="if(event.key==='Enter')openLiftingDetails('${l.id}')"><td>${esc(l.liftingDate)}</td><td class="mono">${esc(l.invoiceNumber||l.id)}</td><td>${esc(fm.get(l.farmerId)?.name||l.farmerName||"")}</td></tr>`).join(""):`<tr><td colspan="3" class="empty">No matching liftings</td></tr>`;
+ document.getElementById("liftingRows").innerHTML=a.length?a.map(l=>`<tr tabindex="0" onkeydown="if(event.key==='Enter')openLiftingDetails('${l.id}')"><td onclick="openLiftingDetails('${l.id}')">${esc(l.liftingDate)}</td><td class="mono" onclick="openLiftingDetails('${l.id}')">${esc(l.invoiceNumber||l.id)}</td><td onclick="openLiftingDetails('${l.id}')">${esc(fm.get(l.farmerId)?.name||l.farmerName||"")}</td><td><b>₹${fmt(l.liftingRate??l.ratePerKg)}</b>/kg</td><td><button class="btn" type="button" onclick="event.stopPropagation();openLiftingRateEditor('${l.id}')">Edit Rate</button></td></tr>`).join(""):`<tr><td colspan="5" class="empty">No matching liftings</td></tr>`;
  const all=await txAll("liftings");
  document.getElementById("liftQuickCount").textContent=all.length;
  document.getElementById("liftQuickCages").textContent=all.reduce((s,l)=>s+(Number(l.totalCages)||0),0);
@@ -3959,7 +4012,7 @@ async function renderLiftings(){
 }
 function openLiftingActions(id){
  openModal(`<h3>Lifting Actions</h3><div class="action-group">
- <button class="btn" onclick="closeModal();openLifting('${id}')">Edit</button>
+ <button class="btn" onclick="closeModal();openLiftingRateEditor('${id}')">Edit Rate</button>
  ${S.role==="admin"?`<button class="btn bad" onclick="closeModal();deleteLifting('${id}')">Delete</button>`:""}
  <button class="btn primary" onclick="closeModal();previewFarmerInvoice('${id}')">Invoice</button>
  <button class="btn ok" onclick="shareFarmerLiftingPdf('${id}')">Share WhatsApp</button>
