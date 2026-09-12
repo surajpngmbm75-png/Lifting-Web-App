@@ -1407,6 +1407,51 @@ input,select,textarea,button{touch-action:manipulation}
  .sale-cage-sticky-bar .btn{min-height:46px}
 }
 
+
+/* ===== SMOOTH SALES SCROLLING ===== */
+html{scroll-behavior:smooth}
+.dialog{
+  scroll-behavior:smooth;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  touch-action:pan-y;
+}
+#v-sale-cages{
+  scroll-behavior:smooth;
+  overscroll-behavior-y:contain;
+  touch-action:pan-y;
+}
+.sale-cage-page-list{
+  scroll-behavior:smooth;
+  -webkit-overflow-scrolling:touch;
+  touch-action:pan-y;
+}
+.sale-total-amount-field input{
+  font-weight:900;
+  font-size:16px;
+  background:#fff7f7!important;
+  color:#b42318!important;
+  border-color:#fecaca!important;
+}
+@media(max-width:820px){
+  .modal.open{align-items:start;padding:8px 0}
+  .dialog{
+    width:calc(100vw - 12px);
+    max-height:calc(100dvh - 16px);
+    overflow-y:auto;
+    overscroll-behavior-y:contain;
+    -webkit-overflow-scrolling:touch;
+    scroll-padding-bottom:110px;
+  }
+  #v-sale-cages.active{
+    padding-bottom:calc(100px + env(safe-area-inset-bottom));
+  }
+}
+
+
+#v-sale-cages.active ~ * #draftRecoveryBar{display:none!important}
+body:has(#v-sale-cages.active) #draftRecoveryBar{display:none!important}
+
 </style>
 <meta name="theme-color" content="#b91c1c">
 </head>
@@ -1492,7 +1537,7 @@ input,select,textarea,button{touch-action:manipulation}
     <div class="wide"><span>Last Cloud Sync</span><b id="syncLastHome">Never</b></div>
    </div>
    <div id="syncHomeDetail" class="sub psm-sync-detail">Checking sync status…</div>
-   <button class="btn primary" type="button" onclick="syncNowFromHome(this)">Sync Now</button>
+   <button class="btn primary" type="button" onclick="syncNowFromHome(this)">Sync Now</button> <button class="btn" type="button" onclick="syncAll()">Repair & Upload All</button>
   </div>
  </div>
  <div style="height:12px"></div>
@@ -1817,7 +1862,18 @@ function updateDraftRecoveryBar(){const b=document.getElementById("draftRecovery
 function saveCurrentDraft(){const d=captureCurrentDraft();if(!d)return;PSM_DRAFT_DIRTY=true;localStorage.setItem(FORM_DRAFT_KEY,JSON.stringify(d));updateDraftRecoveryBar()}
 function clearCurrentFormDraft(){localStorage.removeItem(FORM_DRAFT_KEY);PSM_DRAFT_DIRTY=false;updateDraftRecoveryBar()}
 function applyDraftValues(d){Object.entries(d?.values||{}).forEach(([k,v])=>{const x=document.getElementById(k);if(x){x.value=v;x.dispatchEvent(new Event("change",{bubbles:true}))}});PSM_DRAFT_DIRTY=true}
-function setupDraftTracking(){if(!draftEligible())return;const d=getSavedDraft();if(d&&d.title===draftTitle()&&confirm(`Resume your unsaved "${d.title}" draft?`))setTimeout(()=>applyDraftValues(d),0);document.querySelectorAll("#modalBody input,#modalBody select,#modalBody textarea").forEach(x=>{if(x.type!=="password"){x.addEventListener("input",saveCurrentDraft,{passive:true});x.addEventListener("change",saveCurrentDraft,{passive:true})}})}
+function setupDraftTracking(){
+ if(!draftEligible())return;
+ const d=getSavedDraft();
+ const inSaleCageFlow=!!document.getElementById("v-sale-cages")?.classList.contains("active")||!!window._saleModalDraft;
+ if(d&&d.title===draftTitle()&&!inSaleCageFlow&&confirm(`Resume your unsaved "${d.title}" draft?`))setTimeout(()=>applyDraftValues(d),0);
+ document.querySelectorAll("#modalBody input,#modalBody select,#modalBody textarea").forEach(x=>{
+   if(x.type!=="password"){
+     x.addEventListener("input",saveCurrentDraft,{passive:true});
+     x.addEventListener("change",saveCurrentDraft,{passive:true});
+   }
+ });
+}
 function resumeLastDraft(){const d=getSavedDraft();if(!d)return;const t=d.title||"";if(/Lifting/i.test(t))openLifting();else if(/Store Sale/i.test(t))openSale();else if(/Payment/i.test(t))openPayment();else if(/Farmer/i.test(t))openFarmer();else if(/Store/i.test(t))openStore()}
 function discardLastDraft(){if(confirm("Discard the saved draft?"))clearCurrentFormDraft()}
 function hasUnsavedDraft(){return PSM_DRAFT_DIRTY&&!!getSavedDraft()}
@@ -1896,13 +1952,20 @@ function pendingDeleteCount(){return loadDeleteRetryQueue().length}
 function saveUnsoldAgeDays(){const el=document.getElementById("unsoldAgeDays");if(el)localStorage.setItem("psm_unsold_age_days",String(Math.max(1,Number(el.value)||2)));renderDashboard()}
 async function retryAllOutgoing(){await retryPendingSaves();
      updateSyncHealth();await retryPendingVerifiedDeletes();updateSyncHealth();toast(pendingSaveCount()+pendingDeleteCount()?"Some changes are still pending.":"All outgoing changes are saved.")}
+
+const PSM_SYNC_LAST_ERROR_KEY="psm_sync_last_error_v2";
+let PSM_BIDI_SYNC_PROMISE=null;
+function setSyncLastError(err){try{localStorage.setItem(PSM_SYNC_LAST_ERROR_KEY,JSON.stringify({message:String(err?.message||err||"Unknown cloud error").slice(0,500),time:iso()}))}catch(e){}}
+function clearSyncLastError(){try{localStorage.removeItem(PSM_SYNC_LAST_ERROR_KEY)}catch(e){}}
+function getSyncLastError(){try{return JSON.parse(localStorage.getItem(PSM_SYNC_LAST_ERROR_KEY)||"null")}catch(e){return null}}
+function syncErrorSummary(){return getSyncLastError()?.message||""}
 function updateSyncHealth(){
- const saves=pendingSaveCount(),dels=pendingDeleteCount(),online=navigator.onLine,last=localStorage.getItem(LAST_CLOUD_SUCCESS_KEY);
- const total=saves+dels,status=!online?"Offline":total?`${total} Pending`:"Synced";
+ const saves=pendingSaveCount(),dels=pendingDeleteCount(),online=navigator.onLine,last=localStorage.getItem(LAST_CLOUD_SUCCESS_KEY),err=syncErrorSummary();
+ const total=saves+dels,status=!online?"Offline":total?`${total} Pending`:err?"Sync Error":"Synced";
  const badge=document.getElementById("syncHealthBadge");
- if(badge){badge.textContent=status;badge.className="badge "+(!online?"sync-bad":total?"sync-warn":"sync-good")}
+ if(badge){badge.textContent=status;badge.className="badge "+(!online?"sync-bad":(total||err)?"sync-warn":"sync-good")}
  const header=document.getElementById("headerNetBadge");
- if(header){header.textContent=!online?"Offline":total?`${total} Pending`:"Online";header.className="badge "+(!online?"sync-bad":total?"sync-warn":"sync-good")}
+ if(header){header.textContent=!online?"Offline":total?`${total} Pending`:err?"Cloud Error":"Online";header.className="badge "+(!online?"sync-bad":(total||err)?"sync-warn":"sync-good")}
  const a=document.getElementById("syncPendingSaves");if(a)a.textContent=saves;
  const b=document.getElementById("syncPendingDeletes");if(b)b.textContent=dels;
  const n=document.getElementById("syncNetwork");if(n)n.textContent=online?"Online":"Offline";
@@ -1910,12 +1973,11 @@ function updateSyncHealth(){
  const hn=document.getElementById("syncNetworkHome");if(hn)hn.textContent=online?"Online":"Offline";
  const hp=document.getElementById("syncPendingHome");if(hp)hp.textContent=total;
  const hl=document.getElementById("syncLastHome");if(hl)hl.textContent=formatLocalDateTime(last);
- const hd=document.getElementById("syncHomeDetail");if(hd)hd.textContent=online?(total?`${total} change(s) waiting to reach Supabase.`:"Local records and cloud are up to date."):"Offline mode. Changes remain safely on this device and will sync automatically later.";
- const s=document.getElementById("autoBackupStatus");if(s)s.textContent=!online?"Offline":total?`${total} pending`:"All saved";
+ const hd=document.getElementById("syncHomeDetail");if(hd)hd.textContent=!online?"Offline mode. Changes remain safely on this device and will sync automatically later.":total?`${total} change(s) waiting to reach Supabase.${err?` Last error: ${err}`:""}`:err?`Supabase sync needs attention: ${err}`:"Local records and cloud are up to date.";
+ const s=document.getElementById("autoBackupStatus");if(s)s.textContent=!online?"Offline":total?`${total} pending`:err?"Sync error":"All saved";
  const al=document.getElementById("autoBackupLast");if(al)al.textContent=formatLocalDateTime(last);
- const d=document.getElementById("syncDetail");if(d)d.textContent=online?`${saves} pending upload(s), ${dels} delete retry/retries. Background two-way cloud synchronization is active.`:"Offline. Local work is safe and will retry when online.";
+ const d=document.getElementById("syncDetail");if(d)d.textContent=!online?"Offline. Local work is safe and will retry when online.":`${saves} pending upload(s), ${dels} delete retry/retries.${err?` Last cloud error: ${err}`:" Background two-way cloud synchronization is active."}`;
 }
-
 
 const PSM_FS_ID_MIGRATION_KEY="psm_farmer_store_short_id_migration_v4";
 const PSM_ENTITY_ID_RX=/^[FS]-\d{6}-[A-Z0-9]{3,5}$/;
@@ -2345,47 +2407,40 @@ function enqueueSaveRetry(table,data){
   saveSaveRetryQueue(next);
 }
 async function retryPendingSaves(){
-  if(!navigator.onLine){updateSyncHealth();return}
-  const items=loadSaveRetryQueue();if(!items.length){updateSyncHealth();return}
-  const keep=[];
-  for(const item of items){
-    try{
-      const key=item.data?.id??item.data?.key;
-      if(key!=null&&isPermanentlyDeleted(item.table,key))continue;
-      await pushRecordToCloud(item.table,item.data);
-    }catch(e){
-      item.attempts=(item.attempts||0)+1;item.updatedAt=iso();keep.push(item);
-    }
-  }
-  saveSaveRetryQueue(keep);updateSyncHealth();
+ if(!navigator.onLine){updateSyncHealth();return {uploaded:0,failed:loadSaveRetryQueue().length}}
+ if(!AUTH_SESSION)AUTH_SESSION=loadAuthSession();
+ const items=loadSaveRetryQueue();if(!items.length){updateSyncHealth();return {uploaded:0,failed:0}}
+ const keep=[];let uploaded=0,lastErr=null;
+ for(const item of items){
+   try{
+     const key=item.data?.id??item.data?.key;
+     if(key!=null&&isPermanentlyDeleted(item.table,key))continue;
+     await pushRecordToCloud(item.table,item.data);uploaded++;
+   }catch(e){lastErr=e;item.attempts=(item.attempts||0)+1;item.updatedAt=iso();keep.push(item);console.warn("Pending Supabase upload failed:",item.table,item.k,e)}
+ }
+ saveSaveRetryQueue(keep);if(lastErr)setSyncLastError(lastErr);else if(!keep.length)clearSyncLastError();updateSyncHealth();
+ return {uploaded,failed:keep.length};
 }
 
 function queueCloud(table,action,data){
-  if(action==="DELETE"){
-    const keyValue=typeof data==="object"?(data?.id??data?.key):data;
-    if(keyValue==null)return;
-    addPermanentTombstone(table,keyValue);
-    queueVerifiedDelete(table,keyValue);
-    updateSyncHealth();
-    deleteCloudRecordVerified(table,keyValue).then(()=>backgroundBidirectionalSync()).catch(()=>updateSyncHealth());
-    return;
-  }
-  const keyValue=data?.id??data?.key;
-  if(keyValue!=null&&isPermanentlyDeleted(table,keyValue))return;
-  (async()=>{
-    try{
-      await pushRecordToCloud(table,data);
-      const k=saveRetryKey(table,data);
-      saveSaveRetryQueue(loadSaveRetryQueue().filter(x=>x.k!==k));
-    }catch(e){
-      enqueueSaveRetry(table,data);
-      toast("Saved locally. Cloud synchronization will retry automatically.");
-    }
-    updateSyncHealth();
-  })();
+ if(action==="DELETE"){
+   const keyValue=typeof data==="object"?(data?.id??data?.key):data;
+   if(keyValue==null)return;
+   addPermanentTombstone(table,keyValue);queueVerifiedDelete(table,keyValue);updateSyncHealth();
+   deleteCloudRecordVerified(table,keyValue).then(ok=>{if(ok)clearSyncLastError();return backgroundBidirectionalSync({force:true})}).catch(e=>{setSyncLastError(e);updateSyncHealth()});
+   return;
+ }
+ const keyValue=data?.id??data?.key;
+ if(keyValue!=null&&isPermanentlyDeleted(table,keyValue))return;
+ enqueueSaveRetry(table,cloneJson(data));
+ updateSyncHealth();
+ if(!navigator.onLine)return;
+ (async()=>{try{
+   await pushRecordToCloud(table,data);
+   const k=saveRetryKey(table,data);saveSaveRetryQueue(loadSaveRetryQueue().filter(x=>x.k!==k));clearSyncLastError();
+ }catch(e){setSyncLastError(e);console.warn("Supabase upload queued for retry:",table,keyValue,e)}
+ updateSyncHealth()})();
 }
-
-
 
 async function deleteCloudRecordNow(table,keyValue){
   const ok=await deleteCloudRecordVerified(table,keyValue);
@@ -2907,7 +2962,7 @@ async function openSale(){
    <div class="field"><label>Date</label><input id="saDate" type="date" value="${today()}" onchange="handleSaleDateChange()"></div>
    <div class="field"><label>Store</label><select id="saStore" onchange="updateSaleStoreOutstanding()">${stores.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></div>
    <div class="field"><label>Current Store Outstanding</label><input id="saOutstanding" value="Loading..." disabled></div>
-   <div class="field"><label>Sales Rate ₹/kg</label><input id="saRate" type="number" step="0.01" min="0"></div>
+   <div class="field"><label>Sales Rate ₹/kg</label><input id="saRate" type="number" step="0.01" min="0" inputmode="decimal" oninput="updateSaleAmountPreview()"></div>
   </div>
   <div class="field" style="margin-top:10px">
    <label>Cages</label>
@@ -2916,8 +2971,9 @@ async function openSale(){
    <div class="sub" style="margin-top:5px">Billed Weight is filled from selected cages automatically, but you can edit it before saving the sale.</div>
   </div>
   <div class="grid g2" style="margin-top:10px">
-   <div class="field"><label>Billed Weight kg (Editable)</label><input id="saWeight" type="number" step="0.01" min="0" inputmode="decimal" value="0.00"></div>
+   <div class="field"><label>Billed Weight kg (Editable)</label><input id="saWeight" type="number" step="0.01" min="0" inputmode="decimal" value="0.00" oninput="updateSaleAmountPreview()"></div>
    <div class="field"><label>Total Birds</label><input id="saBirds" disabled value="0"></div>
+   <div class="field sale-total-amount-field"><label>Sales Total Amount ₹</label><input id="saTotalAmount" disabled value="₹0.00"></div>
    <div class="field"><label>Paid Amount ₹</label><input id="saPaid" type="number" step="0.01" value="0"></div>
    <div class="field"><label>Payment Method</label><select id="saMode"><option>Cash</option><option>UPI</option><option>Credit</option><option>Bank</option></select></div>
    <div class="field"><label>Remarks</label><input id="saRem"></div>
@@ -2949,6 +3005,7 @@ async function openSaleCageSelectionPage(){
    date,
    storeId:document.getElementById("saStore")?.value||"",
    rate:document.getElementById("saRate")?.value||"",
+   weight:document.getElementById("saWeight")?.value||"",
    paid:document.getElementById("saPaid")?.value||"0",
    mode:document.getElementById("saMode")?.value||"Cash",
    remarks:document.getElementById("saRem")?.value||""
@@ -3015,6 +3072,11 @@ async function reopenSaleModalFromDraft(){
  window._saleSelectedCageIds=selected;
  await updateSaleStoreOutstanding();
  await updateMultiCageSaleSummary();
+ if(d.weight!==""){
+   const weight=document.getElementById("saWeight");
+   if(weight)weight.value=d.weight;
+ }
+ updateSaleAmountPreview();
 }
 function selectedSaleCageIds(){
  return Array.isArray(window._saleSelectedCageIds)?window._saleSelectedCageIds:[];
@@ -3028,6 +3090,14 @@ async function updateMultiCageSaleSummary(){
  const w=document.getElementById("saWeight"),b=document.getElementById("saBirds"),s=document.getElementById("saSelectedSummary");
  if(w)w.value=fmt(weight);if(b)b.value=birds;
  if(s)s.innerHTML=chosen.length?`<b>${chosen.length} cage${chosen.length===1?"":"s"} selected</b> · ${fmt(weight)} kg · ${birds} birds<br>${chosen.map(c=>`Cage ${esc(c.cageNumber||c.id)}`).join(", ")}`:"No cages selected.";
+ updateSaleAmountPreview();
+}
+function updateSaleAmountPreview(){
+ const weight=Number(document.getElementById("saWeight")?.value)||0;
+ const rate=Number(document.getElementById("saRate")?.value)||0;
+ const amount=Math.round(weight*rate*100)/100;
+ const el=document.getElementById("saTotalAmount");
+ if(el)el.value=`₹${fmt(amount)}`;
 }
 function fillSaleWeight(){updateMultiCageSaleSummary()}
 async function updateSaleStoreOutstanding(){
@@ -3096,7 +3166,7 @@ async function saveSale(){
    queueCloud("settings","UPSERT",{key:"cage_state_"+c.id,value:{isSold:true,saleId:sid,updatedAt:r.updatedAt},updatedAt:r.updatedAt});
  }
  audit("sales","CREATE",sid,`${inv} | ${current.length} cages`);
- clearCurrentFormDraft();closeModal();await refreshAll();await previewStoreInvoice(sid);
+ clearCurrentFormDraft();window._saleModalDraft=null;closeModal();await refreshAll();await previewStoreInvoice(sid);
 }
 
 function clearSingkeFilter(){
@@ -4158,18 +4228,16 @@ async function renderRecentActivity(){
 }
 async function syncNowFromHome(btn=null){
  if(!navigator.onLine)return toast("You are offline. Your local work is safe and will sync when internet returns.");
+ if(!AUTH_SESSION)AUTH_SESSION=loadAuthSession();
  if(!AUTH_SESSION)return toast("Cloud session is not available. Sign in again to sync.");
  if(btn){btn.disabled=true;btn.textContent="Syncing…"}
  try{
-   await retryPendingVerifiedDeletes();
-   await retryPendingSaves();
-   const ok=await backgroundBidirectionalSync({force:true});
-   updateSyncHealth();
-   toast(ok===false?"Sync could not complete. It will retry automatically.":"Synchronization completed.");
- }catch(e){toast("Sync error: "+(e.message||e))}
+   await queueAllLocalRecordsForUpload();await retryPendingVerifiedDeletes();await retryPendingSaves();
+   const ok=await backgroundBidirectionalSync({force:true});updateSyncHealth();const err=syncErrorSummary();
+   toast(ok?"Synchronization completed.":`Sync is incomplete.${err?` ${err}`:" It will retry automatically."}`);
+ }catch(e){setSyncLastError(e);updateSyncHealth();toast("Sync error: "+(e.message||e))}
  finally{if(btn){btn.disabled=false;btn.textContent="Sync Now"}}
 }
-
 
 async function reconcileCageInventoryState({sync=true}={}){
  const [cages,sales,liftings]=await Promise.all([txAll("cages"),txAll("sales"),txAll("liftings")]);
@@ -4634,7 +4702,30 @@ async function rest(table,method="GET",body=null,query=""){
  if(r.status===204)return null;
  const txt=await r.text();return txt?JSON.parse(txt):null
 }
-async function syncAll(){toast("Automatic Supabase sync is disabled.");return false}
+async function syncAll(){
+ if(!navigator.onLine){toast("You are offline. Changes are saved locally and will sync later.");return false}
+ if(!AUTH_SESSION)AUTH_SESSION=loadAuthSession();
+ if(!AUTH_SESSION){toast("Please sign in again to sync with Supabase.");return false}
+ try{
+   await queueAllLocalRecordsForUpload();
+   const ok=await backgroundBidirectionalSync({force:true});
+   updateSyncHealth();
+   toast(ok?"Supabase upload and synchronization completed.":"Some records are still pending. Check Device & Cloud for the error.");
+   return ok;
+ }catch(e){setSyncLastError(e);updateSyncHealth();toast("Supabase sync error: "+(e.message||e));return false}
+}
+async function queueAllLocalRecordsForUpload(){
+ let count=0;
+ for(const table of TABLES){
+   const rows=await txAll(table);
+   for(const row of rows){
+     const key=cloudRecordKey(table,row);
+     if(key&&isPermanentlyDeleted(table,key))continue;
+     enqueueSaveRetry(table,cloneJson(row));count++;
+   }
+ }
+ updateSyncHealth();return count;
+}
 const _syncBadge=document.getElementById("syncBadge"); if(_syncBadge) _syncBadge.onclick=null;
 
 
@@ -4680,12 +4771,14 @@ async function publishDeleteTombstone(table,keyValue,deletedAt=iso()){
   await postInternalSetting(syncDeleteSettingKey(table,keyValue),{table,key:String(keyValue),deletedAt},deletedAt);
 }
 async function pushRecordToCloud(table,data){
-  if(!data)return;
-  const key=cloudRecordKey(table,data);
-  if(key&&isPermanentlyDeleted(table,key))return;
-  await rest(table,"POST",toCloud(table,data));
-  if(table!=="settings")await publishRecordSnapshot(table,data);
-  markCloudSuccess();
+ if(!data)return false;
+ const key=cloudRecordKey(table,data);
+ if(key&&isPermanentlyDeleted(table,key))return false;
+ try{
+   await rest(table,"POST",toCloud(table,data));
+   if(table!=="settings")await publishRecordSnapshot(table,data);
+   markCloudSuccess();clearSyncLastError();return true;
+ }catch(e){setSyncLastError(e);throw e}
 }
 async function cloudFetchAll(table){
   const all=[],limit=1000;
@@ -4843,75 +4936,55 @@ async function seedMissingRecordSnapshots(snapshotKeys,skipSnapshotKeys=new Set(
  }
 }
 async function backgroundBidirectionalSync(options={}){
-  if(PSM_BIDI_SYNC_RUNNING||!db||!navigator.onLine||!AUTH_SESSION)return false;
-  PSM_BIDI_SYNC_RUNNING=true;
-  let localChanged=false;
-  try{
-    // 1) Push local pending work first.
-    await retryPendingVerifiedDeletes();
-    await retryPendingSaves();
-
-    // 2) Pull settings first because it carries full snapshots and delete tombstones.
-    const cloudSettings=await cloudFetchAll("settings");
-    const snapshotKeys=new Set();
-    const fallbackSnapshotSkips=new Set();
-    const snapshots=[];
-    const deletes=[];
-    for(const c of cloudSettings){
-      const key=String(c?.key||"");
-      if(key.startsWith("sync_record:")){
-        snapshotKeys.add(key);
-        const v=c.value&&typeof c.value==="object"?c.value:{};
-        if(v.table&&v.record)snapshots.push({table:String(v.table),record:v.record,updatedAt:c.updated_at||v.updatedAt||""});
-      }else if(key.startsWith("sync_delete:")){
-        const v=c.value&&typeof c.value==="object"?c.value:{};
-        if(v.table&&v.key!=null)deletes.push({table:String(v.table),key:String(v.key),deletedAt:v.deletedAt||c.updated_at||""});
-      }else{
-        if(await mergeOrdinaryCloudSetting(c))localChanged=true;
-      }
-    }
-
-    // Apply deletion markers before any records.
-    deletes.sort((a,b)=>timeValue(a.deletedAt)-timeValue(b.deletedAt));
-    for(const d of deletes)if(await applyRemoteDelete(d.table,d.key,d.deletedAt))localChanged=true;
-
-    // Full-record snapshots are the preferred source because they preserve local-only fields.
-    for(const s of snapshots){
-      if(!TABLES.includes(s.table)||s.table==="settings")continue;
-      const rec={...s.record};
-      if(!rec.updatedAt&&s.updatedAt)rec.updatedAt=s.updatedAt;
-      if(await mergeRemoteRecord(s.table,rec))localChanged=true;
-    }
-
-    // 3) Pull business tables as compatibility fallback for older records without snapshots.
-    for(const table of TABLES){
-      if(table==="settings")continue;
-      let cloudRows=[];
-      try{cloudRows=await cloudFetchAll(table)}catch(e){console.warn("Cloud pull skipped",table,e);continue}
-      for(const c of cloudRows){
-        const key=String(c?.id??"");
-        if(!key||snapshotKeys.has(syncSnapshotSettingKey(table,key)))continue;
-        const rec=fromCloudRecord(table,c);
-        if(rec){fallbackSnapshotSkips.add(syncSnapshotSettingKey(table,key));if(await mergeRemoteRecord(table,rec))localChanged=true;}
-      }
-    }
-
-    await repairDerivedRelationsAfterSync();
-
-    // 4) Ensure this device's local records have full snapshots for other devices.
-    await seedMissingRecordSnapshots(snapshotKeys,fallbackSnapshotSkips);
-    await retryPendingSaves();
-
-    localStorage.setItem(PSM_BIDI_LAST_SYNC_KEY,iso());
-    markCloudSuccess();
-    if(localChanged)await refreshAll();
-    return true;
-  }catch(e){
-    console.warn("Background bidirectional sync:",e);
-    return false;
-  }finally{
-    PSM_BIDI_SYNC_RUNNING=false;
-  }
+ if(!db||!navigator.onLine)return false;
+ if(!AUTH_SESSION)AUTH_SESSION=loadAuthSession();
+ if(!AUTH_SESSION){setSyncLastError("Cloud session is not available. Sign in again.");updateSyncHealth();return false}
+ if(PSM_BIDI_SYNC_PROMISE)return PSM_BIDI_SYNC_PROMISE;
+ PSM_BIDI_SYNC_RUNNING=true;
+ PSM_BIDI_SYNC_PROMISE=(async()=>{
+   let localChanged=false;
+   try{
+     await retryPendingVerifiedDeletes();await retryPendingSaves();
+     const cloudSettings=await cloudFetchAll("settings");
+     const snapshotKeys=new Set(),fallbackSnapshotSkips=new Set(),snapshots=[],deletes=[];
+     for(const c of cloudSettings){
+       const key=String(c?.key||"");
+       if(key.startsWith("sync_record:")){
+         snapshotKeys.add(key);const v=c.value&&typeof c.value==="object"?c.value:{};
+         if(v.table&&v.record)snapshots.push({table:String(v.table),record:v.record,updatedAt:c.updated_at||v.updatedAt||""});
+       }else if(key.startsWith("sync_delete:")){
+         const v=c.value&&typeof c.value==="object"?c.value:{};
+         if(v.table&&v.key!=null)deletes.push({table:String(v.table),key:String(v.key),deletedAt:v.deletedAt||c.updated_at||""});
+       }else if(await mergeOrdinaryCloudSetting(c))localChanged=true;
+     }
+     deletes.sort((a,b)=>timeValue(a.deletedAt)-timeValue(b.deletedAt));
+     for(const d of deletes)if(await applyRemoteDelete(d.table,d.key,d.deletedAt))localChanged=true;
+     for(const s of snapshots){
+       if(!TABLES.includes(s.table)||s.table==="settings")continue;
+       const rec={...s.record};if(!rec.updatedAt&&s.updatedAt)rec.updatedAt=s.updatedAt;
+       if(await mergeRemoteRecord(s.table,rec))localChanged=true;
+     }
+     for(const table of TABLES){
+       if(table==="settings")continue;
+       let cloudRows=[];
+       try{cloudRows=await cloudFetchAll(table)}catch(e){setSyncLastError(e);console.warn("Cloud pull skipped",table,e);continue}
+       for(const c of cloudRows){
+         const key=String(c?.id??"");if(!key||snapshotKeys.has(syncSnapshotSettingKey(table,key)))continue;
+         const rec=fromCloudRecord(table,c);
+         if(rec){fallbackSnapshotSkips.add(syncSnapshotSettingKey(table,key));if(await mergeRemoteRecord(table,rec))localChanged=true}
+       }
+     }
+     await repairDerivedRelationsAfterSync();await seedMissingRecordSnapshots(snapshotKeys,fallbackSnapshotSkips);
+     const retryResult=await retryPendingSaves();
+     localStorage.setItem(PSM_BIDI_LAST_SYNC_KEY,iso());markCloudSuccess();
+     if(!retryResult?.failed)clearSyncLastError();
+     if(localChanged)await refreshAll();updateSyncHealth();
+     return !retryResult?.failed;
+   }catch(e){setSyncLastError(e);console.warn("Background bidirectional sync:",e);updateSyncHealth();return false}
+   finally{PSM_BIDI_SYNC_RUNNING=false}
+ })();
+ try{return await PSM_BIDI_SYNC_PROMISE}
+ finally{PSM_BIDI_SYNC_PROMISE=null}
 }
 function startBackgroundBidirectionalSync(){
   stopBackgroundBidirectionalSync();
@@ -5048,7 +5121,6 @@ async function deleteAllRowsFromSupabaseTable(table){
  initMobileTableCards();
  initDraftProtection();
  mobilePrimaryActionForView(PSM_CURRENT_VIEW);
- localStorage.removeItem("mpf_sync_queue");
  updateSyncBadge();
 
  // Cloud work is background-only so slow internet cannot freeze login/startup.
@@ -5075,8 +5147,7 @@ function restoreViewAfterExternalShare(){
 window.addEventListener("focus",()=>{restoreViewAfterExternalShare();backgroundBidirectionalSync()});
 document.addEventListener("visibilitychange",()=>{if(!document.hidden){restoreViewAfterExternalShare();backgroundBidirectionalSync()}});
 
-window.addEventListener("online",()=>{updateAuthNetworkUI();retryPendingVerifiedDeletes();retryPendingSaves();backgroundBidirectionalSync()});
-window.addEventListener("online",()=>{retryPendingSaves();backgroundBidirectionalSync();updateSyncHealth()});
+window.addEventListener("online",()=>{updateAuthNetworkUI();retryPendingVerifiedDeletes();retryPendingSaves().then(()=>backgroundBidirectionalSync()).finally(updateSyncHealth)});
 window.addEventListener("offline",()=>{updateAuthNetworkUI();updateSyncHealth()});
 window.addEventListener("resize",()=>{
   if(window.innerWidth>820)closeMobileMoreMenu();
