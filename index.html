@@ -1941,6 +1941,26 @@ function initializePsmBrandImages(){
 }
 
 const invoiceRound=n=>{const exact=Number(n)||0,rounded=Math.round(exact),roundOff=Math.round((rounded-exact)*100)/100;return {exact,rounded,roundOff}};
+const money2=n=>Math.round((Number(n)||0)*100)/100;
+function salePhysicalWeight(sale){
+ const details=Array.isArray(sale?.cageDetails)?sale.cageDetails:[];
+ if(details.length)return money2(details.reduce((sum,c)=>sum+(Number(c.weight)||0),0));
+ return money2(Number(sale?.originalCageWeight??sale?.weight??sale?.netWeight)||0);
+}
+function saleLiftingCost(sale,liftMap){
+ const details=Array.isArray(sale?.cageDetails)?sale.cageDetails:[];
+ if(details.length){
+   return money2(details.reduce((sum,c)=>{
+     const lifting=liftMap.get(String(c.liftingId||sale?.liftingId||""));
+     const rate=Number(lifting?.liftingRate??lifting?.ratePerKg)||0;
+     return sum+(Number(c.weight)||0)*rate;
+   },0));
+ }
+ const lifting=liftMap.get(String(sale?.liftingId||""));
+ const rate=Number(lifting?.liftingRate??lifting?.ratePerKg)||0;
+ return money2(salePhysicalWeight(sale)*rate);
+}
+
 const today=()=>{const d=new Date(),y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),da=String(d.getDate()).padStart(2,"0");return `${y}-${m}-${da}`};
 const iso=()=>new Date().toISOString();
 
@@ -2941,7 +2961,7 @@ async function savePayment(){
  if(!date||!storeId||amount<=0)return toast("Valid store, date and amount required.");
  const s=await txGet("stores",storeId);if(!s)return toast("Store not found.");
  const before=await storeSummary(storeId);
- const previousDue=Number(before.outstanding)||0,remainingDue=Math.round((previousDue-amount)*100)/100;
+ const previousDue=money2(before.outstanding),remainingDue=money2(previousDue-amount);
  const r={id:id("PAY"),receiptNumber:await nextSequentialNumber("payment",date),storeId,paymentDate:date,amount,
    paymentMode:document.getElementById("pMode").value,referenceNumber:document.getElementById("pRef").value.trim(),
    remarks:document.getElementById("pRem").value.trim(),storeName:s.name||"",storePhone:s.phone||"",
@@ -2974,7 +2994,7 @@ async function openSale(){
   <div class="grid g2" style="margin-top:10px">
    <div class="field"><label>Billed Weight kg (Editable)</label><input id="saWeight" type="number" step="0.01" min="0" inputmode="decimal" value="0.00" oninput="updateSaleAmountPreview()"></div>
    <div class="field"><label>Total Birds</label><input id="saBirds" disabled value="0"></div>
-   <div class="field sale-total-amount-field"><label>Sales Total Amount ₹</label><input id="saTotalAmount" disabled value="₹0.00"></div>
+   <div class="field sale-total-amount-field"><label>Sales Total Amount (Net) ₹</label><input id="saTotalAmount" disabled value="₹0.00"></div>
    <div class="field"><label>Paid Amount ₹</label><input id="saPaid" type="number" step="0.01" value="0"></div>
    <div class="field"><label>Payment Method</label><select id="saMode"><option>Cash</option><option>UPI</option><option>Credit</option><option>Bank</option></select></div>
    <div class="field"><label>Remarks</label><input id="saRem"></div>
@@ -3096,9 +3116,9 @@ async function updateMultiCageSaleSummary(){
 function updateSaleAmountPreview(){
  const weight=Number(document.getElementById("saWeight")?.value)||0;
  const rate=Number(document.getElementById("saRate")?.value)||0;
- const amount=Math.round(weight*rate*100)/100;
+ const exact=money2(weight*rate),net=invoiceRound(exact).rounded;
  const el=document.getElementById("saTotalAmount");
- if(el)el.value=`₹${fmt(amount)}`;
+ if(el){el.value=`₹${fmt(net)}`;el.title=`Exact ₹${fmt(exact)} before invoice rounding`;}
 }
 function fillSaleWeight(){updateMultiCageSaleSummary()}
 async function updateSaleStoreOutstanding(){
@@ -3108,11 +3128,12 @@ async function updateSaleStoreOutstanding(){
   const f=await storeSummary(storeId);el.value=`₹${fmt(f.outstanding)}`;
 }
 async function storeSummary(storeId){
-  let s=await txGet("stores",storeId),sales=(await txAll("sales")).filter(x=>x.storeId===storeId),pays=(await txAll("payments")).filter(x=>x.storeId===storeId),opening=Number(s?.openingDue)||0;
-  const totalSales=sales.reduce((a,x)=>a+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0);
-  const salePaid=sales.reduce((a,x)=>a+(Number(x.paidAmount)||0),0);
-  const direct=pays.reduce((a,x)=>a+(Number(x.amount)||0),0);
-  return {opening,totalSales,totalPaid:salePaid+direct,outstanding:opening+totalSales-salePaid-direct}
+  let s=await txGet("stores",storeId),sales=(await txAll("sales")).filter(x=>x.storeId===storeId),pays=(await txAll("payments")).filter(x=>x.storeId===storeId),opening=money2(s?.openingDue);
+  const totalSales=money2(sales.reduce((a,x)=>a+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0));
+  const salePaid=money2(sales.reduce((a,x)=>a+(Number(x.paidAmount)||0),0));
+  const direct=money2(pays.reduce((a,x)=>a+(Number(x.amount)||0),0));
+  const totalPaid=money2(salePaid+direct);
+  return {opening,totalSales,totalPaid,outstanding:money2(opening+totalSales-totalPaid)}
 }
 async function saveSale(){
  const storeId=document.getElementById("saStore").value,date=document.getElementById("saDate").value,rate=Number(document.getElementById("saRate").value),paid=Number(document.getElementById("saPaid").value)||0;
@@ -3146,7 +3167,7 @@ async function saveSale(){
    cageId:current[0].id,cageIds:current.map(c=>c.id),cageNumber:current.map(c=>c.cageNumber||c.id).join(", "),cageNumbers:current.map(c=>c.cageNumber||c.id),cageDetails,
    birdsCount:birds,totalBirds:birds,originalCageWeight:cageWeight,netWeight:weight,weight,totalWeight:weight,salesRate:rate,ratePerKg:rate,
    saleAmount:exactAmount,totalAmount:exactAmount,roundOff:rr.roundOff,netAmount,invoiceNetAmount:netAmount,paidAmount:paid,
-   previousDue:fin.outstanding,outstanding:Math.round((fin.outstanding+netAmount-paid)*100)/100,
+   previousDue:money2(fin.outstanding),outstanding:money2(fin.outstanding+netAmount-paid),
    paymentMethod:document.getElementById("saMode").value,remarks:document.getElementById("saRem").value.trim(),isWangkheiSale:!!store.isWangkhei,
    createdAt:iso(),updatedAt:iso()};
  try{
@@ -3583,8 +3604,8 @@ async function buildDailyOperationalSummaryPdf(dateValue=today()){
  const salesKg=sales.reduce((s,x)=>s+(Number(x.weight??x.netWeight)||0),0),salesAmt=sales.reduce((s,x)=>s+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0),0);
  const wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>s.id)),ws=sales.filter(s=>s.isWangkheiSale||wm.has(s.storeId));
  const wangKg=ws.reduce((s,x)=>s+(Number(x.weight??x.netWeight)||0),0),wangAmt=ws.reduce((s,x)=>s+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0),0);
- const settlements=sett.reduce((s,x)=>s+(Number(x.amount)||0),0),lm=new Map((await txAll("liftings")).map(x=>[x.id,x]));
- const cost=sales.reduce((a,s)=>a+(Number(s.weight??s.netWeight)||0)*(Number(lm.get(s.liftingId)?.liftingRate)||0),0),profit=salesAmt-cost;
+ const settlements=money2(sett.reduce((s,x)=>s+(Number(x.amount)||0),0)),lm=new Map((await txAll("liftings")).map(x=>[String(x.id),x]));
+ const cost=money2(sales.reduce((a,s)=>a+saleLiftingCost(s,lm),0)),profit=money2(salesAmt-cost);
  let outstanding=0;for(const st of stores){if(st.archived||st.isWangkhei||String(st.name||"").toLowerCase().includes("wangkhei"))continue;outstanding+=(await storeSummary(st.id)).outstanding}
  const sg=await singkeSummary();
  const lines=["__B__PSM BROILER DISTRIBUTOR","Kongba Kshetri Leikai, Imphal East, Manipur - 795008",`Daily Operational Summary - ${dateValue}`,"__HR__",`Liftings: ${lift.length}`,`Total Lifting Kg: ${fmt(liftKg)} kg`,`Lifting Payable: Rs. ${fmt(liftAmt)}`,`Sales Transactions: ${sales.length}`,`Total Sales Kg: ${fmt(salesKg)} kg`,`Sales Value: Rs. ${fmt(salesAmt)}`,`Wangkhei Adjustment: ${fmt(wangKg)} kg | Rs. ${fmt(wangAmt)}`,`Singke Settlements: Rs. ${fmt(settlements)}`,`Gross Profit: Rs. ${fmt(profit)}`,`Store Outstanding: Rs. ${fmt(outstanding)}`,`Closing Singke Balance: Rs. ${fmt(sg.remain)}`,"__HR__",`Generated: ${new Date().toLocaleString("en-IN")}`];
@@ -4054,7 +4075,7 @@ async function saveEditedSale(id){
   const exactAmount=Math.round(weight*rate*100)/100,rr=invoiceRound(exactAmount),netAmount=rr.rounded;
   s.saleDate=document.getElementById("esaDate").value||s.saleDate;
   s.weight=weight;s.netWeight=weight;s.salesRate=rate;s.ratePerKg=rate;s.saleAmount=exactAmount;s.totalAmount=exactAmount;s.roundOff=rr.roundOff;s.netAmount=netAmount;s.invoiceNetAmount=netAmount;s.paidAmount=paid;
-  s.outstanding=Math.round(((Number(s.previousDue)||0)+netAmount-paid)*100)/100;
+  s.outstanding=money2((Number(s.previousDue)||0)+netAmount-paid);
   s.remarks=document.getElementById("esaRem").value.trim();s.updatedAt=iso();
   await txPut("sales",s);queueCloud("sales","UPSERT",s);audit("sales","UPDATE",id);clearCurrentFormDraft();closeModal();refreshAll();
 }
@@ -4075,7 +4096,8 @@ async function previewStoreInvoice(saleId){
  const st=await txGet("stores",s.storeId),farmer=s.farmerId?await txGet("farmers",s.farmerId):null;
  const wang=!!(st?.isWangkhei||s.isWangkheiSale);
  const saleCages=Array.isArray(s.cageDetails)&&s.cageDetails.length?s.cageDetails:[{cageNumber:s.cageNumber||s.cageId||"",weight:Number(s.weight??s.netWeight)||0,birdCount:Number(s.birdsCount)||0}];
- const cageRows=saleCages.map((c,i)=>`<tr><td>${i+1}</td><td><b>${esc(c.cageNumber||c.cageId||"")}</b></td><td>${fmt(c.weight)}</td><td>${c.birdCount||0}</td><td>₹${fmt(s.salesRate??s.ratePerKg)}</td><td><b>₹${fmt((Number(c.weight)||0)*(Number(s.salesRate??s.ratePerKg)||0))}</b></td></tr>`).join("");
+ const physicalWeight=money2(saleCages.reduce((sum,c)=>sum+(Number(c.weight)||0),0));
+ const cageRows=saleCages.map((c,i)=>`<tr><td>${i+1}</td><td><b>${esc(c.cageNumber||c.cageId||"")}</b></td><td>${fmt(c.weight)}</td><td>${c.birdCount||0}</td></tr>`).join("");
  openModal(`<div class="psm-invoice"><img class="psm-invoice-watermark" src="${PSM_LOGO_DATA_URI}" alt=""><img class="psm-invoice-logo" src="${PSM_LOGO_DATA_URI}" alt="PSM logo">
    <div class="psm-brandbar">
      <div class="psm-logo"><div class="psm-logo-mark">PSM</div></div>
@@ -4103,13 +4125,15 @@ async function previewStoreInvoice(saleId){
         <div>Sale ID</div><span class="mono">${esc(s.id)}</span>
       </div></div>
     </div>
-    <table class="psm-table"><thead><tr><th>#</th><th>Cage No.</th><th>Weight (kg)</th><th>Birds</th><th>Rate</th><th>Amount</th></tr></thead><tbody>
+    <table class="psm-table"><thead><tr><th>#</th><th>Cage No.</th><th>Physical Weight (kg)</th><th>Birds</th></tr></thead><tbody>
       ${cageRows}
-      <tr><td colspan="2"><b>TOTAL</b></td><td><b>${fmt(s.weight??s.netWeight)}</b></td><td><b>${s.birdsCount||0}</b></td><td></td><td><b>₹${fmt(s.saleAmount??s.totalAmount)}</b></td></tr>
+      <tr><td colspan="2"><b>PHYSICAL TOTAL</b></td><td><b>${fmt(physicalWeight)}</b></td><td><b>${s.birdsCount||0}</b></td></tr>
     </tbody></table>
     <div class="psm-totals">
+      <div class="psm-total-row"><span>Billed Weight</span><b>${fmt(s.weight??s.netWeight)} kg</b></div>
+      <div class="psm-total-row"><span>Sales Rate</span><b>₹${fmt(s.salesRate??s.ratePerKg)} / kg</b></div>
       ${wang?"":`<div class="psm-total-row"><span>Previous Due</span><b>₹${fmt(s.previousDue)}</b></div>`}
-      <div class="psm-total-row"><span>Invoice Amount</span><b>₹${fmt(s.saleAmount??s.totalAmount)}</b></div>
+      <div class="psm-total-row"><span>Exact Invoice Amount</span><b>₹${fmt(s.saleAmount??s.totalAmount)}</b></div>
       ${(()=>{const rr=invoiceRound(s.saleAmount??s.totalAmount);return `<div class="psm-total-row"><span>Round Off</span><b>${rr.roundOff>=0?"+":""}₹${fmt(rr.roundOff)}</b></div><div class="psm-total-row"><span>Net Invoice Amount</span><b>₹${fmt(rr.rounded)}</b></div>`})()}
       <div class="psm-total-row"><span>Paid Amount</span><b>₹${fmt(s.paidAmount)}</b></div>
       ${wang?`<div class="psm-total-row final"><span>Settlement</span><span>MPF A/C</span></div>`:`<div class="psm-total-row final"><span>Outstanding</span><span>₹${fmt(s.outstanding)}</span></div>`}
@@ -4417,9 +4441,9 @@ async function renderDashboard(){
    const missingCount=inventory.missing.reduce((a,x)=>a+x.missing,0);
    unsoldSub.textContent=missingCount?`${missingCount} cage detail record(s) missing — review lifting log`:"Available cages not linked to a sale";
  }
- let liftMap=new Map(allLift.map(x=>[x.id,x])),cageMap=new Map(cages.map(x=>[x.id,x]));
- let cost=0;for(let s of sales){let li=liftMap.get(s.liftingId);cost+=(Number(s.weight??s.netWeight)||0)*(Number(li?.liftingRate??li?.ratePerKg)||0)}
- let gp=salesAmt-cost;document.getElementById("mGrossProfit").textContent=fmt(gp);document.getElementById("mGrossProfitSub").textContent=`${periodLabel}: sales − lifting cost`;
+ let liftMap=new Map(allLift.map(x=>[String(x.id),x])),cageMap=new Map(cages.map(x=>[x.id,x]));
+ let cost=money2(sales.reduce((sum,s)=>sum+saleLiftingCost(s,liftMap),0));
+ let gp=money2(salesAmt-cost);document.getElementById("mGrossProfit").textContent=fmt(gp);document.getElementById("mGrossProfitSub").textContent=`${periodLabel}: net sales − physical cage lifting cost`;
  let att=[];
  if(inventory.missing.length){
    const totalMissing=inventory.missing.reduce((a,x)=>a+x.missing,0);
@@ -4435,6 +4459,8 @@ async function renderDashboard(){
  const aged=cages.filter(c=>!c.isSold&&(()=>{const li=liftMap.get(c.liftingId),d=new Date(li?.liftingDate||c.createdAt||0).getTime();return d&&((now-d)/86400000)>=ageDays})()).length;if(aged)att.push(`${aged} unsold cage(s) are ${ageDays}+ days old`);
  let reminderStores=[];for(let s of stores){if(s.archived||s.isWangkhei||String(s.name).toLowerCase().includes("wangkhei"))continue;let f=await storeSummary(s.id);if(f.outstanding>0)reminderStores.push(`${s.name}: ₹${fmt(f.outstanding)}`)}
  if(reminderStores.length)att.push(`${reminderStores.length} store(s) have outstanding dues`);
+ let creditStores=[];for(let st of stores){if(st.archived||st.isWangkhei||String(st.name||"").toLowerCase().includes("wangkhei"))continue;let f=await storeSummary(st.id);if(f.outstanding<-.009)creditStores.push(`${st.name}: ₹${fmt(Math.abs(f.outstanding))} credit`)}
+ if(creditStores.length)att.push(`${creditStores.length} store(s) have a credit/overpayment balance`);
  document.getElementById("attention").innerHTML=att.length?att.map(x=>`<div class="row">${esc(x)}</div>`).join(""):`<div class="row" style="background:#ecfdf5;color:#166534">No current reconciliation alerts.</div>`;
  const ageEl=document.getElementById("unsoldAgeDays");if(ageEl)ageEl.value=ageDays;
  updateSyncHealth();await renderSingke()
@@ -4448,7 +4474,7 @@ async function getDateRangeReportData(){
  if(type==="sales"){title="Store Sales";headers=["Date","Invoice","Store","Cage","Kg","Rate","Net Amount","Paid","Outstanding"];rows=sales.filter(x=>ok(x.saleDate)).map(x=>[x.saleDate,x.invoiceNumber||x.id,x.storeName||storeMap.get(x.storeId)?.name||"",x.cageNumber||"",Number(x.weight??x.netWeight)||0,Number(x.salesRate??x.ratePerKg)||0,Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0,Number(x.paidAmount)||0,Number(x.outstanding)||0])}
  if(type==="wangkhei"){title="Wangkhei Adjustments";headers=["Date","Invoice","Kg","Adjustment"];const wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>s.id));rows=sales.filter(x=>ok(x.saleDate)&&(x.isWangkheiSale||wm.has(x.storeId))).map(x=>[x.saleDate,x.invoiceNumber||x.id,Number(x.weight??x.netWeight)||0,Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0])}
  if(type==="singke"){title="Singke Ledger";headers=["Date","Type","Reference","Kg","Debit","Credit","Running Due"];const p=await setting("singke_previous_due",{amount:0}),wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>s.id));let ev=[...liftings.map(x=>({date:x.liftingDate,type:"Lifting",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,d:Number(x.netAmount??x.payableAmount??x.liftingAmount)||0,c:0})),...sales.filter(x=>x.isWangkheiSale||wm.has(x.storeId)).map(x=>({date:x.saleDate,type:"Wangkhei",ref:x.invoiceNumber||x.id,kg:Number(x.weight??x.netWeight)||0,d:0,c:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0})),...sets.map(x=>({date:x.date,type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,d:0,c:Number(x.amount)||0}))].sort((a,b)=>String(a.date).localeCompare(String(b.date)));let bal=Number(p.amount)||0;for(const e of ev){if(from&&e.date<from){bal+=e.d-e.c;continue}if(to&&e.date>to)continue;bal+=e.d-e.c;rows.push([e.date,e.type,e.ref,e.kg,e.d,e.c,bal])}}
- if(type==="profit"){title="Profit";headers=["Date","Invoice","Store","Sales","Cost","Gross Profit"];rows=sales.filter(x=>ok(x.saleDate)).map(x=>{const sale=Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0,cost=(Number(x.weight??x.netWeight)||0)*(Number(liftMap.get(x.liftingId)?.liftingRate)||0);return[x.saleDate,x.invoiceNumber||x.id,x.storeName||storeMap.get(x.storeId)?.name||"",sale,cost,sale-cost]})}
+ if(type==="profit"){title="Profit";headers=["Date","Invoice","Store","Net Sales","Lifting Cost","Gross Profit"];rows=sales.filter(x=>ok(x.saleDate)).map(x=>{const sale=money2(x.netAmount??x.invoiceNetAmount??x.saleAmount),cost=saleLiftingCost(x,new Map([...liftMap].map(([k,v])=>[String(k),v])));return[x.saleDate,x.invoiceNumber||x.id,x.storeName||storeMap.get(x.storeId)?.name||"",sale,cost,money2(sale-cost)]})}
  if(type==="outstanding"){title="Outstanding as of "+(to||today());headers=["Store","Opening Due","Sales","Payments","Outstanding"];for(const st of stores.filter(s=>!s.isWangkhei&&!String(s.name||"").toLowerCase().includes("wangkhei"))){const end=to||"9999-12-31",sv=sales.filter(x=>x.storeId===st.id&&x.saleDate<=end),pv=payments.filter(x=>x.storeId===st.id&&x.paymentDate<=end),saleVal=sv.reduce((s,x)=>s+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0),0),salePaid=sv.reduce((s,x)=>s+(Number(x.paidAmount)||0),0),direct=pv.reduce((s,x)=>s+(Number(x.amount)||0),0),out=(Number(st.openingDue)||0)+saleVal-salePaid-direct;rows.push([st.name,Number(st.openingDue)||0,saleVal,salePaid+direct,out])}}
  return {from,to,type,title,headers,rows};
 }
@@ -4495,7 +4521,7 @@ function renderAudit(){
 }
 function openAuditListDetails(i){const x=window._auditViewRows?.[i];if(!x)return;openGenericDetails("Audit Event",x.record||"",{date:x.time,id:x.record||"",name:(x.module||"")+" · "+(x.action||""),role:x.role,module:x.module,action:x.action,note:x.note||"—"})}
 function exportAudit(){let blob=new Blob([localStorage.getItem("mpf_audit")||"[]"],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="MPF_LiftDesk_Audit.json";a.click()}
-async function closeToday(){let t=today(),lift=(await txAll("liftings")).filter(x=>x.liftingDate===t),sales=(await txAll("sales")).filter(x=>x.saleDate===t),pays=(await txAll("payments")).filter(x=>x.paymentDate===t),sets=(await txAll("singke_settlements")).filter(x=>x.date===t),r={date:t,liftings:lift.length,cages:lift.reduce((a,x)=>a+(Number(x.totalCages)||0),0),kg:lift.reduce((a,x)=>a+(Number(x.totalWeight)||0),0),liftingPayable:lift.reduce((a,x)=>a+(Number(x.liftingAmount)||0),0),sales:sales.reduce((a,x)=>a+(Number(x.saleAmount)||0),0),payments:pays.reduce((a,x)=>a+(Number(x.amount)||0),0),singkeSettlements:sets.reduce((a,x)=>a+(Number(x.amount)||0),0),closedAt:iso()};let a=JSON.parse(localStorage.getItem("mpf_closings")||"[]"),i=a.findIndex(x=>x.date===t);if(i>=0)a[i]=r;else a.unshift(r);localStorage.setItem("mpf_closings",JSON.stringify(a));audit("closing","CLOSE",t);toast("Daily closing saved.");renderClosings()}
+async function closeToday(){let t=today(),lift=(await txAll("liftings")).filter(x=>x.liftingDate===t),sales=(await txAll("sales")).filter(x=>x.saleDate===t),pays=(await txAll("payments")).filter(x=>x.paymentDate===t),sets=(await txAll("singke_settlements")).filter(x=>x.date===t),r={date:t,liftings:lift.length,cages:lift.reduce((a,x)=>a+(Number(x.totalCages)||0),0),kg:money2(lift.reduce((a,x)=>a+(Number(x.totalWeight)||0),0)),liftingPayable:money2(lift.reduce((a,x)=>a+(Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0),0)),sales:money2(sales.reduce((a,x)=>a+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0)),payments:money2(pays.reduce((a,x)=>a+(Number(x.amount)||0),0)),singkeSettlements:money2(sets.reduce((a,x)=>a+(Number(x.amount)||0),0)),closedAt:iso()};let a=JSON.parse(localStorage.getItem("mpf_closings")||"[]"),i=a.findIndex(x=>x.date===t);if(i>=0)a[i]=r;else a.unshift(r);localStorage.setItem("mpf_closings",JSON.stringify(a));audit("closing","CLOSE",t);toast("Daily closing saved with net invoice values.");renderClosings()}
 function renderClosings(){
  let a=JSON.parse(localStorage.getItem("mpf_closings")||"[]"),last=a[0];
  document.getElementById("closingCards").innerHTML=last?`<div class="card metric"><div class="lab">Last Closing</div><div class="val">${last.date}</div><div class="mini">${last.liftings} liftings</div></div><div class="card metric"><div class="lab">Sales</div><div class="val">₹${fmt(last.sales)}</div><div class="mini">Day total</div></div><div class="card metric"><div class="lab">Lifting Payable</div><div class="val">₹${fmt(last.liftingPayable)}</div><div class="mini">${fmt(last.kg)} kg</div></div>`:"";
