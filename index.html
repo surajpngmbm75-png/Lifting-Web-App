@@ -1863,8 +1863,26 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
 </section>
 
 <section id="v-ledger" class="view">
- <div class="head"><div><h1>Store Ledger</h1><p>Sales, payments and running balance by store</p></div><div class="action-group"><button class="btn ok" id="ledgerReminderBtn" onclick="sendLedgerReminder()">WhatsApp Reminder</button><button class="btn primary" onclick="downloadStoreLedgerPdf()">Save PDF</button><button class="btn" onclick="exportStoreLedgerExcel()">Excel</button></div></div>
- <div class="card"><div class="toolbar"><div class="field"><label>Store</label><select id="ledgerStore" onchange="renderLedger()"></select></div><div class="field"><label>Ledger Generated At</label><input id="ledgerGeneratedAt" disabled></div></div><div style="height:10px"></div><div class="tablewrap"><table class="simple-list"><thead><tr><th>Date</th><th>ID</th><th>Name</th></tr></thead><tbody id="ledgerRows"></tbody></table></div></div>
+ <div class="head"><div><h1>Ledgers</h1><p>Store sales/payment ledger and farmer lifting ledger statements</p></div></div>
+
+ <div class="card">
+  <div class="split"><div><b>Store Ledger</b><div class="sub">Sales, payments and running balance by store</div></div><div class="action-group"><button class="btn ok" id="ledgerReminderBtn" onclick="sendLedgerReminder()">WhatsApp Reminder</button><button class="btn primary" onclick="downloadStoreLedgerPdf()">Store PDF</button><button class="btn" onclick="exportStoreLedgerExcel()">Excel</button></div></div>
+  <div style="height:10px"></div>
+  <div class="toolbar"><div class="field"><label>Store</label><select id="ledgerStore" onchange="renderLedger()"></select></div><div class="field"><label>Ledger Generated At</label><input id="ledgerGeneratedAt" disabled></div></div>
+  <div style="height:10px"></div>
+  <div class="tablewrap"><table class="accounting-report-table"><thead><tr><th>Date</th><th>Type</th><th>Farmer Name</th><th>Total Kg</th><th>Rate</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead><tbody id="ledgerRows"></tbody></table></div>
+ </div>
+
+ <div style="height:12px"></div>
+ <div class="card">
+  <div class="split"><div><b>Farmer Ledger</b><div class="sub">All lifting dates for the selected farmer. Different rates remain on separate rows.</div></div><div class="action-group"><button class="btn primary" onclick="downloadFarmerLedgerPdf()">Farmer PDF</button><button class="btn" onclick="exportFarmerLedgerExcel()">Excel</button></div></div>
+  <div style="height:10px"></div>
+  <div class="toolbar"><div class="field"><label>Farmer</label><select id="farmerLedgerFarmer" onchange="renderFarmerLedger()"></select></div><div class="field"><label>Amount Rule</label><input value="1–49 → 00, 50–99 → 50" disabled></div></div>
+  <div class="sub" style="margin-top:8px">Farmer ledger amount is rounded DOWN to the lower ₹50 step for statement display only. Example: ₹58,049 → ₹58,000 and ₹58,099 → ₹58,050.</div>
+  <div style="height:10px"></div>
+  <div class="tablewrap"><table class="accounting-report-table"><thead><tr><th>Date</th><th>Farmer Name</th><th>Total Kg</th><th>Rate</th><th>Total Amount</th></tr></thead><tbody id="farmerLedgerRows"></tbody></table></div>
+  <div id="farmerLedgerSummary" class="sub" style="margin-top:10px"></div>
+ </div>
 </section>
 
 
@@ -3902,13 +3920,14 @@ function downloadExcelXml(title,headers,rows,fileName,summary=[]){
 async function exportStoreLedgerExcel(){
  const storeId=document.getElementById("ledgerStore")?.value;if(!storeId)return toast("Select a store.");
  const st=await txGet("stores",storeId),wang=!!(st?.isWangkhei||String(st?.name||"").toLowerCase().includes("wangkhei"));
- const sales=(await txAll("sales")).filter(x=>x.storeId===storeId).map(x=>({date:x.saleDate,type:"Sale",ref:x.invoiceNumber||x.id,d:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,c:Number(x.paidAmount)||0}));
- const pays=(await txAll("payments")).filter(x=>x.storeId===storeId).map(x=>({date:x.paymentDate,type:"Payment",ref:x.receiptNumber||x.referenceNumber||x.id,d:0,c:Number(x.amount)||0}));
- const ev=[...sales,...pays].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
+ const farmerMap=new Map((await txAll("farmers")).map(f=>[String(f.id),f.name])),ev=[];
+ for(const x of (await txAll("sales")).filter(x=>x.storeId===storeId))ev.push({date:x.saleDate,type:"Sale",farmer:await saleFarmerDisplayName(x,farmerMap),kg:Number(x.weight??x.netWeight)||0,rate:Number(x.salesRate??x.ratePerKg)||0,d:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,c:Number(x.paidAmount)||0,sortRef:x.invoiceNumber||x.id});
+ for(const x of (await txAll("payments")).filter(x=>x.storeId===storeId))ev.push({date:x.paymentDate,type:"Payment",farmer:"—",kg:"—",rate:"—",d:0,c:Number(x.amount)||0,sortRef:x.receiptNumber||x.referenceNumber||x.id});
+ ev.sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.sortRef).localeCompare(String(b.sortRef)));
  let bal=wang?0:(Number(st.openingDue)||0),rows=[];
- if(!wang)rows.push(["","Opening Due",st.id+"-OPEN",Number(st.openingDue)||0,0,bal]);
- for(const e of ev){bal=money2(bal+e.d-e.c);rows.push([e.date,e.type,e.ref,e.d,e.c,wang?"N/A":bal])}
- downloadExcelXml(`Store Ledger - ${st.name}`,["Date","Type","Reference","Debit","Credit","Balance"],rows,`PSM_Store_Ledger_${st.name.replace(/[^a-z0-9]+/gi,"_")}_${today()}.xls`,wang?[["Account","MPF A/C"]]:[["Closing Outstanding",bal]]);
+ if(!wang)rows.push(["","Opening Due","—","—","—",Number(st.openingDue)||0,0,bal]);
+ for(const e of ev){bal=money2(bal+e.d-e.c);rows.push([e.date,e.type,e.farmer,e.kg,e.rate,e.d,e.c,wang?"N/A":bal])}
+ downloadExcelXml(`Store Ledger - ${st.name}`,["Date","Type","Farmer Name","Total Kg","Rate","Debit","Credit","Balance"],rows,`PSM_Store_Ledger_${st.name.replace(/[^a-z0-9]+/gi,"_")}_${today()}.xls`,wang?[["Account","MPF A/C"]]:[["Closing Outstanding",bal]]);
 }
 async function exportSingkeLedgerExcel(){
  const r=await getDateRangeReportDataForSingkeExport();
@@ -3927,18 +3946,19 @@ async function getDateRangeReportDataForSingkeExport(){
 async function buildLedgerPdf(){
   const sel=document.getElementById("ledgerStore"),storeId=sel?.value;if(!storeId)throw new Error("Select a store.");
   const st=await txGet("stores",storeId),wang=!!(st?.isWangkhei||String(st?.name||"").toLowerCase().includes("wangkhei"));
-  const sales=(await txAll("sales")).filter(x=>x.storeId===storeId).map(x=>({date:x.saleDate,type:"Sale",ref:x.invoiceNumber||x.id,debit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,credit:Number(x.paidAmount)||0}));
-  const pays=(await txAll("payments")).filter(x=>x.storeId===storeId).map(x=>({date:x.paymentDate,type:"Payment",ref:x.receiptNumber||x.referenceNumber||x.id,debit:0,credit:Number(x.amount)||0}));
-  const ev=[...sales,...pays].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
+  const farmerMap=new Map((await txAll("farmers")).map(f=>[String(f.id),f.name]));
+  const ev=[];
+  for(const x of (await txAll("sales")).filter(x=>x.storeId===storeId))ev.push({date:x.saleDate,type:"Sale",farmer:await saleFarmerDisplayName(x,farmerMap),kg:Number(x.weight??x.netWeight)||0,rate:Number(x.salesRate??x.ratePerKg)||0,debit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,credit:Number(x.paidAmount)||0,sortRef:x.invoiceNumber||x.id});
+  for(const x of (await txAll("payments")).filter(x=>x.storeId===storeId))ev.push({date:x.paymentDate,type:"Payment",farmer:"—",kg:"—",rate:"—",debit:0,credit:Number(x.amount)||0,sortRef:x.receiptNumber||x.referenceNumber||x.id});
+  ev.sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.sortRef).localeCompare(String(b.sortRef)));
   let bal=wang?0:(Number(st.openingDue)||0),rows=[];
-  if(!wang)rows.push(["", "Opening Due", st.id+"-OPEN", Number(st.openingDue)||0, 0, bal]);
-  for(const e of ev){bal=money2(bal+e.debit-e.credit);rows.push([e.date,e.type,e.ref,e.debit,e.credit,wang?"N/A":bal])}
+  if(!wang)rows.push(["","Opening Due","—","—","—",Number(st.openingDue)||0,0,bal]);
+  for(const e of ev){bal=money2(bal+e.debit-e.credit);rows.push([e.date,e.type,e.farmer,e.kg,e.rate,e.debit,e.credit,wang?"N/A":bal])}
   const summary=wang?[["Account","MPF A/C Settlement"]]:[["Opening Due",Number(st.openingDue)||0],["Closing Outstanding",bal]];
   const subtitle=`Store: ${st.name} | Phone: ${st.phone||"-"} | Generated: ${new Date().toLocaleString("en-IN")}`;
   const clean=st.name.replace(/[^a-z0-9]+/gi,"_");
-  return {blob:buildAccountingTablePdf({title:"STORE LEDGER",subtitle,headers:["Date","Type","Reference","Debit","Credit","Balance"],rows,summary}),fileName:`PSM_Store_Ledger_${clean}_${today()}.pdf`}
+  return {blob:buildAccountingTablePdf({title:"STORE LEDGER",subtitle,headers:["Date","Type","Farmer Name","Total Kg","Rate","Debit","Credit","Balance"],rows,summary}),fileName:`PSM_Store_Ledger_${clean}_${today()}.pdf`}
 }
-
 async function downloadStoreLedgerPdf(){
   try{const {blob,fileName}=await buildLedgerPdf();downloadPdfBlob(blob,fileName);audit("ledger","DOWNLOAD_PDF",document.getElementById("ledgerStore").value)}
   catch(e){toast(e.message)}
@@ -4581,6 +4601,67 @@ async function renderSingke(){
   document.getElementById("singkeRows").innerHTML=rows.join("")||`<tr><td colspan="3" class="empty">No reconciliation transactions for the selected period</td></tr>`;
 }
 function openSingkeListDetails(i){const e=window._singkeViewRows?.[i];if(!e)return;openGenericDetails(e.type,e.ref,{date:e.date,id:e.ref,name:e.type,totalKg:e.kg?fmt(e.kg)+" kg":"—",debit:e.debit?"Rs. "+fmt(e.debit):"—",credit:e.credit?"Rs. "+fmt(e.credit):"—",runningDue:"Rs. "+fmt(e.balance)})}
+function farmerLedgerRound50(amount){
+ const n=Math.max(0,Number(amount)||0);
+ return Math.floor(n/50)*50;
+}
+async function saleFarmerDisplayName(sale,farmerMap=null){
+ if(sale?.farmerName)return String(sale.farmerName);
+ if(!farmerMap)farmerMap=new Map((await txAll("farmers")).map(f=>[String(f.id),f.name]));
+ const ids=Array.isArray(sale?.farmerIds)&&sale.farmerIds.length?sale.farmerIds:(sale?.farmerId?[sale.farmerId]:[]);
+ const names=[...new Set(ids.map(id=>farmerMap.get(String(id))).filter(Boolean))];
+ return names.length?names.join(", "):"—";
+}
+async function populateFarmerLedgerSelect(){
+ const sel=document.getElementById("farmerLedgerFarmer");if(!sel)return;
+ const farmers=(await txAll("farmers")).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+ const old=sel.value;
+ sel.innerHTML=farmers.map(f=>`<option value="${f.id}">${esc(f.name)}</option>`).join("");
+ if(farmers.some(f=>String(f.id)===String(old)))sel.value=old;
+}
+async function getFarmerLedgerData(farmerId){
+ const farmer=await txGet("farmers",farmerId);
+ if(!farmer)throw new Error("Select a farmer.");
+ const liftings=(await txAll("liftings")).filter(l=>String(l.farmerId)===String(farmerId));
+ const grouped=new Map();
+ for(const l of liftings){
+   const date=String(l.liftingDate||""),rate=Number(l.liftingRate??l.ratePerKg)||0,key=`${date}|${rate}`;
+   const g=grouped.get(key)||{date,rate,kg:0,farmerName:farmer.name};
+   g.kg+=Number(l.totalWeight)||0;grouped.set(key,g);
+ }
+ const rows=[...grouped.values()].sort((a,b)=>String(a.date).localeCompare(String(b.date))||a.rate-b.rate).map(g=>{
+   const kg=money2(g.kg),raw=money2(kg*g.rate),amount=farmerLedgerRound50(raw);
+   return {...g,kg,raw,amount};
+ });
+ return {farmer,rows,totalKg:money2(rows.reduce((s,r)=>s+r.kg,0)),totalAmount:rows.reduce((s,r)=>s+r.amount,0)};
+}
+async function renderFarmerLedger(){
+ await populateFarmerLedgerSelect();
+ const id=document.getElementById("farmerLedgerFarmer")?.value||"",host=document.getElementById("farmerLedgerRows"),sum=document.getElementById("farmerLedgerSummary");
+ if(!host)return;
+ if(!id){host.innerHTML=`<tr><td colspan="5" class="empty">No farmer selected</td></tr>`;if(sum)sum.textContent="";return}
+ const d=await getFarmerLedgerData(id);
+ host.innerHTML=d.rows.length?d.rows.map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(d.farmer.name)}</td><td>${fmt(r.kg)}</td><td>₹${fmt(r.rate)}</td><td><b>₹${fmt(r.amount)}</b></td></tr>`).join(""):`<tr><td colspan="5" class="empty">No lifting records for this farmer.</td></tr>`;
+ if(sum)sum.innerHTML=`<b>Total:</b> ${fmt(d.totalKg)} kg &nbsp; | &nbsp; Statement Amount: <b>₹${fmt(d.totalAmount)}</b>`;
+}
+async function downloadFarmerLedgerPdf(){
+ try{
+   const id=document.getElementById("farmerLedgerFarmer")?.value||"",d=await getFarmerLedgerData(id);
+   const rows=d.rows.map(r=>[r.date,d.farmer.name,r.kg,r.rate,r.amount]);
+   const summary=[["Total Kg",d.totalKg],["Statement Amount",d.totalAmount],["Amount Rule","Round down to lower Rs. 50 step"]];
+   const blob=buildAccountingTablePdf({title:"FARMER LIFTING LEDGER",subtitle:`Farmer: ${d.farmer.name} | Generated: ${new Date().toLocaleString("en-IN")}`,headers:["Date","Farmer Name","Total Kg","Rate","Total Amount"],rows,summary});
+   await downloadPdfBlob(blob,`PSM_Farmer_Ledger_${d.farmer.name.replace(/[^a-z0-9]+/gi,"_")}_${today()}`);
+   audit("ledger","FARMER_PDF",id,d.farmer.name);
+ }catch(e){toast(e.message)}
+}
+async function exportFarmerLedgerExcel(){
+ try{
+   const id=document.getElementById("farmerLedgerFarmer")?.value||"",d=await getFarmerLedgerData(id);
+   const rows=d.rows.map(r=>[r.date,d.farmer.name,r.kg,r.rate,r.amount]);
+   downloadExcelXml(`Farmer Ledger - ${d.farmer.name}`,["Date","Farmer Name","Total Kg","Rate","Total Amount"],rows,`PSM_Farmer_Ledger_${d.farmer.name.replace(/[^a-z0-9]+/gi,"_")}_${today()}.xls`,[["Total Kg",d.totalKg],["Statement Amount",d.totalAmount],["Amount Rule","1-49 -> 00; 50-99 -> 50"]]);
+ }catch(e){toast(e.message)}
+}
+
 async function populateStoreSelect(){
  const sel=document.getElementById("ledgerStore");if(!sel)return;
  const stores=(await txAll("stores")).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
@@ -4592,27 +4673,23 @@ async function renderLedger(){
  await populateStoreSelect();
  const sel=document.getElementById("ledgerStore"),idd=sel?.value||"";
  const generated=document.getElementById("ledgerGeneratedAt");if(generated)generated.value=new Date().toLocaleString("en-IN");
- if(!idd){const host=document.getElementById("ledgerRows");if(host)host.innerHTML=`<tr><td colspan="3" class="empty">No store selected</td></tr>`;return}
+ if(!idd){const host=document.getElementById("ledgerRows");if(host)host.innerHTML=`<tr><td colspan="8" class="empty">No store selected</td></tr>`;return}
  const s=await txGet("stores",idd),wang=!!(s?.isWangkhei||String(s?.name||"").toLowerCase().includes("wangkhei"));
  const rem=document.getElementById("ledgerReminderBtn");if(rem)rem.style.display=wang?"none":"inline-block";
- const sales=(await txAll("sales")).filter(x=>x.storeId===idd).map(x=>({date:x.saleDate,type:"Sale",ref:x.invoiceNumber||x.id,debit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,credit:Number(x.paidAmount)||0}));
- const pays=(await txAll("payments")).filter(x=>x.storeId===idd).map(x=>({date:x.paymentDate,type:"Payment",ref:x.receiptNumber||x.referenceNumber||x.id,debit:0,credit:Number(x.amount)||0}));
- const ev=[...sales,...pays].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
- let bal=wang?0:(Number(s?.openingDue)||0),rows=[];
- window._ledgerViewRows=[];
- if(!wang){
-   const d={date:s?.createdAt?simpleDate(s.createdAt):"",type:"Opening Due",ref:s.id+"-OPEN",debit:Number(s.openingDue)||0,credit:0,balance:bal};
-   window._ledgerViewRows.push(d);rows.push(`<tr onclick="openLedgerListDetails(0)"><td>${esc(d.date)}</td><td class="mono">${esc(d.ref)}</td><td>Opening Due</td></tr>`);
+ const farmerMap=new Map((await txAll("farmers")).map(f=>[String(f.id),f.name]));
+ const saleRows=[];
+ for(const x of (await txAll("sales")).filter(x=>x.storeId===idd)){
+   saleRows.push({date:x.saleDate,type:"Sale",farmer:await saleFarmerDisplayName(x,farmerMap),kg:Number(x.weight??x.netWeight)||0,rate:Number(x.salesRate??x.ratePerKg)||0,debit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,credit:Number(x.paidAmount)||0,sortRef:x.invoiceNumber||x.id});
  }
- for(const e of ev){
-   bal+=e.debit-e.credit;
-   const d={...e,balance:bal},i=window._ledgerViewRows.length;
-   window._ledgerViewRows.push(d);
-   rows.push(`<tr onclick="openLedgerListDetails(${i})"><td>${esc(e.date)}</td><td class="mono">${esc(e.ref)}</td><td>${esc(e.type)}</td></tr>`);
- }
- const host=document.getElementById("ledgerRows");if(host)host.innerHTML=rows.join("")||`<tr><td colspan="3" class="empty">No ledger entries</td></tr>`;
+ const pays=(await txAll("payments")).filter(x=>x.storeId===idd).map(x=>({date:x.paymentDate,type:"Payment",farmer:"—",kg:"—",rate:"—",debit:0,credit:Number(x.amount)||0,sortRef:x.receiptNumber||x.referenceNumber||x.id}));
+ const ev=[...saleRows,...pays].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.sortRef).localeCompare(String(b.sortRef)));
+ let bal=wang?0:(Number(s?.openingDue)||0),rows=[];window._ledgerViewRows=[];
+ if(!wang){const d={date:s?.createdAt?simpleDate(s.createdAt):"",type:"Opening Due",farmer:"—",kg:"—",rate:"—",debit:Number(s.openingDue)||0,credit:0,balance:bal};window._ledgerViewRows.push(d);rows.push(`<tr onclick="openLedgerListDetails(0)"><td>${esc(d.date)}</td><td>Opening Due</td><td>—</td><td>—</td><td>—</td><td>${fmt(d.debit)}</td><td>—</td><td>${fmt(d.balance)}</td></tr>`)}
+ for(const e of ev){bal=money2(bal+e.debit-e.credit);const d={...e,balance:bal},i=window._ledgerViewRows.length;window._ledgerViewRows.push(d);rows.push(`<tr onclick="openLedgerListDetails(${i})"><td>${esc(e.date)}</td><td>${esc(e.type)}</td><td>${esc(e.farmer)}</td><td>${typeof e.kg==="number"?fmt(e.kg):"—"}</td><td>${typeof e.rate==="number"?"₹"+fmt(e.rate):"—"}</td><td>${e.debit?fmt(e.debit):"—"}</td><td>${e.credit?fmt(e.credit):"—"}</td><td>${wang?"N/A":fmt(bal)}</td></tr>`)}
+ const host=document.getElementById("ledgerRows");if(host)host.innerHTML=rows.join("")||`<tr><td colspan="8" class="empty">No ledger entries</td></tr>`;
+ await renderFarmerLedger();
 }
-function openLedgerListDetails(i){const e=window._ledgerViewRows?.[i];if(!e)return;openGenericDetails(e.type,e.ref,{date:e.date,id:e.ref,name:e.type,debit:e.debit?"Rs. "+fmt(e.debit):"—",credit:e.credit?"Rs. "+fmt(e.credit):"—",balance:"Rs. "+fmt(e.balance)})}
+function openLedgerListDetails(i){const e=window._ledgerViewRows?.[i];if(!e)return;openGenericDetails(e.type,"",{date:e.date,name:e.type,farmer:e.farmer||"—",totalKg:typeof e.kg==="number"?fmt(e.kg)+" kg":"—",rate:typeof e.rate==="number"?"Rs. "+fmt(e.rate)+" / kg":"—",debit:e.debit?"Rs. "+fmt(e.debit):"—",credit:e.credit?"Rs. "+fmt(e.credit):"—",balance:typeof e.balance==="number"?"Rs. "+fmt(e.balance):"N/A"})}
 async function sendLedgerReminder(){let idd=document.getElementById("ledgerStore").value;if(idd)sendOutstandingReminder(idd)}
 function printStoreLedgerPdf(){
  const old=document.title,sel=document.getElementById("ledgerStore"),name=sel?.selectedOptions?.[0]?.text||"Store";
@@ -5700,7 +5777,7 @@ async function loadSettings(){
 }
 async function refreshAll(){
  await reconcileCageInventoryState({sync:false});
- await renderDashboard();await renderFarmers();await renderFarmersCombined();await renderLiftings();await renderSales();await renderStores();await renderSingke();await populateStoreSelect();
+ await renderDashboard();await renderFarmers();await renderFarmersCombined();await renderLiftings();await renderSales();await renderStores();await renderSingke();await populateStoreSelect();await populateFarmerLedgerSelect();
  renderAudit();renderClosings();updateSyncBadge();updateSyncHealth();
  await updatePageMiniSummaries();await renderRecentActivity();
 }
