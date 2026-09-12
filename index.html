@@ -1368,14 +1368,14 @@ input,select,textarea,button{touch-action:manipulation}
 /* ===== COMPACT LIFTING CAGE ENTRY ===== */
 .cage-entry-editor{display:grid;grid-template-columns:minmax(110px,1fr) minmax(110px,1fr) minmax(95px,.8fr) minmax(120px,.9fr) auto;gap:8px;align-items:end;padding:10px;border:1px solid #fecaca;background:#fff7f7;border-radius:12px}
 .entered-cages-list{display:grid;gap:6px}
-.entered-cage-row{display:grid;grid-template-columns:1.1fr .9fr .8fr 1fr auto;gap:8px;align-items:center;padding:9px 10px;background:#fff;border:1px solid #e4e7ec;border-radius:10px}
+.entered-cage-row{display:grid;grid-template-columns:.45fr 1.1fr .9fr .8fr 1fr auto;gap:8px;align-items:center;padding:9px 10px;background:#fff;border:1px solid #e4e7ec;border-radius:10px}
 .entered-cage-row .ec-label{font-size:9px;text-transform:uppercase;color:#667085;font-weight:850;display:block}
 .entered-cage-row .ec-value{font-weight:850;color:#101828;white-space:nowrap}
 .entered-cage-row .avg{color:#b42318}
 @media(max-width:820px){
  .cage-entry-editor{grid-template-columns:1fr 1fr}
  .cage-entry-editor>button{grid-column:1/-1;min-height:46px}
- .entered-cage-row{grid-template-columns:1.1fr .9fr .8fr 1fr auto;font-size:12px;overflow-x:auto}
+ .entered-cage-row{grid-template-columns:.45fr 1.1fr .9fr .8fr 1fr auto;font-size:12px;overflow-x:auto}
  .entered-cage-row .ec-value{font-size:12px}
 }
 @media print{
@@ -2757,10 +2757,11 @@ function commitNewCageEntry(){
 }
 function renderEnteredCageRows(){
  const host=document.getElementById("cageInputs");if(!host)return;
- const rows=window._enteredLiftingCages||[];
+ const rows=[...(window._enteredLiftingCages||[])]; // insertion order: first entered stays first, newest stays last
  host.innerHTML=rows.length?rows.map((c,i)=>{
    const avg=Number(c.birdCount)?Number(c.weight)/Number(c.birdCount):0;
    return `<div class="entered-cage-row">
+    <div><span class="ec-label">Entry</span><span class="ec-value">${i+1}.</span></div>
     <div><span class="ec-label">Cage No.</span><span class="ec-value">${esc(c.cageNumber)}</span></div>
     <div><span class="ec-label">Wt.</span><span class="ec-value">${fmt(c.weight)} kg</span></div>
     <div><span class="ec-label">Birds</span><span class="ec-value">${c.birdCount||0}</span></div>
@@ -3779,10 +3780,61 @@ async function previewFarmerInvoice(liftingId){
   }catch(e){toast(e.message)}
 }
 function printInvoiceView(){
- document.body.classList.add("psm-print-invoice");
- const cleanup=()=>document.body.classList.remove("psm-print-invoice");
- window.addEventListener("afterprint",cleanup,{once:true});
- setTimeout(()=>{try{window.print()}finally{setTimeout(cleanup,1200)}},60);
+ const invoice=document.querySelector("#modal .psm-invoice");
+ if(!invoice)return toast("Open the lifting invoice first.");
+ try{
+   const frame=document.createElement("iframe");
+   frame.setAttribute("aria-hidden","true");
+   frame.style.position="fixed";
+   frame.style.right="0";
+   frame.style.bottom="0";
+   frame.style.width="0";
+   frame.style.height="0";
+   frame.style.border="0";
+   frame.style.opacity="0";
+   document.body.appendChild(frame);
+
+   const styles=[...document.querySelectorAll("style")].map(s=>s.textContent||"").join("\n");
+   const doc=frame.contentWindow.document;
+   doc.open();
+   doc.write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+   <title>PSM Farmer Lifting Invoice</title>
+   <style>
+   ${styles}
+   html,body{margin:0!important;padding:0!important;background:#fff!important;overflow:visible!important}
+   body{display:block!important}
+   .psm-invoice{display:block!important;width:100%!important;max-width:100%!important;margin:0!important;box-shadow:none!important;border:0!important}
+   .invoice-actions,.invoice-preview-template,.close,.btn{display:none!important}
+   @page{size:A4;margin:8mm}
+   @media print{
+     html,body{width:100%!important;height:auto!important;overflow:visible!important}
+     .psm-invoice{page-break-inside:auto!important;break-inside:auto!important}
+     .psm-table{page-break-inside:auto!important}
+     .psm-table tr{page-break-inside:avoid!important;break-inside:avoid!important}
+   }
+   </style></head><body>${invoice.outerHTML}</body></html>`);
+   doc.close();
+
+   let printed=false;
+   const doPrint=()=>{
+     if(printed)return;
+     printed=true;
+     try{
+       frame.contentWindow.focus();
+       frame.contentWindow.print();
+     }catch(e){
+       console.warn("Invoice print iframe failed, using page print:",e);
+       document.body.classList.add("psm-print-invoice");
+       try{window.print()}finally{setTimeout(()=>document.body.classList.remove("psm-print-invoice"),1500)}
+     }
+     setTimeout(()=>frame.remove(),3000);
+   };
+   frame.onload=()=>setTimeout(doPrint,250);
+   setTimeout(doPrint,700);
+ }catch(e){
+   console.warn("Invoice print failed:",e);
+   toast("Unable to open print. Please try again.");
+ }
 }
 function normalizeWhatsappPhone(phone){
   let p=String(phone||"").replace(/\D/g,"");
@@ -3850,22 +3902,35 @@ Total Outstanding: ${wang?"N/A":"Rs. "+fmt(s.outstanding)}`;
 async function shareFarmerLiftingPdf(liftingId){
  try{
   const data=await getFarmerInvoiceData(liftingId),f=data.farmer||{},l=data.lifting,cages=data.cages||[];
-  const totalBirds=cages.reduce((s,c)=>s+(Number(c.birdCount)||0),0),totalWeight=cages.reduce((s,c)=>s+(Number(c.weight)||0),0),avg=totalBirds?totalWeight/totalBirds:0;
-  const cageLines=cages.map((c,i)=>`${i+1}. Cage ${c.cageNumber||"-"} | ${fmt(c.weight)} kg | ${c.birdCount||0} birds | Avg ${fmt((Number(c.birdCount)||0)?Number(c.weight)/Number(c.birdCount):0)} kg`).join("\\n");
-  const msg=`PSM Farmer Lifting Invoice
-Invoice: ${l.invoiceNumber||l.id}
-Farmer: ${f.name||l.farmerName||""}
-Date: ${l.liftingDate||""}
+  const totalBirds=cages.reduce((s,c)=>s+(Number(c.birdCount)||0),0);
+  const totalWeight=cages.reduce((s,c)=>s+(Number(c.weight)||0),0);
+  const avg=totalBirds?totalWeight/totalBirds:0;
 
-Cage-wise Details:
-${cageLines}
+  const cageLines=cages.map((c,i)=>{
+    const birds=Number(c.birdCount)||0;
+    const weight=Number(c.weight)||0;
+    return `${i+1}. ${fmt(weight)} kg_______${c.cageNumber||"-"}_______${birds}`;
+  }).join("\n");
 
-Total Cages: ${cages.length}
-Total Birds: ${totalBirds}
-Total Weight: ${fmt(totalWeight)} kg
-Average Weight: ${fmt(avg)} kg/bird
-Rate: Rs. ${fmt(l.liftingRate??l.ratePerKg)} / kg
-Total Amount: Rs. ${fmt(l.netAmount??l.payableAmount??l.liftingAmount??l.totalAmount)}`;
+  const msg=`*PSM Farmer Lifting Invoice*
+
+*Invoice:* ${l.invoiceNumber||l.id}
+*Farmer:* ${f.name||l.farmerName||""}
+*Date:* ${l.liftingDate||""}
+
+*Cage-wise Details*
+_No. | Weight | Cage | Birds_
+
+${cageLines||"No cage details available."}
+
+*Summary*
+• Total Cages: ${cages.length}
+• Total Birds: ${totalBirds}
+• Total Weight: ${fmt(totalWeight)} kg
+• Average Weight: ${fmt(avg)} kg/bird
+• Rate: Rs. ${fmt(l.liftingRate??l.ratePerKg)} / kg
+• Total Amount: Rs. ${fmt(l.netAmount??l.payableAmount??l.liftingAmount??l.totalAmount)}`;
+
   const p=normalizeWhatsappPhone(f.phone);
   if(!p)return toast("No farmer phone number available.");
   openWhatsAppUrl(`https://wa.me/${p}?text=${encodeURIComponent(msg)}`);
@@ -4778,7 +4843,12 @@ async function pushRecordToCloud(table,data){
    await rest(table,"POST",toCloud(table,data));
    if(table!=="settings")await publishRecordSnapshot(table,data);
    markCloudSuccess();clearSyncLastError();return true;
- }catch(e){setSyncLastError(e);throw e}
+ }catch(e){
+   if(table==="cages"&&String(e?.message||e).includes("22P02")){
+     setSyncLastError("Cage upload failed because Supabase cages.serial_number expects a number. This build converts alphanumeric cage labels safely for the legacy cloud column.");
+   }else setSyncLastError(e);
+   throw e;
+ }
 }
 async function cloudFetchAll(table){
   const all=[],limit=1000;
@@ -4994,11 +5064,29 @@ function stopBackgroundBidirectionalSync(){
   if(PSM_BIDI_SYNC_TIMER){clearInterval(PSM_BIDI_SYNC_TIMER);PSM_BIDI_SYNC_TIMER=null}
 }
 
+
+function supabaseNumericCageSerial(cage){
+ const raw=String(cage?.cageNumber??"").trim();
+ if(/^[+-]?\d+(?:\.\d+)?$/.test(raw)){
+   const n=Number(raw);
+   if(Number.isFinite(n))return n;
+ }
+ // The current Supabase cages.serial_number column is NUMERIC.
+ // Keep the real alphanumeric cage label in the record snapshot and use a
+ // stable numeric surrogate in the legacy business-table column.
+ const seed=`${cage?.id||""}|${cage?.liftingId||""}|${raw}`;
+ let h=2166136261;
+ for(let i=0;i<seed.length;i++){
+   h^=seed.charCodeAt(i);
+   h=Math.imul(h,16777619);
+ }
+ return (h>>>0)%2000000000+1;
+}
 function toCloud(t,l){let n=iso();switch(t){
  case"farmers":return{id:String(l.id),name:l.name||"",phone:l.phone||"",village:l.farmLocation||l.village||null,capacity:l.capacity||null,created_at:l.createdAt||n,updated_at:l.updatedAt||n};
  case"stores":return{id:String(l.id),name:l.name||"",contact_person:l.contactPerson||null,phone:l.phone||"",address:l.address||null,is_wangkhei:!!l.isWangkhei,created_at:l.createdAt||n,updated_at:l.updatedAt||n};
  case"liftings":return{id:String(l.id),lifting_date:l.liftingDate,farmer_id:String(l.farmerId),farmer_name:l.farmerName||null,vehicle_number:l.vehicleNumber||null,driver_name:l.driverName||null,rate_per_kg:Number(l.liftingRate??l.ratePerKg)||0,total_birds:Number(l.totalBirds)||0,total_weight:Number(l.totalWeight)||0,total_amount:Number(l.liftingAmount??l.totalAmount)||0,singke_payable_amount:Number(l.singkePayableAmount??l.liftingAmount??l.totalAmount)||0,wangkhei_deductions_applied:Number(l.wangkheiDeductions)||0,remarks:l.remarks||null,created_at:l.createdAt||n,updated_at:l.updatedAt||n};
- case"cages":{let w=Number(l.weight??l.netWeight??l.grossWeight)||0;return{id:String(l.id),lifting_id:String(l.liftingId),serial_number:String(l.cageNumber??""),gross_weight:w,tare_weight:Number(l.emptyWeight??l.tareWeight)||0,net_weight:w,birds_count:Number(l.birdCount??l.birdsCount)||0,created_at:l.createdAt||n,updated_at:l.updatedAt||l.createdAt||n}}
+ case"cages":{let w=Number(l.weight??l.netWeight??l.grossWeight)||0;return{id:String(l.id),lifting_id:String(l.liftingId),serial_number:supabaseNumericCageSerial(l),gross_weight:w,tare_weight:Number(l.emptyWeight??l.tareWeight)||0,net_weight:w,birds_count:Number(l.birdCount??l.birdsCount)||0,created_at:l.createdAt||n,updated_at:l.updatedAt||l.createdAt||n}}
  case"sales":return{id:String(l.id),sale_date:l.saleDate,store_id:String(l.storeId),store_name:l.storeName||null,is_wangkhei_store:!!l.isWangkheiSale,lifting_id:l.liftingId?String(l.liftingId):null,farmer_id:l.farmerId?String(l.farmerId):null,farmer_name:l.farmerName||null,total_birds:Number(l.birdsCount??l.totalBirds)||0,total_weight:Number(l.weight??l.netWeight??l.totalWeight)||0,rate_per_kg:Number(l.salesRate??l.ratePerKg)||0,total_amount:Number(l.saleAmount??l.totalAmount)||0,remarks:l.remarks||null,created_at:l.createdAt||n,updated_at:l.updatedAt||n};
  case"payments":return{id:String(l.id),payment_date:l.paymentDate,store_id:String(l.storeId),store_name:l.storeName||null,amount:Number(l.amount)||0,payment_mode:String(l.paymentMode||"CASH").toUpperCase(),reference_number:l.referenceNumber||null,remarks:l.remarks||null,created_at:l.createdAt||n,updated_at:l.updatedAt||l.createdAt||n};
  case"singke_settlements":return{id:String(l.id),settlement_date:l.date,amount:Number(l.amount)||0,payment_mode:String(l.paymentMethod||"CASH").toUpperCase(),reference_no:l.referenceNumber||null,notes:l.remarks||null,created_at:l.createdAt||n,updated_at:l.updatedAt||n};
