@@ -1582,6 +1582,14 @@ body.dark-mode .psm-invoice tr{
   color:#111827!important;
 }
 
+
+.accounting-report-table{width:100%;border-collapse:collapse}
+.accounting-report-table th,.accounting-report-table td{border:1px solid #d0d5dd;padding:8px 7px;vertical-align:top}
+.accounting-report-table th{background:#f2f4f7;font-weight:900;position:sticky;top:0;z-index:2}
+body.dark-mode .accounting-report-table th{background:#17231d!important}
+body.dark-mode .accounting-report-table th,
+body.dark-mode .accounting-report-table td{border-color:#365044!important}
+
 </style>
 <meta name="theme-color" content="#b91c1c">
 </head>
@@ -1829,7 +1837,7 @@ body.dark-mode .psm-invoice tr{
 <section id="v-singke" class="view">
  <div class="head">
   <div><h1>Singke Reconciliation Ledger</h1><p>Lifting payable, Wangkhei adjustments, settlements and running balance</p></div>
-  <div class="action-group"><button class="btn" onclick="downloadSingkeLedgerPdf()">Save PDF</button><button class="btn primary" onclick="openSettlement()">+ Record Settlement</button></div>
+  <div class="action-group"><button class="btn" onclick="downloadSingkeLedgerPdf()">Save PDF</button><button class="btn" onclick="exportSingkeLedgerExcel()">Excel</button><button class="btn primary" onclick="openSettlement()">+ Record Settlement</button></div>
  </div>
  <div class="grid g4">
   <div class="card metric"><div class="lab">Previous Due</div><div class="val">₹<span id="sPrev">0.00</span></div><div class="mini" id="sPrevDate">Not set</div></div>
@@ -1855,32 +1863,55 @@ body.dark-mode .psm-invoice tr{
 </section>
 
 <section id="v-ledger" class="view">
- <div class="head"><div><h1>Store Ledger</h1><p>Sales, payments and running balance by store</p></div><div class="action-group"><button class="btn ok" id="ledgerReminderBtn" onclick="sendLedgerReminder()">WhatsApp Reminder</button><button class="btn primary" onclick="downloadStoreLedgerPdf()">Save PDF</button></div></div>
+ <div class="head"><div><h1>Store Ledger</h1><p>Sales, payments and running balance by store</p></div><div class="action-group"><button class="btn ok" id="ledgerReminderBtn" onclick="sendLedgerReminder()">WhatsApp Reminder</button><button class="btn primary" onclick="downloadStoreLedgerPdf()">Save PDF</button><button class="btn" onclick="exportStoreLedgerExcel()">Excel</button></div></div>
  <div class="card"><div class="toolbar"><div class="field"><label>Store</label><select id="ledgerStore" onchange="renderLedger()"></select></div><div class="field"><label>Ledger Generated At</label><input id="ledgerGeneratedAt" disabled></div></div><div style="height:10px"></div><div class="tablewrap"><table class="simple-list"><thead><tr><th>Date</th><th>ID</th><th>Name</th></tr></thead><tbody id="ledgerRows"></tbody></table></div></div>
 </section>
 
 
 <section id="v-reports" class="view">
- <div class="head"><div><h1>Date-Range Reports</h1><p>Operational, financial and reconciliation reports with CSV and Excel-compatible export.</p></div></div>
+ <div class="head">
+  <div><h1>Accounting Reports &amp; Statements</h1><p>Accounting check, registers, ledgers, outstanding, profit, MPF reconciliation and Excel/PDF exports.</p></div>
+ </div>
+
+ <div class="grid g4" id="accountingQuickCards">
+  <div class="card metric"><div class="lab">Net Sales</div><div class="val">₹<span id="accSalesTotal">0.00</span></div><div class="mini">Selected period</div></div>
+  <div class="card metric"><div class="lab">Lifting Payable</div><div class="val">₹<span id="accLiftingTotal">0.00</span></div><div class="mini">Selected period</div></div>
+  <div class="card metric"><div class="lab">Payments Received</div><div class="val">₹<span id="accPaymentsTotal">0.00</span></div><div class="mini">Selected period</div></div>
+  <div class="card metric"><div class="lab">Gross Profit</div><div class="val">₹<span id="accProfitTotal">0.00</span></div><div class="mini">Selected period</div></div>
+ </div>
+
+ <div style="height:12px"></div>
  <div class="card">
   <div class="toolbar">
-   <div class="field"><label>From</label><input id="reportFrom" type="date"></div>
-   <div class="field"><label>To</label><input id="reportTo" type="date"></div>
-   <div class="field"><label>Report</label><select id="reportType">
-    <option value="farmer">Farmer Liftings</option>
-    <option value="sales">Store Sales</option>
-    <option value="wangkhei">Wangkhei Adjustments</option>
-    <option value="singke">Singke Ledger</option>
-    <option value="profit">Profit</option>
-    <option value="outstanding">Outstanding</option>
+   <div class="field"><label>From</label><input id="reportFrom" type="date" onchange="renderDateRangeReport()"></div>
+   <div class="field"><label>To</label><input id="reportTo" type="date" onchange="renderDateRangeReport()"></div>
+   <div class="field"><label>Accounting Report / Statement</label><select id="reportType" onchange="renderDateRangeReport()">
+    <option value="summary">Accounting Summary</option>
+    <option value="farmer">Farmer Lifting Purchase Register</option>
+    <option value="sales">Store Sales Register</option>
+    <option value="payments">Store Payment Register</option>
+    <option value="storeledger">All Store Ledger Transactions</option>
+    <option value="outstanding">Store Outstanding Statement</option>
+    <option value="singke">MPF / Singke Reconciliation Ledger</option>
+    <option value="wangkhei">Wangkhei Adjustment Register</option>
+    <option value="profit">Gross Profit Statement</option>
+    <option value="closing">Daily Closing Register</option>
+    <option value="inventory">Unsold Cage / Stock Statement</option>
    </select></div>
    <button class="btn primary" onclick="renderDateRangeReport()">Preview</button>
-   <button class="btn" onclick="exportDateRangeReportCSV()">CSV</button>
+   <button class="btn" onclick="downloadDateRangeReportPdf()">PDF Statement</button>
    <button class="btn" onclick="exportDateRangeReportExcel()">Excel</button>
+   <button class="btn" onclick="exportDateRangeReportCSV()">CSV</button>
   </div>
+  <div class="sub" style="margin-top:10px">Excel exports contain full accounting rows for checking. PDF statements use bordered tables and repeated table headers.</div>
  </div>
+
  <div style="height:12px"></div>
- <div class="card"><div id="reportSummary" class="sub"></div><div style="height:8px"></div><div class="tablewrap"><table><thead id="reportHead"></thead><tbody id="reportRows"></tbody></table></div></div>
+ <div class="card">
+  <div id="reportSummary" class="sub"></div>
+  <div style="height:8px"></div>
+  <div class="tablewrap"><table class="accounting-report-table"><thead id="reportHead"></thead><tbody id="reportRows"></tbody></table></div>
+ </div>
 </section>
 
 <section id="v-closing" class="view">
@@ -3356,43 +3387,21 @@ function clearSingkeFilter(){
 }
 
 async function buildSingkeLedgerPdf(){
-  const s=await singkeSummary();
-  const stores=await txAll("stores");
+  const s=await singkeSummary(),stores=await txAll("stores");
   const wm=new Set(stores.filter(st=>st.isWangkhei||String(st.name||"").toLowerCase().includes("wangkhei")).map(st=>st.id));
   let ev=[
-    ...(await txAll("liftings")).map(x=>({date:x.liftingDate||"",type:"Lifting",ref:x.id,kg:Number(x.totalWeight)||0,debit:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,credit:0})),
-    ...(await txAll("sales")).filter(x=>x.isWangkheiSale||wm.has(x.storeId)).map(x=>({date:x.saleDate||"",type:"Wangkhei",ref:x.invoiceNumber||x.id,kg:Number(x.netWeight??x.weight??x.totalWeight)||0,debit:0,credit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0})),
+    ...(await txAll("liftings")).map(x=>({date:x.liftingDate||"",type:"Lifting Payable",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,debit:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,credit:0})),
+    ...(await txAll("sales")).filter(x=>x.isWangkheiSale||wm.has(x.storeId)).map(x=>({date:x.saleDate||"",type:"Wangkhei Adjustment",ref:x.invoiceNumber||x.id,kg:Number(x.netWeight??x.weight??x.totalWeight)||0,debit:0,credit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0})),
     ...(await txAll("singke_settlements")).map(x=>({date:x.date||"",type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,debit:0,credit:Number(x.amount)||0}))
   ].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
-
-  const from=document.getElementById("singkeFrom")?.value||"";
-  const to=document.getElementById("singkeTo")?.value||"";
+  const from=document.getElementById("singkeFrom")?.value||"",to=document.getElementById("singkeTo")?.value||"";
   let bal=Number(s.p?.amount)||0;
-  if(from){for(const e of ev){if(e.date&&e.date<from)bal+=e.debit-e.credit}}
-  const filtered=ev.filter(e=>(!from||e.date>=from)&&(!to||e.date<=to));
+  if(from){for(const e of ev){if(e.date&&e.date<from)bal=money2(bal+e.debit-e.credit)}}
+  const filtered=ev.filter(e=>(!from||e.date>=from)&&(!to||e.date<=to)),rows=[];
+  for(const e of filtered){bal=money2(bal+e.debit-e.credit);rows.push([e.date,e.type,e.ref,e.kg,e.debit,e.credit,bal])}
   const period=from||to?`${from||"Beginning"} to ${to||"Latest"}`:"All Transactions";
-
-  const lines=[
-    "__B__PSM BROILER DISTRIBUTOR",
-    "Kongba Kshetri Leikai, Imphal East, Manipur - 795008",
-    "Singke Reconciliation Ledger",
-    `Period: ${period}`,
-    `Generated: ${new Date().toLocaleString("en-IN")}`,
-    "__HR__",
-    `Previous Due: Rs. ${fmt(s.p?.amount)}`,
-    `Total Lifting Payable: Rs. ${fmt(s.liftingPayable)}`,
-    `Wangkhei Adjustments: Rs. ${fmt(s.wang)} | Total Kg: ${fmt(s.wangKg)} kg`,
-    `Other Settlements: Rs. ${fmt(s.sett)}`,
-    `Current Remaining Due: Rs. ${fmt(s.remain)}`,
-    "__HR__",
-    "DATE         TYPE         REFERENCE             KG        DEBIT       CREDIT      BALANCE"
-  ];
-  for(const e of filtered){
-    bal+=e.debit-e.credit;
-    lines.push(`${String(e.date).padEnd(12)} ${String(e.type).slice(0,12).padEnd(12)} ${String(e.ref).slice(0,20).padEnd(21)} ${e.kg?fmt(e.kg).padStart(8):"        "} ${e.debit?fmt(e.debit).padStart(11):"           "} ${e.credit?fmt(e.credit).padStart(11):"           "} ${fmt(bal).padStart(11)}`);
-  }
-  lines.push("__HR__",`Closing Running Due for Selected View: Rs. ${fmt(bal)}`);
-  return {blob:buildSimplePdf(lines,"PSM SINGKE RECONCILIATION LEDGER"),fileName:`PSM_Singke_Reconciliation_${from||"All"}_${to||today()}.pdf`};
+  const summary=[["Previous Due",Number(s.p?.amount)||0],["Lifting Payable",s.liftingPayable],["Wangkhei Adjustments",s.wang],["Settlements",s.sett],["Current Remaining Due",s.remain]];
+  return {blob:buildAccountingTablePdf({title:"MPF / SINGKE RECONCILIATION LEDGER",subtitle:`Period: ${period} | Generated: ${new Date().toLocaleString("en-IN")}`,headers:["Date","Type","Reference","Kg","Debit","Credit","Running Due"],rows,summary}),fileName:`PSM_Singke_Reconciliation_${from||"All"}_${to||today()}.pdf`};
 }
 
 async function downloadSingkeLedgerPdf(){
@@ -3459,6 +3468,102 @@ function buildSimplePdf(lines,title="PSM Broiler Distributor"){
   const xref=out.length;out+=`xref\n0 ${objs.length}\n0000000000 65535 f \n`;for(let i=1;i<objs.length;i++)out+=String(offsets[i]).padStart(10,"0")+" 00000 n \n";
   out+=`trailer\n<< /Size ${objs.length} /Root ${catalogId} 0 R >>\nstartxref\n${xref}\n%%EOF`;
   return new Blob([Uint8Array.from(out,c=>c.charCodeAt(0)&255)],{type:"application/pdf"});
+}
+
+
+function pdfSafeText(v){
+ return String(v??"").replace(/₹/g,"Rs. ").replace(/[^\x20-\x7E]/g," ").replace(/\s+/g," ").trim();
+}
+function accountingCellText(v){
+ if(typeof v==="number"&&Number.isFinite(v))return Number.isInteger(v)?String(v):fmt(v);
+ return pdfSafeText(v);
+}
+function buildAccountingTablePdf({title,subtitle="",headers=[],rows=[],summary=[]}){
+ const W=842,H=595,left=28,right=28,top=548,bottom=34;
+ const pageWidth=W-left-right,rowH=19,headerH=22;
+ const cols=Math.max(1,headers.length);
+ const weightFor=(h)=>{
+   const x=String(h||"").toLowerCase();
+   if(/description|farmer|store|name|reference|invoice/.test(x))return 1.7;
+   if(/date|type|mode|cage/.test(x))return 1.15;
+   return 1;
+ };
+ const weights=headers.map(weightFor),ws=weights.reduce((a,b)=>a+b,0);
+ const widths=weights.map(w=>pageWidth*w/ws);
+ const rowPages=[];
+ const available=top-88-bottom;
+ const rowsPerPage=Math.max(8,Math.floor((available-headerH)/rowH));
+ for(let i=0;i<rows.length;i+=rowsPerPage)rowPages.push(rows.slice(i,i+rowsPerPage));
+ if(!rowPages.length)rowPages.push([]);
+
+ const objs=[null],add=o=>{objs.push(o);return objs.length-1};
+ const f1=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+ const f2=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+ const pageIds=[],contentIds=[];
+ const esc=s=>pdfSafeText(s).replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)");
+ const txt=(cmd,x,y,s,size=7.2,b=false)=>cmd.push(`BT /${b?"F2":"F1"} ${size} Tf 0.08 0.10 0.09 rg 1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm (${esc(s)}) Tj ET`);
+ const line=(cmd,x1,y1,x2,y2,w=.45)=>cmd.push(`0.58 0.64 0.61 RG ${w} w ${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`);
+ const fill=(cmd,x,y,w,h,r,g,b)=>cmd.push(`${r} ${g} ${b} rg ${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re f`);
+ const truncate=(s,w)=>{
+   const t=accountingCellText(s),max=Math.max(4,Math.floor(w/4.35));
+   return t.length>max?t.slice(0,Math.max(1,max-1))+"…":t;
+ };
+
+ rowPages.forEach((pageRows,pi)=>{
+   const c=[];
+   fill(c,0,0,W,H,1,1,1);
+   fill(c,left,H-56,pageWidth,34,.93,.97,.95);
+   txt(c,left+8,H-39,"PSM BROILER DISTRIBUTOR",14,true);
+   txt(c,left+250,H-39,title,12,true);
+   txt(c,left+8,H-68,subtitle||`Generated: ${new Date().toLocaleString("en-IN")}`,7.2,false);
+   if(summary.length){
+     const sm=summary.map(([k,v])=>`${k}: ${accountingCellText(v)}`).join("   |   ");
+     txt(c,left+8,H-82,truncate(sm,pageWidth-16),7.1,true);
+   }
+
+   let y=top-42;
+   fill(c,left,y-headerH,pageWidth,headerH,.88,.94,.90);
+   let x=left;
+   line(c,left,y,left+pageWidth,y,.7);
+   line(c,left,y-headerH,left+pageWidth,y-headerH,.7);
+   for(let i=0;i<cols;i++){
+     line(c,x,y,x,y-headerH,.55);
+     txt(c,x+4,y-14,truncate(headers[i],widths[i]-8),7.1,true);
+     x+=widths[i];
+   }
+   line(c,left+pageWidth,y,left+pageWidth,y-headerH,.55);
+   y-=headerH;
+
+   pageRows.forEach((row,ri)=>{
+     if(ri%2===1)fill(c,left,y-rowH,pageWidth,rowH,.975,.985,.98);
+     x=left;
+     line(c,left,y-rowH,left+pageWidth,y-rowH,.4);
+     for(let i=0;i<cols;i++){
+       line(c,x,y,x,y-rowH,.4);
+       txt(c,x+4,y-13,truncate(row[i],widths[i]-8),7,false);
+       x+=widths[i];
+     }
+     line(c,left+pageWidth,y,left+pageWidth,y-rowH,.4);
+     y-=rowH;
+   });
+
+   txt(c,left,bottom-6,`Page ${pi+1} of ${rowPages.length}`,7,false);
+   txt(c,W-right-170,bottom-6,"Computer-generated accounting statement",7,false);
+
+   const stream=c.join("\n");
+   const cid=add(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+   contentIds.push(cid);pageIds.push(add(""));
+ });
+ const pagesId=add("");
+ const catalog=add(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`);
+ pageIds.forEach((pid,i)=>objs[pid]=`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 ${f1} 0 R /F2 ${f2} 0 R >> >> /Contents ${contentIds[i]} 0 R >>`);
+ objs[pagesId]=`<< /Type /Pages /Kids [${pageIds.map(x=>x+" 0 R").join(" ")}] /Count ${pageIds.length} >>`;
+ let out="%PDF-1.4\n",offs=[0];
+ for(let i=1;i<objs.length;i++){offs[i]=out.length;out+=`${i} 0 obj\n${objs[i]}\nendobj\n`}
+ const xref=out.length;out+=`xref\n0 ${objs.length}\n0000000000 65535 f \n`;
+ for(let i=1;i<objs.length;i++)out+=String(offs[i]).padStart(10,"0")+" 00000 n \n";
+ out+=`trailer\n<< /Size ${objs.length} /Root ${catalog} 0 R >>\nstartxref\n${xref}\n%%EOF`;
+ return new Blob([Uint8Array.from(out,ch=>ch.charCodeAt(0)&255)],{type:"application/pdf"});
 }
 
 function downloadBlob(blob,fileName){
@@ -3757,38 +3862,83 @@ async function downloadStoreInvoicePdf(saleId){
 }
 
 async function buildDailyOperationalSummaryPdf(dateValue=today()){
- const lift=(await txAll("liftings")).filter(x=>x.liftingDate===dateValue),sales=(await txAll("sales")).filter(x=>x.saleDate===dateValue),sett=(await txAll("singke_settlements")).filter(x=>x.date===dateValue),stores=await txAll("stores");
- const liftKg=lift.reduce((s,x)=>s+(Number(x.totalWeight)||0),0),liftAmt=lift.reduce((s,x)=>s+(Number(x.netAmount??x.payableAmount??x.liftingAmount)||0),0);
- const salesKg=sales.reduce((s,x)=>s+(Number(x.weight??x.netWeight)||0),0),salesAmt=sales.reduce((s,x)=>s+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0),0);
+ const lift=(await txAll("liftings")).filter(x=>x.liftingDate===dateValue),sales=(await txAll("sales")).filter(x=>x.saleDate===dateValue),sett=(await txAll("singke_settlements")).filter(x=>x.date===dateValue),stores=await txAll("stores"),payments=(await txAll("payments")).filter(x=>x.paymentDate===dateValue);
+ const liftKg=money2(lift.reduce((s,x)=>s+(Number(x.totalWeight)||0),0)),liftAmt=money2(lift.reduce((s,x)=>s+(Number(x.netAmount??x.payableAmount??x.liftingAmount)||0),0));
+ const salesKg=money2(sales.reduce((s,x)=>s+(Number(x.weight??x.netWeight)||0),0)),salesAmt=money2(sales.reduce((s,x)=>s+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0),0));
  const wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>s.id)),ws=sales.filter(s=>s.isWangkheiSale||wm.has(s.storeId));
- const wangKg=ws.reduce((s,x)=>s+(Number(x.weight??x.netWeight)||0),0),wangAmt=ws.reduce((s,x)=>s+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0),0);
- const settlements=money2(sett.reduce((s,x)=>s+(Number(x.amount)||0),0)),lm=new Map((await txAll("liftings")).map(x=>[String(x.id),x]));
- const cost=money2(sales.reduce((a,s)=>a+saleLiftingCost(s,lm),0)),profit=money2(salesAmt-cost);
+ const wangKg=money2(ws.reduce((s,x)=>s+(Number(x.weight??x.netWeight)||0),0)),wangAmt=money2(ws.reduce((s,x)=>s+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0),0));
+ const settlements=money2(sett.reduce((s,x)=>s+(Number(x.amount)||0),0)),paymentReceipts=money2(payments.reduce((s,x)=>s+(Number(x.amount)||0),0));
+ const lm=new Map((await txAll("liftings")).map(x=>[String(x.id),x])),cost=money2(sales.reduce((a,s)=>a+saleLiftingCost(s,lm),0)),profit=money2(salesAmt-cost);
  let outstanding=0;for(const st of stores){if(st.archived||st.isWangkhei||String(st.name||"").toLowerCase().includes("wangkhei"))continue;outstanding+=(await storeSummary(st.id)).outstanding}
  const sg=await singkeSummary();
- const lines=["__B__PSM BROILER DISTRIBUTOR","Kongba Kshetri Leikai, Imphal East, Manipur - 795008",`Daily Operational Summary - ${dateValue}`,"__HR__",`Liftings: ${lift.length}`,`Total Lifting Kg: ${fmt(liftKg)} kg`,`Lifting Payable: Rs. ${fmt(liftAmt)}`,`Sales Transactions: ${sales.length}`,`Total Sales Kg: ${fmt(salesKg)} kg`,`Sales Value: Rs. ${fmt(salesAmt)}`,`Wangkhei Adjustment: ${fmt(wangKg)} kg | Rs. ${fmt(wangAmt)}`,`Singke Settlements: Rs. ${fmt(settlements)}`,`Gross Profit: Rs. ${fmt(profit)}`,`Store Outstanding: Rs. ${fmt(outstanding)}`,`Closing Singke Balance: Rs. ${fmt(sg.remain)}`,"__HR__",`Generated: ${new Date().toLocaleString("en-IN")}`];
- return {blob:buildSimplePdf(lines,"PSM DAILY OPERATIONAL SUMMARY"),fileName:`PSM_Daily_Operational_Summary_${dateValue}.pdf`};
+ const rows=[
+   ["Lifting Transactions",lift.length],
+   ["Total Lifting Kg",liftKg],
+   ["Lifting Payable",liftAmt],
+   ["Sales Transactions",sales.length],
+   ["Total Billed Sales Kg",salesKg],
+   ["Net Sales Value",salesAmt],
+   ["Physical Lifting Cost of Sales",cost],
+   ["Gross Profit",profit],
+   ["Payment Receipts",paymentReceipts],
+   ["Wangkhei Kg",wangKg],
+   ["Wangkhei Adjustment",wangAmt],
+   ["MPF / Singke Settlements",settlements],
+   ["Current Store Outstanding",money2(outstanding)],
+   ["Current MPF / Singke Balance",money2(sg.remain)]
+ ];
+ return {blob:buildAccountingTablePdf({title:"DAILY OPERATIONAL & ACCOUNTING SUMMARY",subtitle:`Date: ${dateValue} | Generated: ${new Date().toLocaleString("en-IN")}`,headers:["Particular","Amount / Value"],rows,summary:[["Date",dateValue],["Gross Profit",profit],["Net Sales",salesAmt]]}),fileName:`PSM_Daily_Operational_Summary_${dateValue}.pdf`};
 }
+
 async function downloadDailyOperationalSummaryPdf(){try{const x=await buildDailyOperationalSummaryPdf(today());downloadPdfBlob(x.blob,x.fileName);audit("reports","DAILY_SUMMARY_PDF",today())}catch(e){toast(e.message)}}
+
+
+function downloadExcelXml(title,headers,rows,fileName,summary=[]){
+ const all=[[title],[],headers,...rows,[],["ACCOUNTING CHECK SUMMARY"],...summary];
+ const xmlRows=all.map(row=>`<Row>${row.map(v=>`<Cell><Data ss:Type="${typeof v==="number"?"Number":"String"}">${xmlEsc(v)}</Data></Cell>`).join("")}</Row>`).join("");
+ const xml=`<?xml version="1.0"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="${xmlEsc(title).slice(0,31)}"><Table>${xmlRows}</Table></Worksheet></Workbook>`;
+ downloadBlob(new Blob([xml],{type:"application/vnd.ms-excel"}),fileName);
+}
+async function exportStoreLedgerExcel(){
+ const storeId=document.getElementById("ledgerStore")?.value;if(!storeId)return toast("Select a store.");
+ const st=await txGet("stores",storeId),wang=!!(st?.isWangkhei||String(st?.name||"").toLowerCase().includes("wangkhei"));
+ const sales=(await txAll("sales")).filter(x=>x.storeId===storeId).map(x=>({date:x.saleDate,type:"Sale",ref:x.invoiceNumber||x.id,d:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,c:Number(x.paidAmount)||0}));
+ const pays=(await txAll("payments")).filter(x=>x.storeId===storeId).map(x=>({date:x.paymentDate,type:"Payment",ref:x.receiptNumber||x.referenceNumber||x.id,d:0,c:Number(x.amount)||0}));
+ const ev=[...sales,...pays].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
+ let bal=wang?0:(Number(st.openingDue)||0),rows=[];
+ if(!wang)rows.push(["","Opening Due",st.id+"-OPEN",Number(st.openingDue)||0,0,bal]);
+ for(const e of ev){bal=money2(bal+e.d-e.c);rows.push([e.date,e.type,e.ref,e.d,e.c,wang?"N/A":bal])}
+ downloadExcelXml(`Store Ledger - ${st.name}`,["Date","Type","Reference","Debit","Credit","Balance"],rows,`PSM_Store_Ledger_${st.name.replace(/[^a-z0-9]+/gi,"_")}_${today()}.xls`,wang?[["Account","MPF A/C"]]:[["Closing Outstanding",bal]]);
+}
+async function exportSingkeLedgerExcel(){
+ const r=await getDateRangeReportDataForSingkeExport();
+ downloadExcelXml("MPF Singke Reconciliation",r.headers,r.rows,`PSM_Singke_Reconciliation_${r.from||"All"}_${r.to||today()}.xls`,r.summary);
+}
+async function getDateRangeReportDataForSingkeExport(){
+ const old=document.getElementById("reportType")?.value,rf=document.getElementById("reportFrom"),rt=document.getElementById("reportTo");
+ const from=document.getElementById("singkeFrom")?.value||"",to=document.getElementById("singkeTo")?.value||"";
+ if(rf)rf.value=from;if(rt)rt.value=to;
+ const selector=document.getElementById("reportType");if(selector)selector.value="singke";
+ const r=await getDateRangeReportData();
+ if(selector&&old)selector.value=old;
+ return r;
+}
 
 async function buildLedgerPdf(){
   const sel=document.getElementById("ledgerStore"),storeId=sel?.value;if(!storeId)throw new Error("Select a store.");
   const st=await txGet("stores",storeId),wang=!!(st?.isWangkhei||String(st?.name||"").toLowerCase().includes("wangkhei"));
   const sales=(await txAll("sales")).filter(x=>x.storeId===storeId).map(x=>({date:x.saleDate,type:"Sale",ref:x.invoiceNumber||x.id,debit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,credit:Number(x.paidAmount)||0}));
   const pays=(await txAll("payments")).filter(x=>x.storeId===storeId).map(x=>({date:x.paymentDate,type:"Payment",ref:x.receiptNumber||x.referenceNumber||x.id,debit:0,credit:Number(x.amount)||0}));
-  const ev=[...sales,...pays].sort((a,b)=>a.date.localeCompare(b.date));
-  let bal=wang?0:(Number(st.openingDue)||0);
-  const lines=["__B__PSM BROILER DISTRIBUTOR","Kongba Kshetri Leikai, Imphal East, Manipur - 795008","Store Ledger","__HR__",`Store: ${st.name}`,`Phone: ${st.phone||""}`,`Generated: ${new Date().toLocaleString("en-IN")}`,"__HR__","DATE         TYPE      REFERENCE              DEBIT       CREDIT      BALANCE"];
-  if(!wang) lines.push(`             Opening                           ${fmt(bal).padStart(10)}              ${fmt(bal).padStart(10)}`);
-  for(const e of ev){
-    bal+=e.debit-e.credit;
-    lines.push(`${String(e.date||"").padEnd(12)} ${String(e.type).padEnd(9)} ${String(e.ref||"").slice(0,20).padEnd(21)} ${e.debit?fmt(e.debit).padStart(10):"          "} ${e.credit?fmt(e.credit).padStart(10):"          "} ${wang?"N/A":fmt(bal).padStart(10)}`);
-  }
-  if(!wang){lines.push("__HR__",`Closing Outstanding: Rs. ${fmt(bal)}`)}
-  else {lines.push("__HR__","Wangkhei store uses MPF A/C settlement account; outstanding is not applicable.")}
+  const ev=[...sales,...pays].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
+  let bal=wang?0:(Number(st.openingDue)||0),rows=[];
+  if(!wang)rows.push(["", "Opening Due", st.id+"-OPEN", Number(st.openingDue)||0, 0, bal]);
+  for(const e of ev){bal=money2(bal+e.debit-e.credit);rows.push([e.date,e.type,e.ref,e.debit,e.credit,wang?"N/A":bal])}
+  const summary=wang?[["Account","MPF A/C Settlement"]]:[["Opening Due",Number(st.openingDue)||0],["Closing Outstanding",bal]];
+  const subtitle=`Store: ${st.name} | Phone: ${st.phone||"-"} | Generated: ${new Date().toLocaleString("en-IN")}`;
   const clean=st.name.replace(/[^a-z0-9]+/gi,"_");
-  return {blob:buildSimplePdf(lines,"PSM STORE LEDGER"),fileName:`PSM_Store_Ledger_${clean}_${today()}.pdf`}
+  return {blob:buildAccountingTablePdf({title:"STORE LEDGER",subtitle,headers:["Date","Type","Reference","Debit","Credit","Balance"],rows,summary}),fileName:`PSM_Store_Ledger_${clean}_${today()}.pdf`}
 }
+
 async function downloadStoreLedgerPdf(){
   try{const {blob,fileName}=await buildLedgerPdf();downloadPdfBlob(blob,fileName);audit("ledger","DOWNLOAD_PDF",document.getElementById("ledgerStore").value)}
   catch(e){toast(e.message)}
@@ -4645,40 +4795,151 @@ async function renderDashboard(){
 }
 
 async function getDateRangeReportData(){
- const from=document.getElementById("reportFrom")?.value||"",to=document.getElementById("reportTo")?.value||"",type=document.getElementById("reportType")?.value||"farmer";
- const ok=d=>(!from||d>=from)&&(!to||d<=to),farmers=new Map((await txAll("farmers")).map(x=>[x.id,x])),stores=await txAll("stores"),storeMap=new Map(stores.map(x=>[x.id,x])),liftings=await txAll("liftings"),liftMap=new Map(liftings.map(x=>[x.id,x])),sales=await txAll("sales"),payments=await txAll("payments"),sets=await txAll("singke_settlements");
- let headers=[],rows=[],title="";
- if(type==="farmer"){title="Farmer Liftings";headers=["Date","Invoice","Farmer","Cages","Birds","Kg","Rate","Net Payable"];rows=liftings.filter(x=>ok(x.liftingDate)).map(x=>[x.liftingDate,x.invoiceNumber||x.id,farmers.get(x.farmerId)?.name||x.farmerName||"",x.totalCages||0,x.totalBirds||0,Number(x.totalWeight)||0,Number(x.liftingRate)||0,Number(x.netAmount??x.payableAmount??x.liftingAmount)||0])}
- if(type==="sales"){title="Store Sales";headers=["Date","Invoice","Store","Cage","Kg","Rate","Net Amount","Paid","Outstanding"];rows=sales.filter(x=>ok(x.saleDate)).map(x=>[x.saleDate,x.invoiceNumber||x.id,x.storeName||storeMap.get(x.storeId)?.name||"",x.cageNumber||"",Number(x.weight??x.netWeight)||0,Number(x.salesRate??x.ratePerKg)||0,Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0,Number(x.paidAmount)||0,Number(x.outstanding)||0])}
- if(type==="wangkhei"){title="Wangkhei Adjustments";headers=["Date","Invoice","Kg","Adjustment"];const wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>s.id));rows=sales.filter(x=>ok(x.saleDate)&&(x.isWangkheiSale||wm.has(x.storeId))).map(x=>[x.saleDate,x.invoiceNumber||x.id,Number(x.weight??x.netWeight)||0,Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0])}
- if(type==="singke"){title="Singke Ledger";headers=["Date","Type","Reference","Kg","Debit","Credit","Running Due"];const p=await setting("singke_previous_due",{amount:0}),wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>s.id));let ev=[...liftings.map(x=>({date:x.liftingDate,type:"Lifting",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,d:Number(x.netAmount??x.payableAmount??x.liftingAmount)||0,c:0})),...sales.filter(x=>x.isWangkheiSale||wm.has(x.storeId)).map(x=>({date:x.saleDate,type:"Wangkhei",ref:x.invoiceNumber||x.id,kg:Number(x.weight??x.netWeight)||0,d:0,c:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0})),...sets.map(x=>({date:x.date,type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,d:0,c:Number(x.amount)||0}))].sort((a,b)=>String(a.date).localeCompare(String(b.date)));let bal=Number(p.amount)||0;for(const e of ev){if(from&&e.date<from){bal+=e.d-e.c;continue}if(to&&e.date>to)continue;bal+=e.d-e.c;rows.push([e.date,e.type,e.ref,e.kg,e.d,e.c,bal])}}
- if(type==="profit"){title="Profit";headers=["Date","Invoice","Store","Net Sales","Lifting Cost","Gross Profit"];rows=sales.filter(x=>ok(x.saleDate)).map(x=>{const sale=money2(x.netAmount??x.invoiceNetAmount??x.saleAmount),cost=saleLiftingCost(x,new Map([...liftMap].map(([k,v])=>[String(k),v])));return[x.saleDate,x.invoiceNumber||x.id,x.storeName||storeMap.get(x.storeId)?.name||"",sale,cost,money2(sale-cost)]})}
- if(type==="outstanding"){title="Outstanding as of "+(to||today());headers=["Store","Opening Due","Sales","Payments","Outstanding"];for(const st of stores.filter(s=>!s.isWangkhei&&!String(s.name||"").toLowerCase().includes("wangkhei"))){const end=to||"9999-12-31",sv=sales.filter(x=>x.storeId===st.id&&x.saleDate<=end),pv=payments.filter(x=>x.storeId===st.id&&x.paymentDate<=end),saleVal=sv.reduce((s,x)=>s+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount)||0),0),salePaid=sv.reduce((s,x)=>s+(Number(x.paidAmount)||0),0),direct=pv.reduce((s,x)=>s+(Number(x.amount)||0),0),out=(Number(st.openingDue)||0)+saleVal-salePaid-direct;rows.push([st.name,Number(st.openingDue)||0,saleVal,salePaid+direct,out])}}
- return {from,to,type,title,headers,rows};
+ const from=document.getElementById("reportFrom")?.value||"",to=document.getElementById("reportTo")?.value||"",type=document.getElementById("reportType")?.value||"summary";
+ const ok=d=>(!from||String(d||"")>=from)&&(!to||String(d||"")<=to);
+ const farmersArr=await txAll("farmers"),farmers=new Map(farmersArr.map(x=>[String(x.id),x]));
+ const stores=await txAll("stores"),storeMap=new Map(stores.map(x=>[String(x.id),x]));
+ const liftings=await txAll("liftings"),liftMap=new Map(liftings.map(x=>[String(x.id),x]));
+ const sales=await txAll("sales"),payments=await txAll("payments"),sets=await txAll("singke_settlements"),cages=await txAll("cages");
+ let headers=[],rows=[],title="",summary=[];
+
+ const periodSales=sales.filter(x=>ok(x.saleDate)),periodLift=liftings.filter(x=>ok(x.liftingDate)),periodPayments=payments.filter(x=>ok(x.paymentDate)),periodSets=sets.filter(x=>ok(x.date));
+ const netSales=money2(periodSales.reduce((s,x)=>s+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0));
+ const liftingPayable=money2(periodLift.reduce((s,x)=>s+(Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0),0));
+ const paymentsReceived=money2(periodPayments.reduce((s,x)=>s+(Number(x.amount)||0),0)+periodSales.reduce((s,x)=>s+(Number(x.paidAmount)||0),0));
+ const liftingCost=money2(periodSales.reduce((s,x)=>s+saleLiftingCost(x,liftMap),0));
+ const grossProfit=money2(netSales-liftingCost);
+
+ if(type==="summary"){
+   title="Accounting Summary";
+   headers=["Particular","Amount / Value","Notes"];
+   let outstanding=0;
+   for(const st of stores){
+     if(st.archived||st.isWangkhei||String(st.name||"").toLowerCase().includes("wangkhei"))continue;
+     outstanding+=Number((await storeSummary(st.id)).outstanding)||0;
+   }
+   const sg=await singkeSummary();
+   const wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>s.id));
+   const wang=money2(periodSales.filter(s=>s.isWangkheiSale||wm.has(s.storeId)).reduce((a,s)=>a+(Number(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)||0),0));
+   const settlements=money2(periodSets.reduce((a,x)=>a+(Number(x.amount)||0),0));
+   rows=[
+     ["Net Store Sales",netSales,"Selected period"],
+     ["Lifting Payable",liftingPayable,"Selected period"],
+     ["Payments Received",paymentsReceived,"Sale payments + payment receipts"],
+     ["Physical Lifting Cost of Sold Cages",liftingCost,"Used for gross profit"],
+     ["Gross Profit",grossProfit,"Net sales - lifting cost"],
+     ["Wangkhei Adjustments",wang,"Selected period"],
+     ["MPF / Singke Settlements",settlements,"Selected period"],
+     ["Current Regular Store Outstanding",money2(outstanding),"As of current database"],
+     ["Current MPF / Singke Remaining Due",money2(sg.remain),"As of current database"]
+   ];
+ }
+ if(type==="farmer"){
+   title="Farmer Lifting Purchase Register";
+   headers=["Date","Invoice","Farmer","Cages","Birds","Kg","Rate","Exact Amount","Round Off","Net Payable"];
+   rows=periodLift.map(x=>[x.liftingDate,x.invoiceNumber||x.id,farmers.get(String(x.farmerId))?.name||x.farmerName||"",Number(x.totalCages)||0,Number(x.totalBirds)||0,Number(x.totalWeight)||0,Number(x.liftingRate??x.ratePerKg)||0,Number(x.liftingAmount??x.totalAmount)||0,Number(x.roundOff)||0,Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0]);
+ }
+ if(type==="sales"){
+   title="Store Sales Register";
+   headers=["Date","Invoice","Store","Cages","Billed Kg","Physical Kg","Birds","Rate","Exact Amount","Round Off","Net Amount","Paid","Outstanding"];
+   rows=periodSales.map(x=>[x.saleDate,x.invoiceNumber||x.id,x.storeName||storeMap.get(String(x.storeId))?.name||"",Array.isArray(x.cageNumbers)?x.cageNumbers.join(", "):(x.cageNumber||""),Number(x.weight??x.netWeight)||0,salePhysicalWeight(x),Number(x.birdsCount??x.totalBirds)||0,Number(x.salesRate??x.ratePerKg)||0,Number(x.saleAmount??x.totalAmount)||0,Number(x.roundOff)||0,Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,Number(x.paidAmount)||0,Number(x.outstanding)||0]);
+ }
+ if(type==="payments"){
+   title="Store Payment Register";
+   headers=["Date","Receipt","Store","Mode","Reference","Previous Due","Amount Received","Remaining Due","Remarks"];
+   rows=periodPayments.map(x=>[x.paymentDate,x.receiptNumber||x.id,x.storeName||storeMap.get(String(x.storeId))?.name||"",x.paymentMode||"",x.referenceNumber||"",Number(x.previousDue)||0,Number(x.amount)||0,Number(x.remainingDue)||0,x.remarks||""]);
+ }
+ if(type==="storeledger"){
+   title="All Store Ledger Transactions";
+   headers=["Date","Store","Type","Reference","Debit","Credit","Running Balance"];
+   for(const st of stores.filter(s=>!s.isWangkhei&&!String(s.name||"").toLowerCase().includes("wangkhei"))){
+     const ev=[
+       ...sales.filter(x=>x.storeId===st.id).map(x=>({date:x.saleDate,type:"Sale",ref:x.invoiceNumber||x.id,d:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,c:Number(x.paidAmount)||0})),
+       ...payments.filter(x=>x.storeId===st.id).map(x=>({date:x.paymentDate,type:"Payment",ref:x.receiptNumber||x.referenceNumber||x.id,d:0,c:Number(x.amount)||0}))
+     ].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
+     let bal=Number(st.openingDue)||0;
+     for(const e of ev){
+       bal=money2(bal+e.d-e.c);
+       if(ok(e.date))rows.push([e.date,st.name,e.type,e.ref,e.d,e.c,bal]);
+     }
+   }
+ }
+ if(type==="outstanding"){
+   title="Store Outstanding Statement";
+   headers=["Store","Opening Due","Net Sales","Paid at Sale","Payment Receipts","Total Paid","Outstanding"];
+   const end=to||"9999-12-31";
+   for(const st of stores.filter(s=>!s.isWangkhei&&!String(s.name||"").toLowerCase().includes("wangkhei"))){
+     const sv=sales.filter(x=>x.storeId===st.id&&String(x.saleDate||"")<=end);
+     const pv=payments.filter(x=>x.storeId===st.id&&String(x.paymentDate||"")<=end);
+     const saleVal=money2(sv.reduce((s,x)=>s+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0));
+     const salePaid=money2(sv.reduce((s,x)=>s+(Number(x.paidAmount)||0),0));
+     const direct=money2(pv.reduce((s,x)=>s+(Number(x.amount)||0),0));
+     const out=money2((Number(st.openingDue)||0)+saleVal-salePaid-direct);
+     rows.push([st.name,Number(st.openingDue)||0,saleVal,salePaid,direct,money2(salePaid+direct),out]);
+   }
+ }
+ if(type==="singke"){
+   title="MPF / Singke Reconciliation Ledger";
+   headers=["Date","Type","Reference","Kg","Debit","Credit","Running Due"];
+   const p=await setting("singke_previous_due",{amount:0});
+   const wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>s.id));
+   let ev=[
+     ...liftings.map(x=>({date:x.liftingDate,type:"Lifting Payable",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,d:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,c:0})),
+     ...sales.filter(x=>x.isWangkheiSale||wm.has(x.storeId)).map(x=>({date:x.saleDate,type:"Wangkhei Adjustment",ref:x.invoiceNumber||x.id,kg:Number(x.weight??x.netWeight)||0,d:0,c:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0})),
+     ...sets.map(x=>({date:x.date,type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,d:0,c:Number(x.amount)||0}))
+   ].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
+   let bal=Number(p.amount)||0;
+   for(const e of ev){
+     if(from&&e.date<from){bal=money2(bal+e.d-e.c);continue}
+     if(to&&e.date>to)continue;
+     bal=money2(bal+e.d-e.c);rows.push([e.date,e.type,e.ref,e.kg,e.d,e.c,bal]);
+   }
+ }
+ if(type==="wangkhei"){
+   title="Wangkhei Adjustment Register";
+   headers=["Date","Invoice","Store","Billed Kg","Net Adjustment"];
+   const wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>s.id));
+   rows=periodSales.filter(x=>x.isWangkheiSale||wm.has(x.storeId)).map(x=>[x.saleDate,x.invoiceNumber||x.id,x.storeName||storeMap.get(String(x.storeId))?.name||"Wangkhei",Number(x.weight??x.netWeight)||0,Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0]);
+ }
+ if(type==="profit"){
+   title="Gross Profit Statement";
+   headers=["Date","Invoice","Store","Net Sales","Physical Kg","Lifting Cost","Gross Profit"];
+   rows=periodSales.map(x=>{const sale=money2(x.netAmount??x.invoiceNetAmount??x.saleAmount),cost=saleLiftingCost(x,liftMap);return[x.saleDate,x.invoiceNumber||x.id,x.storeName||storeMap.get(String(x.storeId))?.name||"",sale,salePhysicalWeight(x),cost,money2(sale-cost)]});
+ }
+ if(type==="closing"){
+   title="Daily Closing Register";
+   headers=["Date","Liftings","Cages","Kg","Lifting Payable","Net Sales","Payment Receipts","MPF Settlements","Closed At"];
+   const closings=JSON.parse(localStorage.getItem("mpf_closings")||"[]").filter(x=>ok(x.date));
+   rows=closings.map(x=>[x.date,Number(x.liftings)||0,Number(x.cages)||0,Number(x.kg)||0,Number(x.liftingPayable)||0,Number(x.sales)||0,Number(x.payments)||0,Number(x.singkeSettlements)||0,x.closedAt||""]);
+ }
+ if(type==="inventory"){
+   title="Unsold Cage / Stock Statement";
+   headers=["Lifting Date","Cage No.","Farmer","Weight Kg","Birds","Avg Kg/Bird","Lifting Rate","Estimated Cost"];
+   rows=cages.filter(c=>!c.isSold).map(c=>{
+     const l=liftMap.get(String(c.liftingId)),f=farmers.get(String(c.farmerId||l?.farmerId));
+     const wt=Number(c.weight)||0,b=Number(c.birdCount)||0,rate=Number(l?.liftingRate??l?.ratePerKg)||0;
+     return[l?.liftingDate||"",c.cageNumber||c.id,f?.name||l?.farmerName||"",wt,b,b?money2(wt/b):0,rate,money2(wt*rate)];
+   }).filter(r=>ok(r[0]));
+ }
+
+ summary=[["Rows",rows.length],["Net Sales",netSales],["Lifting Payable",liftingPayable],["Payments",paymentsReceived],["Gross Profit",grossProfit]];
+ return {from,to,type,title,headers,rows,summary,totals:{netSales,liftingPayable,paymentsReceived,grossProfit}};
 }
+
 async function renderDateRangeReport(){
  const rf=document.getElementById("reportFrom"),rt=document.getElementById("reportTo");
  if(rf&&!rf.value){const d=new Date();rf.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`}
  if(rt&&!rt.value)rt.value=today();
  const r=await getDateRangeReportData(),head=document.getElementById("reportHead"),body=document.getElementById("reportRows"),sum=document.getElementById("reportSummary");
- if(head)head.innerHTML=`<tr><th>Date</th><th>ID</th><th>Name</th></tr>`;
  window._reportViewData=r;
- const mapRow=(row,i)=>{
-   const type=String(r.type||"").toLowerCase();
-   if(type==="farmer") return {date:String(row[0]??""),id:String(row[1]??`R${i+1}`),name:String(row[2]??"Farmer")};
-   if(type==="sales") return {date:String(row[0]??""),id:String(row[1]??`R${i+1}`),name:String(row[2]??"Store Sale")};
-   if(type==="wangkhei") return {date:String(row[0]??""),id:String(row[1]??`R${i+1}`),name:String(row[2]??"Wangkhei Adjustment")};
-   if(type==="singke") return {date:String(row[0]??""),id:String(row[2]??row[1]??`R${i+1}`),name:String(row[1]??"Singke Transaction")};
-   if(type==="profit") return {date:String(row[0]??""),id:String(row[1]??`R${i+1}`),name:String(row[2]??"Profit")};
-   if(type==="outstanding") return {date:"—",id:String(row[0]??`R${i+1}`),name:String(row[0]??"Store")};
-   return {date:String(row[0]??""),id:String(row[1]??`R${i+1}`),name:String(row[2]??r.title)};
- };
- if(body)body.innerHTML=r.rows.length?r.rows.map((row,i)=>{
-   const m=mapRow(row,i);
-   return `<tr onclick="openReportListDetails(${i})"><td>${esc(m.date)}</td><td class="mono">${esc(m.id)}</td><td>${esc(m.name)}</td></tr>`;
- }).join(""):`<tr><td colspan="3" class="empty">No records</td></tr>`;
- if(sum)sum.textContent=`${r.title} • ${r.from||"Beginning"} to ${r.to||"Latest"} • ${r.rows.length} row(s)`;
+ if(head)head.innerHTML=`<tr>${r.headers.map(h=>`<th>${esc(h)}</th>`).join("")}</tr>`;
+ if(body)body.innerHTML=r.rows.length?r.rows.map((row,i)=>`<tr onclick="openReportListDetails(${i})">${row.map(v=>`<td>${typeof v==="number"?fmt(v):esc(v)}</td>`).join("")}</tr>`).join(""):`<tr><td colspan="${Math.max(1,r.headers.length)}" class="empty">No records for this period.</td></tr>`;
+ if(sum)sum.innerHTML=`<b>${esc(r.title)}</b> • ${esc(r.from||"Beginning")} to ${esc(r.to||"Latest")} • ${r.rows.length} row(s)`;
+ const t=r.totals||{};
+ const a=document.getElementById("accSalesTotal"),b=document.getElementById("accLiftingTotal"),c=document.getElementById("accPaymentsTotal"),d=document.getElementById("accProfitTotal");
+ if(a)a.textContent=fmt(t.netSales);if(b)b.textContent=fmt(t.liftingPayable);if(c)c.textContent=fmt(t.paymentsReceived);if(d)d.textContent=fmt(t.grossProfit);
 }
+
 function openReportListDetails(i){
  const r=window._reportViewData,row=r?.rows?.[i];if(!r||!row)return;
  const obj={};r.headers.forEach((h,j)=>obj[h]=row[j]);
@@ -4687,10 +4948,38 @@ function openReportListDetails(i){
 function csvCell(v){const s=String(v??"");return /[",\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s}
 async function exportDateRangeReportCSV(){const r=await getDateRangeReportData(),txt=[r.headers,...r.rows].map(row=>row.map(csvCell).join(",")).join("\r\n");downloadBlob(new Blob(["\ufeff"+txt],{type:"text/csv;charset=utf-8"}),`PSM_${r.type}_${r.from||"all"}_${r.to||today()}.csv`)}
 function xmlEsc(v){return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+
+async function downloadDateRangeReportPdf(){
+ try{
+   const r=await getDateRangeReportData();
+   const subtitle=`Period: ${r.from||"Beginning"} to ${r.to||"Latest"} | Generated: ${new Date().toLocaleString("en-IN")}`;
+   const blob=buildAccountingTablePdf({title:r.title,subtitle,headers:r.headers,rows:r.rows,summary:r.summary});
+   await downloadPdfBlob(blob,`PSM_${r.type}_${r.from||"all"}_${r.to||today()}`);
+   audit("reports","ACCOUNTING_PDF",r.type,`${r.from||"all"} to ${r.to||today()}`);
+ }catch(e){toast("PDF statement error: "+e.message)}
+}
+
 async function exportDateRangeReportExcel(){
- const r=await getDateRangeReportData(),rows=[r.headers,...r.rows].map(row=>`<Row>${row.map(v=>`<Cell><Data ss:Type="${typeof v==="number"?"Number":"String"}">${xmlEsc(v)}</Data></Cell>`).join("")}</Row>`).join("");
- const xml=`<?xml version="1.0"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="${xmlEsc(r.title).slice(0,31)}"><Table>${rows}</Table></Worksheet></Workbook>`;
- downloadBlob(new Blob([xml],{type:"application/vnd.ms-excel"}),`PSM_${r.type}_${r.from||"all"}_${r.to||today()}.xls`);
+ const r=await getDateRangeReportData();
+ const titleRows=[
+   ["PSM BROILER DISTRIBUTOR"],
+   [r.title],
+   [`Period: ${r.from||"Beginning"} to ${r.to||"Latest"}`],
+   [`Generated: ${new Date().toLocaleString("en-IN")}`],
+   []
+ ];
+ const totalRows=[[],["ACCOUNTING CHECK SUMMARY"],...((r.summary||[]).map(x=>[x[0],x[1]]))];
+ const all=[...titleRows,r.headers,...r.rows,...totalRows];
+ const rows=all.map(row=>`<Row>${row.map(v=>`<Cell><Data ss:Type="${typeof v==="number"?"Number":"String"}">${xmlEsc(v)}</Data></Cell>`).join("")}</Row>`).join("");
+ const xml=`<?xml version="1.0"?>
+ <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+  <Styles>
+   <Style ss:ID="Default"><Alignment ss:Vertical="Center"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+  </Styles>
+  <Worksheet ss:Name="${xmlEsc(r.title).slice(0,31)}"><Table>${rows}</Table></Worksheet>
+ </Workbook>`;
+ downloadBlob(new Blob([xml],{type:"application/vnd.ms-excel"}),`PSM_Accounting_${r.type}_${r.from||"all"}_${r.to||today()}.xls`);
+ audit("reports","ACCOUNTING_EXCEL",r.type,`${r.from||"all"} to ${r.to||today()}`);
 }
 
 function renderAudit(){
