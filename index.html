@@ -1351,6 +1351,41 @@ input,select,textarea,button{touch-action:manipulation}
  .psm-result,.psm-recent-item{min-height:48px}
 }
 
+
+/* ===== MULTI-CAGE SALES + PAYMENT WHATSAPP ===== */
+.cage-select-list{display:grid;gap:7px;max-height:330px;overflow:auto;border:1px solid #e4e7ec;border-radius:12px;padding:8px;background:#f9fafb;-webkit-overflow-scrolling:touch}
+.cage-select-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;background:#fff;border:1px solid #eaecf0;border-radius:10px;padding:9px;cursor:pointer}
+.cage-select-row input{width:20px;height:20px;accent-color:#b91c1c}
+.cage-select-row .main{padding:0!important;min-width:0}
+.cage-select-row .name{font-weight:850;color:#101828}
+.cage-select-row .meta{font-size:11px;color:#667085;margin-top:2px}
+.cage-select-row .kg{font-weight:850;white-space:nowrap}
+.sale-selected-summary{margin-top:8px;padding:10px;border-radius:10px;background:#fff7f7;border:1px solid #fecaca;font-size:12px}
+.payment-share-card{padding:12px;border:1px solid #d1fadf;background:#ecfdf3;border-radius:12px;margin-top:12px}
+@media(max-width:820px){.cage-select-list{max-height:42dvh}.cage-select-row{min-height:54px}}
+
+
+/* ===== COMPACT LIFTING CAGE ENTRY ===== */
+.cage-entry-editor{display:grid;grid-template-columns:minmax(110px,1fr) minmax(110px,1fr) minmax(95px,.8fr) minmax(120px,.9fr) auto;gap:8px;align-items:end;padding:10px;border:1px solid #fecaca;background:#fff7f7;border-radius:12px}
+.entered-cages-list{display:grid;gap:6px}
+.entered-cage-row{display:grid;grid-template-columns:1.1fr .9fr .8fr 1fr auto;gap:8px;align-items:center;padding:9px 10px;background:#fff;border:1px solid #e4e7ec;border-radius:10px}
+.entered-cage-row .ec-label{font-size:9px;text-transform:uppercase;color:#667085;font-weight:850;display:block}
+.entered-cage-row .ec-value{font-weight:850;color:#101828;white-space:nowrap}
+.entered-cage-row .avg{color:#b42318}
+@media(max-width:820px){
+ .cage-entry-editor{grid-template-columns:1fr 1fr}
+ .cage-entry-editor>button{grid-column:1/-1;min-height:46px}
+ .entered-cage-row{grid-template-columns:1.1fr .9fr .8fr 1fr auto;font-size:12px;overflow-x:auto}
+ .entered-cage-row .ec-value{font-size:12px}
+}
+@media print{
+ body.psm-print-invoice .app,body.psm-print-invoice #authScreen{display:none!important}
+ body.psm-print-invoice #modal{position:static!important;display:block!important;background:#fff!important;padding:0!important;overflow:visible!important}
+ body.psm-print-invoice #modal .dialog{width:100%!important;max-width:none!important;max-height:none!important;overflow:visible!important;padding:0!important;box-shadow:none!important}
+ body.psm-print-invoice #modal .close,body.psm-print-invoice .invoice-actions,body.psm-print-invoice .invoice-preview-template{display:none!important}
+ body.psm-print-invoice .psm-invoice{box-shadow:none!important;border:0!important;margin:0!important}
+}
+
 </style>
 <meta name="theme-color" content="#b91c1c">
 </head>
@@ -1499,7 +1534,15 @@ input,select,textarea,button{touch-action:manipulation}
   </div>
  </div>
  <div style="height:12px"></div>
- <div class="card"><div class="split"><div><b>Lifting Log</b><div class="sub">Farmer invoice, WhatsApp share, edit and delete</div></div></div><div style="height:8px"></div><div class="tablewrap"><table class="simple-list"><thead><tr><th>Date</th><th>ID</th><th>Name</th></tr></thead><tbody id="liftingRows"></tbody></table></div></div>
+ <div class="card">
+  <div class="split"><div><b>Lifting Log</b><div class="sub">Farmer invoice, WhatsApp share, edit and delete</div></div></div>
+  <div class="field" style="max-width:520px;margin-top:10px">
+   <label>Search Lifting</label>
+   <input id="liftingSearch" type="search" placeholder="Farmer name, phone, ID, invoice or date" autocomplete="off" oninput="renderLiftings()">
+  </div>
+  <div style="height:8px"></div>
+  <div class="tablewrap"><table class="simple-list"><thead><tr><th>Date</th><th>ID</th><th>Name</th></tr></thead><tbody id="liftingRows"></tbody></table></div>
+ </div>
 </section>
 
 
@@ -1514,11 +1557,19 @@ input,select,textarea,button{touch-action:manipulation}
         <span class="cage-chip">Cages: <span id="cageCountLive">0</span></span>
         <span class="cage-chip">Birds: <span id="cageBirdsLive">0</span></span>
         <span class="cage-chip">Weight: <span id="cageWeightLive">0.00</span> kg</span>
+        <span class="cage-chip">Avg: <span id="cageAvgLive">0.00</span> kg/bird</span>
       </div>
     </div>
-    <div id="cageInputs"></div>
+    <div class="cage-entry-editor">
+      <div class="field"><label>Cage No.</label><input id="ceNum" autocomplete="off" autocapitalize="characters" placeholder="Cage no." oninput="this.value=this.value.toUpperCase()" onkeydown="handleNewCageEditorEnter(event,this)"></div>
+      <div class="field"><label>Weight (kg)</label><input id="ceWeight" type="number" step="0.01" inputmode="decimal" placeholder="0.00" oninput="updateNewCageAverage()" onkeydown="handleNewCageEditorEnter(event,this)"></div>
+      <div class="field"><label>Birds</label><input id="ceBirds" type="number" inputmode="numeric" placeholder="0" oninput="updateNewCageAverage()" onkeydown="handleNewCageEditorEnter(event,this)"></div>
+      <div class="field"><label>Avg. Wt / Bird</label><input id="ceAvg" disabled value="0.00 kg"></div>
+      <button class="btn primary" type="button" onclick="commitNewCageEntry()">Add Cage</button>
+    </div>
+    <div class="sub" style="margin:10px 0 6px"><b>Entered Cages</b> — only saved cage entries are shown below.</div>
+    <div id="cageInputs" class="entered-cages-list"></div>
     <div class="action-group" style="margin-top:12px">
-      <button class="btn primary" onclick="addCageInput()">+ Add Cage</button>
       <button class="btn" onclick="undoLastCage()">↶ Undo Last Cage</button>
     </div>
     <div class="cage-finish-bar">
@@ -1529,13 +1580,13 @@ input,select,textarea,button{touch-action:manipulation}
 </section>
 
 <section id="v-lifting-complete" class="view">
- <div class="head"><div><h1>Lifting Completed</h1><p>Review, print or continue to the next operation.</p></div></div>
+ <div class="head"><div><h1>Lifting Completed</h1><p>Review, print/save as PDF, or continue to the next operation.</p></div></div>
  <div class="card print-lifting-summary" id="liftingCompletionSummary"></div>
  <div style="height:12px"></div>
  <div class="action-group no-print">
   <button class="btn primary" id="completeInvoiceBtn">Invoice</button>
   <button class="btn ok" id="completeWhatsAppBtn">WhatsApp</button>
-  <button class="btn" onclick="printLiftingCompletion()">Print Summary</button>
+  <button class="btn" onclick="printLiftingCompletion()">Print / Save PDF</button>
   <button class="btn" onclick="openLifting()">+ New Lifting</button>
   <button class="btn" onclick="goToView('sales')">Go to Sales →</button>
  </div>
@@ -1950,7 +2001,7 @@ async function openStoreDetails(storeId){
  openDetailsModal(s.name,`Store ${s.id}`,[
   ["Date",simpleDate(s.createdAt)],["Store ID",s.id],["Name",s.name],["Phone",s.phone],
   ["Opening Due",wang?"N/A":"Rs. "+fmt(f.opening)],["Sales","Rs. "+fmt(f.totalSales)],["Paid","Rs. "+fmt(f.totalPaid)],["Outstanding",wang?"N/A":"Rs. "+fmt(f.outstanding)],["Account",wang?"MPF A/C":"General"]
- ],`<button class="btn primary" onclick="closeModal();editStore('${s.id}')">Edit</button>${!wang?`<button class="btn" onclick="closeModal();sendOutstandingReminder('${s.id}')">WhatsApp</button>`:""}${S.role==="admin"?`<button class="btn danger" onclick="closeModal();deleteStore('${s.id}')">Delete</button>`:""}`);
+ ],`<button class="btn primary" onclick="closeModal();editStore('${s.id}')">Edit</button><button class="btn ok" onclick="closeModal();openPayment('${s.id}')">Payment</button>${!wang?`<button class="btn" onclick="closeModal();sendOutstandingReminder('${s.id}')">WhatsApp Reminder</button>`:""}${S.role==="admin"?`<button class="btn danger" onclick="closeModal();deleteStore('${s.id}')">Delete</button>`:""}`);
 }
 async function openLiftingDetails(lid){
  const l=await txGet("liftings",lid);if(!l)return toast("Lifting not found.");
@@ -1980,10 +2031,11 @@ async function openLiftingDetails(lid){
 }
 async function openSaleDetails(sid){
  const s=await txGet("sales",sid);if(!s)return toast("Sale not found.");
- const st=await txGet("stores",s.storeId),f=await txGet("farmers",s.farmerId),wang=!!(st?.isWangkhei||s.isWangkheiSale);
+ const st=await txGet("stores",s.storeId),wang=!!(st?.isWangkhei||s.isWangkheiSale);
+ const details=Array.isArray(s.cageDetails)&&s.cageDetails.length?s.cageDetails:[{cageNumber:s.cageNumber||s.cageId||"",weight:Number(s.weight??s.netWeight)||0,birdCount:Number(s.birdsCount)||0}];
  openDetailsModal(st?.name||s.storeName||"Sale",`Invoice ${s.invoiceNumber||s.id}`,[
   ["Date",s.saleDate],["ID",s.invoiceNumber||s.id],["Store",st?.name||s.storeName],["Store ID",s.storeId],
-  ["Farmer",f?.name||s.farmerName||"—"],["Cage",s.cageNumber||s.cageId],["Birds",s.birdsCount||0],["Weight",fmt(s.weight??s.netWeight)+" kg"],
+  ["Cages",details.map(x=>x.cageNumber||x.cageId).join(", ")],["No. of Cages",details.length],["Birds",s.birdsCount||0],["Weight",fmt(s.weight??s.netWeight)+" kg"],
   ["Rate","Rs. "+fmt(s.salesRate??s.ratePerKg)+" / kg"],["Invoice Amount","Rs. "+fmt(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)],
   ["Previous Due",wang?"N/A":"Rs. "+fmt(s.previousDue)],["Paid","Rs. "+fmt(s.paidAmount)],["Outstanding",wang?"N/A":"Rs. "+fmt(s.outstanding)],["Payment",s.paymentMethod||"—"],["Remarks",s.remarks||"—"]
  ],`<button class="btn" onclick="closeModal();editSale('${s.id}')">Edit</button><button class="btn primary" onclick="closeModal();previewStoreInvoice('${s.id}')">Invoice</button><button class="btn" onclick="shareStoreInvoiceWhatsApp('${s.id}')">WhatsApp</button><button class="btn" onclick="sendStoreInvoiceSms('${s.id}')">SMS</button>${S.role==="admin"?`<button class="btn danger" onclick="closeModal();deleteSale('${s.id}')">Delete</button>`:""}`);
@@ -2505,9 +2557,10 @@ async function completeLiftingDetails(){
 
   pushAppView("lifting-cages");
   document.getElementById("fullCageContext").innerHTML=`Farmer: <b>${esc(farmer.name)}</b> &nbsp;•&nbsp; Date: <b>${esc(date)}</b> &nbsp;•&nbsp; Rate: <b>₹${fmt(rate)}/kg</b>`;
+  window._enteredLiftingCages=[];
   const host=document.getElementById("cageInputs"); if(host)host.innerHTML="";
   const old=window._liftingOldCages||[];
-  if(old.length)old.forEach(c=>addCageInput(c));else addCageInput();
+  if(old.length)old.forEach(c=>addCageInput(c));else {renderEnteredCageRows();updateCageEntrySummary();setTimeout(()=>document.getElementById("ceNum")?.focus(),0)}
   const btn=document.getElementById("fullCageCompleteBtn");if(btn)btn.textContent=window._liftingEditId?"Update Lifting":"Complete Lifting";
 }
 
@@ -2529,7 +2582,7 @@ function backToLiftingDetailsFromFullPage(){
   },0);
 }
 function cancelFullPageCageEntry(){
-  window._liftingDraft=null;window._liftingOldCages=[];window._liftingEditId="";
+  window._liftingDraft=null;window._liftingOldCages=[];window._liftingEditId="";window._enteredLiftingCages=[];
   pushAppView("lifting");refreshAll();
 }
 
@@ -2542,60 +2595,81 @@ function handleCageEnter(e,input){
  if(input.classList.contains("ciNum")){addCageInput();return}
 }
 function collectLiftingCageDraft(){
- const nums=[...document.querySelectorAll(".ciNum")],ws=[...document.querySelectorAll(".ciWeight")],bs=[...document.querySelectorAll(".ciBirds")],cages=[];
- if(!nums.length)throw new Error("Add at least one cage.");
- for(let i=0;i<nums.length;i++){
-   const w=Number(ws[i].value),b=Number(bs[i].value),n=String(nums[i].value||"").trim().toUpperCase();
-   nums[i].value=n;
+ const rows=Array.isArray(window._enteredLiftingCages)?window._enteredLiftingCages:[];
+ if(!rows.length)throw new Error("Add at least one cage.");
+ return rows.map((c,i)=>{
+   const n=String(c.cageNumber||"").trim().toUpperCase(),w=Number(c.weight),b=Number(c.birdCount);
    if(!n||w<=0||b<=0)throw new Error(`Cage ${i+1} needs weight, bird count and cage number.`);
-   cages.push({cageNumber:n,weight:w,birdCount:b});
- }
- return cages;
+   return {cageNumber:n,weight:w,birdCount:b};
+ });
 }
 
 function removeCageInput(btn){
-  const row=btn.closest(".cage-entry-row");
-  if(!row)return;
-  row.remove();
-  renumberCageRows();
-  updateCageEntrySummary();
-  toast("Cage entry removed.");
+ const idx=Number(btn?.dataset?.index);
+ if(!Number.isInteger(idx)||idx<0)return;
+ window._enteredLiftingCages=(window._enteredLiftingCages||[]).filter((_,i)=>i!==idx);
+ renderEnteredCageRows();updateCageEntrySummary();toast("Cage entry removed.");
 }
 
 function undoLastCage(){
-  const rows=[...document.querySelectorAll("#cageInputs .cage-entry-row")];
-  if(!rows.length)return toast("No cage to undo.");
-  rows[rows.length-1].remove();
-  renumberCageRows();
-  updateCageEntrySummary();
-  toast("Last cage reverted.");
+ const rows=window._enteredLiftingCages||[];
+ if(!rows.length)return toast("No cage to undo.");
+ rows.pop();renderEnteredCageRows();updateCageEntrySummary();toast("Last cage reverted.");
 }
 
-function renumberCageRows(){
-  [...document.querySelectorAll("#cageInputs .cage-entry-row")].forEach((row,i)=>{
-    const idx=row.querySelector(".cage-index"); if(idx)idx.textContent=`Cage ${i+1}`;
-  });
-}
+function renumberCageRows(){renderEnteredCageRows()}
 
 function updateCageEntrySummary(){
-  const rows=[...document.querySelectorAll("#cageInputs .cage-entry-row")];
-  const birds=rows.reduce((s,r)=>s+(Number(r.querySelector(".ciBirds")?.value)||0),0);
-  const weight=rows.reduce((s,r)=>s+(Number(r.querySelector(".ciWeight")?.value)||0),0);
-  const c=document.getElementById("cageCountLive"),b=document.getElementById("cageBirdsLive"),w=document.getElementById("cageWeightLive");
-  if(c)c.textContent=rows.length;if(b)b.textContent=birds;if(w)w.textContent=fmt(weight);
+ const rows=window._enteredLiftingCages||[];
+ const birds=rows.reduce((s,r)=>s+(Number(r.birdCount)||0),0);
+ const weight=rows.reduce((s,r)=>s+(Number(r.weight)||0),0);
+ const avg=birds?weight/birds:0;
+ const c=document.getElementById("cageCountLive"),b=document.getElementById("cageBirdsLive"),w=document.getElementById("cageWeightLive"),a=document.getElementById("cageAvgLive");
+ if(c)c.textContent=rows.length;if(b)b.textContent=birds;if(w)w.textContent=fmt(weight);if(a)a.textContent=fmt(avg);
 }
 
 function addCageInput(prefill={}){
-  const host=document.getElementById("cageInputs");if(!host)return;
-  const d=document.createElement("div");d.className="cage-entry-row";
-  const n=host.querySelectorAll(".cage-entry-row").length+1;
-  const cageValue=String(prefill.cageNumber??"").toUpperCase();
-  d.innerHTML=`
-    <div class="field"><div class="cage-index">Cage ${n}</div><label>Weight (kg)</label><input class="ciWeight" type="number" step="0.01" inputmode="decimal" value="${prefill.weight??""}" placeholder="0.00" oninput="updateCageEntrySummary()" onkeydown="handleCageEnter(event,this)"></div>
-    <div class="field"><label>Birds (Nos.)</label><input class="ciBirds" type="number" inputmode="numeric" value="${prefill.birdCount??""}" placeholder="0" oninput="updateCageEntrySummary()" onkeydown="handleCageEnter(event,this)"></div>
-    <div class="field"><label>Cage No.</label><input class="ciNum" value="${esc(cageValue)}" placeholder="Enter cage no." autocomplete="off" autocapitalize="characters" oninput="this.value=this.value.toUpperCase()" onkeydown="handleCageEnter(event,this)"></div>
-    <button type="button" class="btn danger cage-remove" onclick="removeCageInput(this)">Remove</button>`;
-  host.appendChild(d);renumberCageRows();updateCageEntrySummary();setTimeout(()=>d.querySelector(".ciWeight")?.focus(),0);
+ if(!Array.isArray(window._enteredLiftingCages))window._enteredLiftingCages=[];
+ const n=String(prefill.cageNumber??"").trim().toUpperCase(),w=Number(prefill.weight)||0,b=Number(prefill.birdCount)||0;
+ if(n&&w>0&&b>0){
+   window._enteredLiftingCages.push({cageNumber:n,weight:w,birdCount:b});
+   renderEnteredCageRows();updateCageEntrySummary();return;
+ }
+ const num=document.getElementById("ceNum"),wt=document.getElementById("ceWeight"),birds=document.getElementById("ceBirds");
+ if(num){num.value=n;setTimeout(()=>num.focus(),0)}if(wt&&w)wt.value=w;if(birds&&b)birds.value=b;updateNewCageAverage();
+}
+function updateNewCageAverage(){
+ const w=Number(document.getElementById("ceWeight")?.value)||0,b=Number(document.getElementById("ceBirds")?.value)||0;
+ const a=document.getElementById("ceAvg");if(a)a.value=`${fmt(b?w/b:0)} kg`;
+}
+function handleNewCageEditorEnter(e,input){
+ if(e.key!=="Enter")return;e.preventDefault();
+ if(input.id==="ceNum")return document.getElementById("ceWeight")?.focus();
+ if(input.id==="ceWeight")return document.getElementById("ceBirds")?.focus();
+ if(input.id==="ceBirds")return commitNewCageEntry();
+}
+function commitNewCageEntry(){
+ const n=String(document.getElementById("ceNum")?.value||"").trim().toUpperCase(),w=Number(document.getElementById("ceWeight")?.value),b=Number(document.getElementById("ceBirds")?.value);
+ if(!n||w<=0||b<=0)return toast("Enter cage number, weight and birds.");
+ const rows=window._enteredLiftingCages||(window._enteredLiftingCages=[]);
+ if(rows.some(c=>String(c.cageNumber).toUpperCase()===n))return toast(`Cage ${n} is already entered.`);
+ rows.push({cageNumber:n,weight:w,birdCount:b});
+ document.getElementById("ceNum").value="";document.getElementById("ceWeight").value="";document.getElementById("ceBirds").value="";updateNewCageAverage();
+ renderEnteredCageRows();updateCageEntrySummary();document.getElementById("ceNum")?.focus();
+}
+function renderEnteredCageRows(){
+ const host=document.getElementById("cageInputs");if(!host)return;
+ const rows=window._enteredLiftingCages||[];
+ host.innerHTML=rows.length?rows.map((c,i)=>{
+   const avg=Number(c.birdCount)?Number(c.weight)/Number(c.birdCount):0;
+   return `<div class="entered-cage-row">
+    <div><span class="ec-label">Cage No.</span><span class="ec-value">${esc(c.cageNumber)}</span></div>
+    <div><span class="ec-label">Wt.</span><span class="ec-value">${fmt(c.weight)} kg</span></div>
+    <div><span class="ec-label">Birds</span><span class="ec-value">${c.birdCount||0}</span></div>
+    <div><span class="ec-label">Avg. Wt.</span><span class="ec-value avg">${fmt(avg)} kg</span></div>
+    <button type="button" class="btn danger cage-remove" data-index="${i}" onclick="removeCageInput(this)">×</button>
+   </div>`;
+ }).join(""):`<div class="empty">No cages entered yet.</div>`;
 }
 
 async function confirmLiftingSave(editId=""){
@@ -2619,6 +2693,7 @@ async function confirmLiftingSave(editId=""){
     <div class="confirm-item"><div class="k">Total Cages</div><div class="v">${cages.length}</div></div>
     <div class="confirm-item"><div class="k">Total Birds</div><div class="v">${totalBirds}</div></div>
     <div class="confirm-item"><div class="k">Total Kg</div><div class="v">${fmt(totalKg)} kg</div></div>
+    <div class="confirm-item"><div class="k">Avg. Wt / Bird</div><div class="v">${fmt(avg)} kg</div></div>
     <div class="confirm-item"><div class="k">Rate</div><div class="v">₹${fmt(draft.rate)}/kg</div></div>
     <div class="confirm-item"><div class="k">Exact Amount</div><div class="v">₹${fmt(exact)}</div></div>
     <div class="confirm-item"><div class="k">Round Off</div><div class="v">${rr.roundOff>=0?"+":""}₹${fmt(rr.roundOff)}</div></div>
@@ -2694,18 +2769,135 @@ async function saveStore(){
  let r={id:await nextSimpleId("stores","S"),name,phone,openingDue,isWangkhei,singkeAccount:isWangkhei?"Singke":"General",createdAt:iso(),updatedAt:iso()};
  await txPut("stores",r);queueCloud("stores","UPSERT",r);await setSetting("store_meta_"+r.id,{openingDue,isWangkhei,updatedAt:r.updatedAt});audit("stores","CREATE",r.id);clearCurrentFormDraft();closeModal();refreshAll()
 }
-async function openPayment(){let stores=(await txAll("stores"));if(!stores.length)return toast("Add a store first.");openModal(`<h3>Record Store Payment</h3><div class="grid g2"><div class="field"><label>Store</label><select id="pStore">${stores.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></div><div class="field"><label>Date</label><input id="pDate" type="date" value="${today()}"></div><div class="field"><label>Amount ₹</label><input id="pAmt" type="number" step="0.01"></div><div class="field"><label>Mode</label><select id="pMode"><option>Cash</option><option>UPI</option><option>Bank</option><option>Cheque</option></select></div><div class="field"><label>Reference</label><input id="pRef"></div><div class="field"><label>Remarks</label><input id="pRem"></div></div><div style="height:12px"></div><button class="btn primary" onclick="savePayment()">Save Payment</button>`)}
-async function savePayment(){
- let date=document.getElementById("pDate").value;
- let r={id:id("PAY"),receiptNumber:await nextSequentialNumber("payment",date),storeId:document.getElementById("pStore").value,paymentDate:date,amount:Number(document.getElementById("pAmt").value)||0,paymentMode:document.getElementById("pMode").value,referenceNumber:document.getElementById("pRef").value.trim(),remarks:document.getElementById("pRem").value.trim(),createdAt:iso(),updatedAt:iso()};
- let s=await txGet("stores",r.storeId);r.storeName=s?.name||"";
- if(!r.paymentDate||r.amount<=0)return toast("Valid date and amount required."); const payDup=(await txAll("payments")).find(x=>x.storeId===r.storeId&&x.paymentDate===r.paymentDate&&Math.abs(Number(x.amount)-r.amount)<0.01&&String(x.paymentMode||"")===String(r.paymentMode||"")&&String(x.referenceNumber||"")===String(r.referenceNumber||""));if(payDup&&!confirm(`Possible duplicate payment found (${payDup.receiptNumber||payDup.id}). Save another payment anyway?`))return;
- if((await txAll("payments")).some(x=>x.receiptNumber===r.receiptNumber))return toast("Receipt number conflict. Please retry.");
- await txPut("payments",r);queueCloud("payments","UPSERT",r);audit("payments","CREATE",r.id,r.receiptNumber);clearCurrentFormDraft();closeModal();refreshAll()
+async function openPayment(preselectStoreId=""){
+ const stores=(await txAll("stores")).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+ if(!stores.length)return toast("Add a store first.");
+ openModal(`<h3>Record Store Payment</h3>
+ <div class="grid g2">
+  <div class="field"><label>Store</label><select id="pStore" onchange="updatePaymentStoreDue()">${stores.map(s=>`<option value="${s.id}" ${String(s.id)===String(preselectStoreId)?"selected":""}>${esc(s.name)}</option>`).join("")}</select></div>
+  <div class="field"><label>Current Due ₹</label><input id="pCurrentDue" disabled value="Loading…"></div>
+  <div class="field"><label>Date</label><input id="pDate" type="date" value="${today()}"></div>
+  <div class="field"><label>Amount ₹</label><input id="pAmt" type="number" step="0.01" min="0" oninput="updatePaymentRemainingPreview()"></div>
+  <div class="field"><label>Mode</label><select id="pMode"><option>Cash</option><option>UPI</option><option>Bank</option><option>Cheque</option></select></div>
+  <div class="field"><label>Remaining Due ₹</label><input id="pRemainingDue" disabled value="0.00"></div>
+  <div class="field"><label>Reference</label><input id="pRef"></div>
+  <div class="field"><label>Remarks</label><input id="pRem"></div>
+ </div>
+ <div style="height:12px"></div><button class="btn primary" onclick="savePayment()">Save Payment</button>`);
+ await updatePaymentStoreDue();
+}
+async function updatePaymentStoreDue(){
+ const storeId=document.getElementById("pStore")?.value,el=document.getElementById("pCurrentDue");
+ if(!storeId||!el)return;
+ const sum=await storeSummary(storeId);
+ el.dataset.value=String(Number(sum.outstanding)||0);
+ el.value=fmt(sum.outstanding);
+ updatePaymentRemainingPreview();
+}
+function updatePaymentRemainingPreview(){
+ const due=Number(document.getElementById("pCurrentDue")?.dataset?.value)||0;
+ const paid=Number(document.getElementById("pAmt")?.value)||0;
+ const el=document.getElementById("pRemainingDue");
+ if(el)el.value=fmt(due-paid);
+}
+async function shareStorePaymentWhatsApp(paymentId){
+ try{
+  const pmt=await txGet("payments",paymentId);if(!pmt)throw new Error("Payment not found.");
+  const st=await txGet("stores",pmt.storeId);
+  const phone=normalizeWhatsappPhone(st?.phone||pmt.storePhone);
+  if(!phone)return toast("No phone number available for this store.");
+  const previous=Number(pmt.previousDue)||0,remaining=Number(pmt.remainingDue ?? (previous-Number(pmt.amount||0)))||0;
+  const msg=`Payment Received - PSM Broiler Distributor
+Receipt: ${pmt.receiptNumber||pmt.id}
+Store: ${st?.name||pmt.storeName||""}
+Date: ${pmt.paymentDate||""}
+Previous Due: Rs. ${fmt(previous)}
+Paid Amount: Rs. ${fmt(pmt.amount)}
+Mode: ${pmt.paymentMode||"-"}
+Remaining Due: Rs. ${fmt(remaining)}
+
+Thank you.`;
+  openWhatsAppUrl(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`);
+  audit("payments","WHATSAPP",paymentId,`₹${fmt(pmt.amount)}`);
+ }catch(e){toast("WhatsApp share error: "+e.message)}
+}
+async function showPaymentCompletion(paymentId){
+ const pmt=await txGet("payments",paymentId);if(!pmt)return;
+ const st=await txGet("stores",pmt.storeId);
+ openModal(`<h3>Payment Saved</h3>
+ <div class="payment-share-card">
+  <div><b>${esc(st?.name||pmt.storeName||"Store")}</b></div>
+  <div style="margin-top:8px">Previous Due: <b>₹${fmt(pmt.previousDue)}</b></div>
+  <div>Paid Amount: <b>₹${fmt(pmt.amount)}</b></div>
+  <div>Mode: <b>${esc(pmt.paymentMode||"-")}</b></div>
+  <div>Remaining Due: <b>₹${fmt(pmt.remainingDue)}</b></div>
+ </div>
+ <div style="height:12px"></div>
+ <button class="btn ok" onclick="shareStorePaymentWhatsApp('${paymentId}')">Share on WhatsApp</button>
+ <button class="btn" onclick="closeModal()">Done</button>`);
 }
 
-async function openSale(){await reconcileCageInventoryState({sync:true});let stores=(await txAll("stores")),cages=(await txAll("cages")).filter(c=>!c.isSold);if(!stores.length)return toast("Add a store first.");if(!cages.length)return toast("No unsold cages available.");let lifts=await txAll("liftings"),farmers=await txAll("farmers");let lm=new Map(lifts.map(x=>[x.id,x])),fm=new Map(farmers.map(x=>[x.id,x]));openModal(`<h3>New Store Sale</h3><div class="grid g2"><div class="field"><label>Date</label><input id="saDate" type="date" value="${today()}"></div><div class="field"><label>Store</label><select id="saStore" onchange="updateSaleStoreOutstanding()">${stores.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></div><div class="field"><label>Current Store Outstanding</label><input id="saOutstanding" value="Loading..." disabled></div><div class="field"><label>Cage</label><select id="saCage" onchange="fillSaleWeight()">${cages.map(c=>{let l=lm.get(c.liftingId),f=fm.get(c.farmerId);return `<option value="${c.id}" data-w="${c.weight}">${esc(c.cageNumber)} — ${fmt(c.weight)} kg — ${esc(f?.name||l?.farmerName||"")}</option>`}).join("")}</select></div><div class="field"><label>Billed Weight kg</label><input id="saWeight" type="number" step="0.01"></div><div class="field"><label>Sales Rate ₹/kg</label><input id="saRate" type="number" step="0.01"></div><div class="field"><label>Paid Amount ₹</label><input id="saPaid" type="number" step="0.01" value="0"></div><div class="field"><label>Payment Method</label><select id="saMode"><option>Cash</option><option>UPI</option><option>Credit</option><option>Bank</option></select></div><div class="field"><label>Remarks</label><input id="saRem"></div></div><div style="height:12px"></div><button class="btn primary" onclick="saveSale()">Save Sale</button>`);fillSaleWeight();updateSaleStoreOutstanding()}
-function fillSaleWeight(){let o=document.getElementById("saCage")?.selectedOptions[0];if(o)document.getElementById("saWeight").value=o.dataset.w||""}
+async function savePayment(){
+ const date=document.getElementById("pDate").value,storeId=document.getElementById("pStore").value,amount=Number(document.getElementById("pAmt").value)||0;
+ if(!date||!storeId||amount<=0)return toast("Valid store, date and amount required.");
+ const s=await txGet("stores",storeId);if(!s)return toast("Store not found.");
+ const before=await storeSummary(storeId);
+ const previousDue=Number(before.outstanding)||0,remainingDue=Math.round((previousDue-amount)*100)/100;
+ const r={id:id("PAY"),receiptNumber:await nextSequentialNumber("payment",date),storeId,paymentDate:date,amount,
+   paymentMode:document.getElementById("pMode").value,referenceNumber:document.getElementById("pRef").value.trim(),
+   remarks:document.getElementById("pRem").value.trim(),storeName:s.name||"",storePhone:s.phone||"",
+   previousDue,remainingDue,createdAt:iso(),updatedAt:iso()};
+ const payDup=(await txAll("payments")).find(x=>x.storeId===r.storeId&&x.paymentDate===r.paymentDate&&Math.abs(Number(x.amount)-r.amount)<0.01&&String(x.paymentMode||"")===String(r.paymentMode||"")&&String(x.referenceNumber||"")===String(r.referenceNumber||""));
+ if(payDup&&!confirm(`Possible duplicate payment found (${payDup.receiptNumber||payDup.id}). Save another payment anyway?`))return;
+ if((await txAll("payments")).some(x=>x.receiptNumber===r.receiptNumber))return toast("Receipt number conflict. Please retry.");
+ await txPut("payments",r);queueCloud("payments","UPSERT",r);audit("payments","CREATE",r.id,r.receiptNumber);
+ clearCurrentFormDraft();closeModal();await refreshAll();await showPaymentCompletion(r.id);
+}
+
+async function openSale(){
+ await reconcileCageInventoryState({sync:true});
+ const stores=(await txAll("stores")).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+ const cages=(await txAll("cages")).filter(c=>!c.isSold);
+ if(!stores.length)return toast("Add a store first.");
+ if(!cages.length)return toast("No unsold cages available.");
+ const lifts=await txAll("liftings"),farmers=await txAll("farmers"),lm=new Map(lifts.map(x=>[x.id,x])),fm=new Map(farmers.map(x=>[x.id,x]));
+ window._saleAvailableCages=cages;
+ const list=cages.map(c=>{
+   const l=lm.get(c.liftingId),f=fm.get(c.farmerId);
+   return `<label class="cage-select-row"><input class="saCageCheck" type="checkbox" value="${esc(c.id)}" onchange="updateMultiCageSaleSummary()">
+    <span class="main"><span class="name">Cage ${esc(c.cageNumber||c.id)}</span><span class="meta">${esc(f?.name||l?.farmerName||"")} · ${c.birdCount||0} birds</span></span>
+    <span class="kg">${fmt(c.weight)} kg</span></label>`;
+ }).join("");
+ openModal(`<h3>New Store Sale</h3>
+  <div class="grid g2">
+   <div class="field"><label>Date</label><input id="saDate" type="date" value="${today()}"></div>
+   <div class="field"><label>Store</label><select id="saStore" onchange="updateSaleStoreOutstanding()">${stores.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></div>
+   <div class="field"><label>Current Store Outstanding</label><input id="saOutstanding" value="Loading..." disabled></div>
+   <div class="field"><label>Sales Rate ₹/kg</label><input id="saRate" type="number" step="0.01" min="0"></div>
+  </div>
+  <div class="field" style="margin-top:10px"><label>Select One or More Cages</label><div id="saCageList" class="cage-select-list">${list}</div></div>
+  <div id="saSelectedSummary" class="sale-selected-summary">No cages selected.</div>
+  <div class="grid g2" style="margin-top:10px">
+   <div class="field"><label>Total Billed Weight kg</label><input id="saWeight" type="number" step="0.01" disabled value="0.00"></div>
+   <div class="field"><label>Total Birds</label><input id="saBirds" disabled value="0"></div>
+   <div class="field"><label>Paid Amount ₹</label><input id="saPaid" type="number" step="0.01" value="0"></div>
+   <div class="field"><label>Payment Method</label><select id="saMode"><option>Cash</option><option>UPI</option><option>Credit</option><option>Bank</option></select></div>
+   <div class="field"><label>Remarks</label><input id="saRem"></div>
+  </div>
+  <div style="height:12px"></div><button class="btn primary" onclick="saveSale()">Save Sale</button>`);
+ await updateSaleStoreOutstanding();updateMultiCageSaleSummary();
+}
+function selectedSaleCageIds(){
+ return Array.from(document.querySelectorAll(".saCageCheck:checked")).map(x=>x.value);
+}
+function updateMultiCageSaleSummary(){
+ const ids=new Set(selectedSaleCageIds()),cages=Array.isArray(window._saleAvailableCages)?window._saleAvailableCages.filter(c=>ids.has(String(c.id))):[];
+ const weight=cages.reduce((a,c)=>a+(Number(c.weight)||0),0),birds=cages.reduce((a,c)=>a+(Number(c.birdCount)||0),0);
+ const w=document.getElementById("saWeight"),b=document.getElementById("saBirds"),s=document.getElementById("saSelectedSummary");
+ if(w)w.value=fmt(weight);if(b)b.value=birds;
+ if(s)s.innerHTML=cages.length?`<b>${cages.length} cage${cages.length===1?"":"s"} selected</b> · ${fmt(weight)} kg · ${birds} birds<br>${cages.map(c=>`Cage ${esc(c.cageNumber||c.id)}`).join(", ")}`:"No cages selected.";
+}
+function fillSaleWeight(){updateMultiCageSaleSummary()}
 async function updateSaleStoreOutstanding(){
   const storeId=document.getElementById("saStore")?.value,el=document.getElementById("saOutstanding");if(!storeId||!el)return;
   const st=await txGet("stores",storeId);
@@ -2720,19 +2912,55 @@ async function storeSummary(storeId){
   return {opening,totalSales,totalPaid:salePaid+direct,outstanding:opening+totalSales-salePaid-direct}
 }
 async function saveSale(){
-  let storeId=document.getElementById("saStore").value,cageId=document.getElementById("saCage").value,date=document.getElementById("saDate").value,weight=Number(document.getElementById("saWeight").value),rate=Number(document.getElementById("saRate").value),paid=Number(document.getElementById("saPaid").value)||0;
-  if(!date||weight<=0||rate<=0)return toast("Date, weight and rate are required.");
-  if(navigator.onLine&&AUTH_SESSION)await backgroundBidirectionalSync({force:true});
-  let cage=await txGet("cages",cageId);if(!cage||cage.isSold)return toast("Cage is no longer available. Data was refreshed before saving.");
-  let store=await txGet("stores",storeId),fin=await storeSummary(storeId);
-  const exactAmount=Math.round(weight*rate*100)/100,rr=invoiceRound(exactAmount),netAmount=rr.rounded;
-  const saleDup=(await txAll("sales")).find(x=>x.storeId===storeId&&x.cageId===cageId&&x.saleDate===date&&Math.abs(Number(x.weight??x.netWeight)-weight)<0.01&&Math.abs(Number(x.salesRate??x.ratePerKg)-rate)<0.01);
-   if(saleDup&&!confirm(`Possible duplicate sale found (${saleDup.invoiceNumber||saleDup.id}) for the same store, cage, date, weight and rate. Save another sale anyway?`))return;
-   const inv=await nextSequentialNumber("sale",date),sid=inv;
-  let r={id:sid,invoiceNumber:inv,storeId,storeName:store.name,storePhone:store.phone||"",saleDate:date,liftingId:cage.liftingId,farmerId:cage.farmerId,cageId,cageNumber:cage.cageNumber,birdsCount:cage.birdCount,netWeight:weight,weight,salesRate:rate,ratePerKg:rate,saleAmount:exactAmount,totalAmount:exactAmount,roundOff:rr.roundOff,netAmount,invoiceNetAmount:netAmount,paidAmount:paid,previousDue:fin.outstanding,outstanding:Math.round((fin.outstanding+netAmount-paid)*100)/100,paymentMethod:document.getElementById("saMode").value,remarks:document.getElementById("saRem").value.trim(),isWangkheiSale:!!store.isWangkhei,createdAt:iso(),updatedAt:iso()};
-  if((await txAll("sales")).some(x=>x.id!==sid&&x.invoiceNumber===inv))return toast("Invoice number conflict detected. Please retry.");await txPut("sales",r);cage.isSold=true;cage.saleId=sid;cage.updatedAt=iso();await txPut("cages",cage);
-  queueCloud("sales","UPSERT",r);queueCloud("cages","UPSERT",cage);await setSetting("cage_state_"+cage.id,{isSold:true,saleId:sid,updatedAt:cage.updatedAt});
-  audit("sales","CREATE",sid,inv);clearCurrentFormDraft();closeModal();refreshAll()
+ const storeId=document.getElementById("saStore").value,date=document.getElementById("saDate").value,rate=Number(document.getElementById("saRate").value),paid=Number(document.getElementById("saPaid").value)||0;
+ let cageIds=selectedSaleCageIds();
+ if(!date||!storeId||rate<=0)return toast("Date, store and sales rate are required.");
+ if(!cageIds.length)return toast("Select at least one cage.");
+ if(navigator.onLine&&AUTH_SESSION)await backgroundBidirectionalSync({force:true});
+ await reconcileCageInventoryState({sync:false});
+ const current=[];
+ for(const cid of cageIds){
+   const c=await txGet("cages",cid);
+   if(!c||c.isSold)return toast(`Cage ${c?.cageNumber||cid} is no longer available. Data was refreshed.`);
+   current.push(c);
+ }
+ const store=await txGet("stores",storeId);if(!store)return toast("Store not found.");
+ const fin=await storeSummary(storeId);
+ const weight=current.reduce((a,c)=>a+(Number(c.weight)||0),0),birds=current.reduce((a,c)=>a+(Number(c.birdCount)||0),0);
+ const exactAmount=Math.round(weight*rate*100)/100,rr=invoiceRound(exactAmount),netAmount=rr.rounded;
+ const inv=await nextSequentialNumber("sale",date),sid=inv;
+ if((await txAll("sales")).some(x=>x.id!==sid&&x.invoiceNumber===inv))return toast("Invoice number conflict detected. Please retry.");
+ const farmerIds=[...new Set(current.map(c=>String(c.farmerId||"")).filter(Boolean))],liftingIds=[...new Set(current.map(c=>String(c.liftingId||"")).filter(Boolean))];
+ const farmers=await txAll("farmers"),farmerMap=new Map(farmers.map(f=>[String(f.id),f.name]));
+ const farmerName=farmerIds.length===1?(farmerMap.get(farmerIds[0])||""):farmerIds.length>1?"Multiple Farmers":"";
+ const cageDetails=current.map(c=>({cageId:c.id,cageNumber:c.cageNumber||"",weight:Number(c.weight)||0,birdCount:Number(c.birdCount)||0,farmerId:c.farmerId||"",liftingId:c.liftingId||""}));
+ const r={id:sid,invoiceNumber:inv,storeId,storeName:store.name,storePhone:store.phone||"",saleDate:date,
+   liftingId:liftingIds[0]||null,liftingIds,farmerId:farmerIds[0]||null,farmerIds,farmerName,
+   cageId:current[0].id,cageIds:current.map(c=>c.id),cageNumber:current.map(c=>c.cageNumber||c.id).join(", "),cageNumbers:current.map(c=>c.cageNumber||c.id),cageDetails,
+   birdsCount:birds,totalBirds:birds,netWeight:weight,weight,totalWeight:weight,salesRate:rate,ratePerKg:rate,
+   saleAmount:exactAmount,totalAmount:exactAmount,roundOff:rr.roundOff,netAmount,invoiceNetAmount:netAmount,paidAmount:paid,
+   previousDue:fin.outstanding,outstanding:Math.round((fin.outstanding+netAmount-paid)*100)/100,
+   paymentMethod:document.getElementById("saMode").value,remarks:document.getElementById("saRem").value.trim(),isWangkheiSale:!!store.isWangkhei,
+   createdAt:iso(),updatedAt:iso()};
+ try{
+   await new Promise((resolve,reject)=>{
+     const tx=db.transaction(["sales","cages","settings"],"readwrite");
+     tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("Sale transaction aborted."));
+     tx.objectStore("sales").put(r);
+     const cs=tx.objectStore("cages"),ss=tx.objectStore("settings");
+     for(const c of current){
+       c.isSold=true;c.saleId=sid;c.updatedAt=r.updatedAt;cs.put(c);
+       ss.put({key:"cage_state_"+c.id,value:{isSold:true,saleId:sid,updatedAt:r.updatedAt},updatedAt:r.updatedAt});
+     }
+   });
+ }catch(e){console.error(e);return toast("Unable to save sale. No cages were changed.");}
+ queueCloud("sales","UPSERT",r);
+ for(const c of current){
+   queueCloud("cages","UPSERT",c);
+   queueCloud("settings","UPSERT",{key:"cage_state_"+c.id,value:{isSold:true,saleId:sid,updatedAt:r.updatedAt},updatedAt:r.updatedAt});
+ }
+ audit("sales","CREATE",sid,`${inv} | ${current.length} cages`);
+ clearCurrentFormDraft();closeModal();await refreshAll();await previewStoreInvoice(sid);
 }
 
 function clearSingkeFilter(){
@@ -3058,6 +3286,7 @@ async function downloadFarmerInvoicePdf(liftingId){
 
 function buildTemplateStoreInvoicePdf(data){
  const s=data.sale,st=data.store||{},farmer=data.farmer||{},wang=!!data.wangkhei,tpl=getInvoiceTemplate();
+ const cageDetails=Array.isArray(s.cageDetails)&&s.cageDetails.length?s.cageDetails:[{cageNumber:s.cageNumber||s.cageId||"",weight:Number(s.weight??s.netWeight)||0,birdCount:Number(s.birdsCount)||0}];
  const W=595,H=842,logoBytes=Uint8Array.from(atob(PSM_LOGO_JPEG_BASE64),c=>c.charCodeAt(0)&255),logoHex=Array.from(logoBytes,b=>b.toString(16).padStart(2,"0")).join("").toUpperCase()+">",objs=[null],add=o=>{objs.push(o);return objs.length-1};
  const font=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"),fontB=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
  const imgObj=add(`<< /Type /XObject /Subtype /Image /Width ${PSM_LOGO_JPEG_WIDTH} /Height ${PSM_LOGO_JPEG_HEIGHT} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter [/ASCIIHexDecode /DCTDecode] /Length ${logoHex.length} >>\nstream\n${logoHex}\nendstream`);
@@ -3087,27 +3316,31 @@ function buildTemplateStoreInvoicePdf(data){
 
  rect(36,570,523,70,[255,255,255],[226,232,240]);
  txt(48,620,"SALE DETAILS",9,true,accent);
- txt(48,598,`Cage: ${s.cageNumber||s.cageId||""}`,8.5,true);
+ txt(48,598,`Cages: ${cageDetails.length}`,8.5,true);
  txt(190,598,`Farmer: ${farmer.name||s.farmerName||"-"}`,8.5);
  txt(48,580,`Account: ${wang?"MPF A/C Settlement":"Regular Store Account"}`,8.5);
 
- let y=530;rect(36,y,523,24,tpl==="minimal"?[241,245,249]:accent);
- const hf=tpl==="minimal"?accent:[255,255,255];
- ["Description","Weight","Birds","Rate","Amount"].forEach((h,i)=>txt([48,250,332,395,472][i],y+8,h,8,true,hf));
- y-=34;rect(36,y,523,34,[255,255,255],[226,232,240]);
- txt(48,y+12,"Live Broiler Supply",8.5,true);txt(250,y+12,`${fmt(s.weight??s.netWeight)} kg`,8.5);
- txt(338,y+12,String(s.birdsCount||0),8.5);txt(395,y+12,`Rs. ${fmt(s.salesRate??s.ratePerKg)}`,8.5);
- txt(472,y+12,`Rs. ${fmt(s.saleAmount??s.totalAmount)}`,8.5,true);
+ let y=530;rect(36,y,523,22,tpl==="minimal"?[241,245,249]:accent);
+ const hf=tpl==="minimal"?accent:[255,255,255],rate=Number(s.salesRate??s.ratePerKg)||0;
+ ["#","Cage","Weight","Birds","Rate","Amount"].forEach((h,i)=>txt([48,75,190,292,360,458][i],y+7,h,7.5,true,hf));
+ y-=14;
+ cageDetails.slice(0,12).forEach((d,i)=>{
+   rect(36,y,523,13,i%2?[255,250,250]:[255,255,255],[241,245,249]);
+   txt(48,y+4,String(i+1),7);txt(75,y+4,String(d.cageNumber||d.cageId||""),7,true);
+   txt(190,y+4,fmt(d.weight),7);txt(292,y+4,String(d.birdCount||0),7);
+   txt(360,y+4,fmt(rate),7);txt(458,y+4,fmt((Number(d.weight)||0)*rate),7,true);y-=13;
+ });
+ if(cageDetails.length>12)txt(48,y+2,`+ ${cageDetails.length-12} more cage(s) included in invoice totals`,7,true,accent);
 
  const rr=invoiceRound(s.saleAmount??s.totalAmount),net=Number(s.netAmount??s.invoiceNetAmount??rr.rounded);
  const rows=wang
    ? [["Invoice Amount",`Rs. ${fmt(rr.exact)}`],["Round Off",`${rr.roundOff>=0?"+":""}Rs. ${fmt(rr.roundOff)}`],["Net Invoice",`Rs. ${fmt(net)}`],["Paid Amount",`Rs. ${fmt(s.paidAmount)}`],["Settlement","MPF A/C"]]
    : [["Previous Due",`Rs. ${fmt(s.previousDue)}`],["Invoice Amount",`Rs. ${fmt(rr.exact)}`],["Round Off",`${rr.roundOff>=0?"+":""}Rs. ${fmt(rr.roundOff)}`],["Net Invoice",`Rs. ${fmt(net)}`],["Paid Amount",`Rs. ${fmt(s.paidAmount)}`],["Outstanding",`Rs. ${fmt(s.outstanding)}`]];
- const totalY=300,totalH=rows.length*24+24;rect(310,totalY,249,totalH,light,[254,202,202]);
- rows.forEach((r,i)=>{const yy=totalY+totalH-24-(i*24);txt(323,yy,r[0],8.5,i===rows.length-1);txt(457,yy,r[1],8.5,true,i===rows.length-1?accent:[17,24,39])});
+ const totalY=190,totalH=rows.length*18+18;rect(310,totalY,249,totalH,light,[254,202,202]);
+ rows.forEach((r,i)=>{const yy=totalY+totalH-18-(i*18);txt(323,yy,r[0],8,i===rows.length-1);txt(457,yy,r[1],8,true,i===rows.length-1?accent:[17,24,39])});
 
- rect(36,150,523,42,light,[254,202,202]);txt(48,174,"Thank you for your business!",9,true,accent);txt(48,159,"Reliable broiler supply from PSM Broiler Distributor.",8);
- txt(48,105,"PSM Broiler Distributor",10,true);txt(48,88,"Kongba Kshetri Leikai, Imphal East, Manipur - 795008",7.5);txt(390,88,"Phone: 7005215398",7.5,true);
+ rect(36,125,523,38,light,[254,202,202]);txt(48,147,"Thank you for your business!",9,true,accent);txt(48,133,"Reliable broiler supply from PSM Broiler Distributor.",8);
+ txt(48,94,"PSM Broiler Distributor",10,true);txt(48,78,"Kongba Kshetri Leikai, Imphal East, Manipur - 795008",7.5);txt(390,78,"Phone: 7005215398",7.5,true);
  rect(36,48,523,22,[248,250,252]);txt(156,56,"This is a computer-generated invoice. No signature is required.",7.5);
 
  const stream=c.join("\n"),content=add(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`),pages=add(""),page=add(""),catalog=add(`<< /Type /Catalog /Pages ${pages} 0 R >>`);
@@ -3276,9 +3509,10 @@ async function showLiftingCompletion(lid){
  <div class="confirm-item"><div class="k">Cages</div><div class="v">${c.length}</div></div>
  <div class="confirm-item"><div class="k">Birds</div><div class="v">${c.reduce((s,x)=>s+(Number(x.birdCount)||0),0)}</div></div>
  <div class="confirm-item"><div class="k">Total Kg</div><div class="v">${fmt(l.totalWeight)} kg</div></div>
+ <div class="confirm-item"><div class="k">Avg. Wt / Bird</div><div class="v">${fmt((c.reduce((s,x)=>s+(Number(x.birdCount)||0),0))?Number(l.totalWeight)/c.reduce((s,x)=>s+(Number(x.birdCount)||0),0):0)} kg</div></div>
  <div class="confirm-item"><div class="k">Rate</div><div class="v">₹${fmt(l.liftingRate)}/kg</div></div>
  <div class="confirm-item"><div class="k">Net Payable</div><div class="v">₹${fmt(rr.rounded)}</div></div></div>
- <div style="height:12px"></div><div class="tablewrap"><table><thead><tr><th>#</th><th>Cage</th><th>Weight kg</th><th>Birds</th></tr></thead><tbody>${c.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.cageNumber)}</td><td>${fmt(x.weight)}</td><td>${x.birdCount||0}</td></tr>`).join("")}</tbody></table></div>`;
+ <div style="height:12px"></div><div class="tablewrap"><table><thead><tr><th>#</th><th>Cage</th><th>Weight kg</th><th>Birds</th><th>Avg. Wt.</th></tr></thead><tbody>${c.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.cageNumber)}</td><td>${fmt(x.weight)}</td><td>${x.birdCount||0}</td><td>${fmt((Number(x.birdCount)||0)?Number(x.weight)/Number(x.birdCount):0)} kg</td></tr>`).join("")}</tbody></table></div>`;
  const ib=document.getElementById("completeInvoiceBtn"),wb=document.getElementById("completeWhatsAppBtn");if(ib)ib.onclick=()=>previewFarmerInvoice(lid);if(wb)wb.onclick=()=>shareFarmerLiftingPdf(lid);
 }
 function printLiftingCompletion(){window.print()}
@@ -3286,7 +3520,7 @@ function printLiftingCompletion(){window.print()}
 async function previewFarmerInvoice(liftingId){
   try{
     const data=await getFarmerInvoiceData(liftingId),l=data.lifting,f=data.farmer||{},cages=data.cages;
-    const rows=cages.map((c,i)=>`<tr><td>${i+1}</td><td><b>${esc(c.cageNumber)}</b></td><td>${fmt(c.weight)}</td><td>${c.birdCount||0}</td></tr>`).join("");
+    const rows=cages.map((c,i)=>`<tr><td>${i+1}</td><td><b>${esc(c.cageNumber)}</b></td><td>${fmt(c.weight)}</td><td>${c.birdCount||0}</td><td>${fmt((Number(c.birdCount)||0)?Number(c.weight)/Number(c.birdCount):0)}</td></tr>`).join("");
     openModal(`<div class="psm-invoice"><img class="psm-invoice-watermark" src="${PSM_LOGO_DATA_URI}" alt=""><img class="psm-invoice-logo" src="${PSM_LOGO_DATA_URI}" alt="PSM logo">
       <div class="psm-brandbar">
         <div class="psm-logo"><div class="psm-logo-mark">PSM</div></div>
@@ -3314,11 +3548,12 @@ async function previewFarmerInvoice(liftingId){
           </div></div>
         </div>
         <div style="margin:12px 0 6px;font-weight:900;color:#991b1b">CAGE-WISE LIFTING DETAILS</div>
-        <table class="psm-table"><thead><tr><th>#</th><th>Cage No.</th><th>Weight (kg)</th><th>Birds (Nos.)</th></tr></thead><tbody>${rows}<tr><td colspan="2"><b>TOTAL</b></td><td><b>${fmt(cages.reduce((s,c)=>s+(Number(c.weight)||0),0))}</b></td><td><b>${cages.reduce((s,c)=>s+(Number(c.birdCount)||0),0)}</b></td></tr></tbody></table>
+        <table class="psm-table"><thead><tr><th>#</th><th>Cage No.</th><th>Weight (kg)</th><th>Birds (Nos.)</th><th>Avg. Wt.</th></tr></thead><tbody>${rows}<tr><td colspan="2"><b>TOTAL</b></td><td><b>${fmt(cages.reduce((s,c)=>s+(Number(c.weight)||0),0))}</b></td><td><b>${cages.reduce((s,c)=>s+(Number(c.birdCount)||0),0)}</b></td><td><b>${fmt(cages.reduce((s,c)=>s+(Number(c.birdCount)||0),0)?cages.reduce((s,c)=>s+(Number(c.weight)||0),0)/cages.reduce((s,c)=>s+(Number(c.birdCount)||0),0):0)}</b></td></tr></tbody></table>
         <div class="psm-totals">
           <div class="psm-total-row"><span>Total Cages</span><b>${cages.length}</b></div>
           <div class="psm-total-row"><span>Total Birds</span><b>${cages.reduce((s,c)=>s+(Number(c.birdCount)||0),0)}</b></div>
           <div class="psm-total-row"><span>Total Weight</span><b>${fmt(l.totalWeight)} kg</b></div>
+          <div class="psm-total-row"><span>Average Weight</span><b>${fmt(cages.reduce((s,c)=>s+(Number(c.birdCount)||0),0)?cages.reduce((s,c)=>s+(Number(c.weight)||0),0)/cages.reduce((s,c)=>s+(Number(c.birdCount)||0),0):0)} kg/bird</b></div>
           <div class="psm-total-row"><span>Lifting Rate</span><b>₹${fmt(l.liftingRate??l.ratePerKg)} / kg</b></div>
           ${(()=>{const rr=invoiceRound(l.liftingAmount??l.totalAmount);return `<div class="psm-total-row"><span>Amount</span><b>₹${fmt(rr.exact)}</b></div><div class="psm-total-row"><span>Round Off</span><b>${rr.roundOff>=0?"+":""}₹${fmt(rr.roundOff)}</b></div><div class="psm-total-row final"><span>Net Amount</span><span>₹${fmt(rr.rounded)}</span></div>`})()}
         </div>
@@ -3332,12 +3567,17 @@ async function previewFarmerInvoice(liftingId){
       </div>
     </div>
     <div class="invoice-preview-template">Template: <b>${esc(invoiceTemplateLabel())}</b></div><div style="height:12px"></div><div class="action-group invoice-actions">
-      <button class="btn primary" onclick="downloadFarmerInvoicePdf('${liftingId}')">Download PDF</button><button class="btn" onclick="printInvoiceView()">Print</button><button class="btn ok" onclick="shareFarmerLiftingPdf('${liftingId}')">WhatsApp</button><button class="btn" onclick="sendFarmerInvoiceSms('${liftingId}')">SMS</button>
+      <button class="btn primary" onclick="printInvoiceView()">Print / Save PDF</button><button class="btn ok" onclick="shareFarmerLiftingPdf('${liftingId}')">WhatsApp</button><button class="btn" onclick="sendFarmerInvoiceSms('${liftingId}')">SMS</button>
     </div>`);
     audit("invoice","PREVIEW",liftingId);
   }catch(e){toast(e.message)}
 }
-function printInvoiceView(){window.print()}
+function printInvoiceView(){
+ document.body.classList.add("psm-print-invoice");
+ const cleanup=()=>document.body.classList.remove("psm-print-invoice");
+ window.addEventListener("afterprint",cleanup,{once:true});
+ setTimeout(()=>{try{window.print()}finally{setTimeout(cleanup,1200)}},60);
+}
 function normalizeWhatsappPhone(phone){
   let p=String(phone||"").replace(/\D/g,"");
   if(p.length===10) p="91"+p;
@@ -3390,6 +3630,7 @@ async function sendStoreInvoiceSms(saleId){
 Invoice: ${s.invoiceNumber||s.id}
 Store: ${st?.name||s.storeName||""}
 Date: ${s.saleDate||""}
+Cages: ${Array.isArray(s.cageNumbers)&&s.cageNumbers.length?s.cageNumbers.join(", "):(s.cageNumber||s.cageId||"")}
 Weight: ${fmt(s.weight??s.netWeight)} kg
 Rate: Rs. ${fmt(s.salesRate??s.ratePerKg)} / kg
 Invoice Amount: Rs. ${fmt(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)}
@@ -3402,17 +3643,25 @@ Total Outstanding: ${wang?"N/A":"Rs. "+fmt(s.outstanding)}`;
 
 async function shareFarmerLiftingPdf(liftingId){
  try{
-  const data=await getFarmerInvoiceData(liftingId),f=data.farmer||{},l=data.lifting;
+  const data=await getFarmerInvoiceData(liftingId),f=data.farmer||{},l=data.lifting,cages=data.cages||[];
+  const totalBirds=cages.reduce((s,c)=>s+(Number(c.birdCount)||0),0),totalWeight=cages.reduce((s,c)=>s+(Number(c.weight)||0),0),avg=totalBirds?totalWeight/totalBirds:0;
+  const cageLines=cages.map((c,i)=>`${i+1}. Cage ${c.cageNumber||"-"} | ${fmt(c.weight)} kg | ${c.birdCount||0} birds | Avg ${fmt((Number(c.birdCount)||0)?Number(c.weight)/Number(c.birdCount):0)} kg`).join("\\n");
   const msg=`PSM Farmer Lifting Invoice
 Invoice: ${l.invoiceNumber||l.id}
 Farmer: ${f.name||l.farmerName||""}
 Date: ${l.liftingDate||""}
-Total Cages: ${data.cages.length}
-Total Birds: ${l.totalBirds||0}
-Total Weight: ${fmt(l.totalWeight)} kg
+
+Cage-wise Details:
+${cageLines}
+
+Total Cages: ${cages.length}
+Total Birds: ${totalBirds}
+Total Weight: ${fmt(totalWeight)} kg
+Average Weight: ${fmt(avg)} kg/bird
 Rate: Rs. ${fmt(l.liftingRate??l.ratePerKg)} / kg
 Total Amount: Rs. ${fmt(l.netAmount??l.payableAmount??l.liftingAmount??l.totalAmount)}`;
   const p=normalizeWhatsappPhone(f.phone);
+  if(!p)return toast("No farmer phone number available.");
   openWhatsAppUrl(`https://wa.me/${p}?text=${encodeURIComponent(msg)}`);
   audit("invoice","FARMER_WHATSAPP_TEXT",liftingId,f.phone||"");
  }catch(e){toast("WhatsApp share error: "+e.message)}
@@ -3424,12 +3673,18 @@ async function renderFarmersCombined(){
  el.innerHTML=a.length?a.map(f=>`<tr onclick="openFarmerDetails('${f.id}')" tabindex="0" onkeydown="if(event.key==='Enter')openFarmerDetails('${f.id}')"><td>${esc(simpleDate(f.createdAt))}</td><td class="mono">${esc(f.id)}</td><td>${esc(f.name)}</td></tr>`).join(""):`<tr><td colspan="3" class="empty">No farmers</td></tr>`;
 }
 async function renderLiftings(){
+ const q=(document.getElementById("liftingSearch")?.value||"").trim().toLowerCase();
  let a=(await txAll("liftings")).sort((a,b)=>String(b.liftingDate||"").localeCompare(String(a.liftingDate||"")));
- let fm=new Map((await txAll("farmers")).map(f=>[f.id,f]));
- document.getElementById("liftingRows").innerHTML=a.length?a.map(l=>`<tr onclick="openLiftingDetails('${l.id}')" tabindex="0" onkeydown="if(event.key==='Enter')openLiftingDetails('${l.id}')"><td>${esc(l.liftingDate)}</td><td class="mono">${esc(l.invoiceNumber||l.id)}</td><td>${esc(fm.get(l.farmerId)?.name||l.farmerName||"")}</td></tr>`).join(""):`<tr><td colspan="3" class="empty">No liftings</td></tr>`;
- document.getElementById("liftQuickCount").textContent=a.length;
- document.getElementById("liftQuickCages").textContent=a.reduce((s,l)=>s+(Number(l.totalCages)||0),0);
- document.getElementById("liftQuickWeight").textContent=fmt(a.reduce((s,l)=>s+(Number(l.totalWeight)||0),0));
+ const farmers=await txAll("farmers"),fm=new Map(farmers.map(f=>[f.id,f]));
+ if(q)a=a.filter(l=>{
+   const f=fm.get(l.farmerId);
+   return [l.liftingDate,l.invoiceNumber,l.id,l.farmerId,l.farmerName,f?.name,f?.phone].some(v=>String(v||"").toLowerCase().includes(q));
+ });
+ document.getElementById("liftingRows").innerHTML=a.length?a.map(l=>`<tr onclick="openLiftingDetails('${l.id}')" tabindex="0" onkeydown="if(event.key==='Enter')openLiftingDetails('${l.id}')"><td>${esc(l.liftingDate)}</td><td class="mono">${esc(l.invoiceNumber||l.id)}</td><td>${esc(fm.get(l.farmerId)?.name||l.farmerName||"")}</td></tr>`).join(""):`<tr><td colspan="3" class="empty">No matching liftings</td></tr>`;
+ const all=await txAll("liftings");
+ document.getElementById("liftQuickCount").textContent=all.length;
+ document.getElementById("liftQuickCages").textContent=all.reduce((s,l)=>s+(Number(l.totalCages)||0),0);
+ document.getElementById("liftQuickWeight").textContent=fmt(all.reduce((s,l)=>s+(Number(l.totalWeight)||0),0));
 }
 function openLiftingActions(id){
  openModal(`<h3>Lifting Actions</h3><div class="action-group">
@@ -3456,15 +3711,16 @@ function openSaleActions(id){
  </div>`);
 }
 async function editSale(id){
- let s=await txGet("sales",id);if(!s)return;
- let store=await txGet("stores",s.storeId);
+ const s=await txGet("sales",id);if(!s)return;
+ const store=await txGet("stores",s.storeId),multi=Array.isArray(s.cageIds)&&s.cageIds.length>1;
  openModal(`<h3>Edit Sale</h3><div class="grid g2">
  <div class="field"><label>Date</label><input id="esaDate" type="date" value="${s.saleDate||today()}"></div>
  <div class="field"><label>Store</label><input value="${esc(store?.name||s.storeName||"")}" disabled></div>
- <div class="field"><label>Weight kg</label><input id="esaWeight" type="number" step="0.01" value="${s.weight??s.netWeight??0}"></div>
+ <div class="field"><label>Total Weight kg</label><input id="esaWeight" type="number" step="0.01" value="${s.weight??s.netWeight??0}" ${multi?"disabled":""}></div>
  <div class="field"><label>Sales Rate ₹/kg</label><input id="esaRate" type="number" step="0.01" value="${s.salesRate??s.ratePerKg??0}"></div>
  <div class="field"><label>Paid Amount ₹</label><input id="esaPaid" type="number" step="0.01" value="${s.paidAmount??0}"></div>
  <div class="field"><label>Remarks</label><input id="esaRem" value="${esc(s.remarks||"")}"></div></div>
+ ${multi?`<div class="sub" style="margin-top:8px">This sale contains ${s.cageIds.length} cages. Total weight is calculated from the selected cage records and cannot be edited here.</div>`:""}
  <div style="height:12px"></div><button class="btn primary" onclick="saveEditedSale('${id}')">Update Sale</button>`);
 }
 async function saveEditedSale(id){
@@ -3479,15 +3735,23 @@ async function saveEditedSale(id){
   await txPut("sales",s);queueCloud("sales","UPSERT",s);audit("sales","UPDATE",id);clearCurrentFormDraft();closeModal();refreshAll();
 }
 async function deleteSale(id){
- requireAdmin();let s=await txGet("sales",id);if(!s)return;if(!confirm("Delete this sale and release its cage?"))return;
- if(s.cageId){let c=await txGet("cages",s.cageId);if(c){c.isSold=false;c.saleId=null;c.updatedAt=iso();await txPut("cages",c);await setSetting("cage_state_"+c.id,{isSold:false,saleId:null,updatedAt:c.updatedAt});queueCloud("cages","UPSERT",c)}}
- await txDel("sales",id);queueCloud("sales","DELETE",id);audit("sales","DELETE",id);refreshAll()
+ requireAdmin();
+ const s=await txGet("sales",id);if(!s)return;
+ const ids=Array.isArray(s.cageIds)&&s.cageIds.length?s.cageIds:(s.cageId?[s.cageId]:[]);
+ if(!confirm(`Delete this sale and release ${ids.length||1} cage${ids.length===1?"":"s"}?`))return;
+ for(const cid of ids){
+   const c=await txGet("cages",cid);
+   if(c){c.isSold=false;c.saleId=null;c.updatedAt=iso();await txPut("cages",c);await setSetting("cage_state_"+c.id,{isSold:false,saleId:null,updatedAt:c.updatedAt});queueCloud("cages","UPSERT",c)}
+ }
+ await txDel("sales",id);queueCloud("sales","DELETE",id);audit("sales","DELETE",id);refreshAll();
 }
 
 async function previewStoreInvoice(saleId){
  const s=await txGet("sales",saleId);if(!s)return toast("Sale not found.");
  const st=await txGet("stores",s.storeId),farmer=s.farmerId?await txGet("farmers",s.farmerId):null;
  const wang=!!(st?.isWangkhei||s.isWangkheiSale);
+ const saleCages=Array.isArray(s.cageDetails)&&s.cageDetails.length?s.cageDetails:[{cageNumber:s.cageNumber||s.cageId||"",weight:Number(s.weight??s.netWeight)||0,birdCount:Number(s.birdsCount)||0}];
+ const cageRows=saleCages.map((c,i)=>`<tr><td>${i+1}</td><td><b>${esc(c.cageNumber||c.cageId||"")}</b></td><td>${fmt(c.weight)}</td><td>${c.birdCount||0}</td><td>₹${fmt(s.salesRate??s.ratePerKg)}</td><td><b>₹${fmt((Number(c.weight)||0)*(Number(s.salesRate??s.ratePerKg)||0))}</b></td></tr>`).join("");
  openModal(`<div class="psm-invoice"><img class="psm-invoice-watermark" src="${PSM_LOGO_DATA_URI}" alt=""><img class="psm-invoice-logo" src="${PSM_LOGO_DATA_URI}" alt="PSM logo">
    <div class="psm-brandbar">
      <div class="psm-logo"><div class="psm-logo-mark">PSM</div></div>
@@ -3515,8 +3779,9 @@ async function previewStoreInvoice(saleId){
         <div>Sale ID</div><span class="mono">${esc(s.id)}</span>
       </div></div>
     </div>
-    <table class="psm-table"><thead><tr><th>Description</th><th>Cage No.</th><th>Weight (kg)</th><th>Birds</th><th>Rate</th><th>Amount</th></tr></thead><tbody>
-      <tr><td><b>Live Broiler Supply</b></td><td>${esc(s.cageNumber||s.cageId||"")}</td><td>${fmt(s.weight??s.netWeight)}</td><td>${s.birdsCount||0}</td><td>₹${fmt(s.salesRate??s.ratePerKg)}</td><td><b>₹${fmt(s.saleAmount??s.totalAmount)}</b></td></tr>
+    <table class="psm-table"><thead><tr><th>#</th><th>Cage No.</th><th>Weight (kg)</th><th>Birds</th><th>Rate</th><th>Amount</th></tr></thead><tbody>
+      ${cageRows}
+      <tr><td colspan="2"><b>TOTAL</b></td><td><b>${fmt(s.weight??s.netWeight)}</b></td><td><b>${s.birdsCount||0}</b></td><td></td><td><b>₹${fmt(s.saleAmount??s.totalAmount)}</b></td></tr>
     </tbody></table>
     <div class="psm-totals">
       ${wang?"":`<div class="psm-total-row"><span>Previous Due</span><b>₹${fmt(s.previousDue)}</b></div>`}
@@ -3535,7 +3800,7 @@ async function previewStoreInvoice(saleId){
    </div>
  </div>
  <div class="invoice-preview-template">Template: <b>${esc(invoiceTemplateLabel())}</b></div><div style="height:12px"></div><div class="action-group invoice-actions">
-  <button class="btn primary" onclick="downloadStoreInvoicePdf('${saleId}')">Download PDF</button><button class="btn" onclick="printInvoiceView()">Print</button><button class="btn ok" onclick="shareStoreInvoiceWhatsApp('${saleId}')">WhatsApp</button><button class="btn" onclick="sendStoreInvoiceSms('${saleId}')">SMS</button>
+  <button class="btn primary" onclick="printInvoiceView()">Print / Save PDF</button><button class="btn ok" onclick="shareStoreInvoiceWhatsApp('${saleId}')">WhatsApp</button><button class="btn" onclick="sendStoreInvoiceSms('${saleId}')">SMS</button>
  </div>`);
  audit("invoice","STORE_PREVIEW",saleId)
 }
@@ -3547,6 +3812,7 @@ async function shareStoreInvoiceWhatsApp(saleId){
 Invoice: ${s.invoiceNumber||s.id}
 Store: ${st?.name||s.storeName||""}
 Date: ${s.saleDate||""}
+Cages: ${Array.isArray(s.cageNumbers)&&s.cageNumbers.length?s.cageNumbers.join(", "):(s.cageNumber||s.cageId||"")}
 Weight: ${fmt(s.weight??s.netWeight)} kg
 Rate: Rs. ${fmt(s.salesRate??s.ratePerKg)} / kg
 Invoice Amount: Rs. ${fmt(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)}
@@ -3707,7 +3973,7 @@ async function runGlobalSearch(value){
    for(const x of farmers)if(searchHas(q,x.id,x.name,x.phone))rows.push(["Farmer",x.id,x.name||x.id,`${x.id} · ${x.phone||""}`]);
    for(const x of stores)if(searchHas(q,x.id,x.name,x.phone))rows.push(["Store",x.id,x.name||x.id,`${x.id} · ${x.phone||""}`]);
    for(const x of liftings)if(searchHas(q,x.id,x.invoiceNumber,x.farmerName,x.farmerId,x.remarks))rows.push(["Lifting",x.id,x.farmerName||x.invoiceNumber||x.id,`${x.invoiceNumber||x.id} · ${x.liftingDate||""}`]);
-   for(const x of sales)if(searchHas(q,x.id,x.invoiceNumber,x.storeName,x.storeId,x.cageNumber,x.cageId,x.farmerName))rows.push(["Sale",x.id,x.storeName||x.invoiceNumber||x.id,`${x.invoiceNumber||x.id} · Cage ${x.cageNumber||x.cageId||"—"}`]);
+   for(const x of sales)if(searchHas(q,x.id,x.invoiceNumber,x.storeName,x.storeId,x.cageNumber,x.cageId,x.cageNumbers?.join(" "),x.cageIds?.join(" "),x.farmerName))rows.push(["Sale",x.id,x.storeName||x.invoiceNumber||x.id,`${x.invoiceNumber||x.id} · Cage ${x.cageNumber||x.cageId||"—"}`]);
    for(const x of payments)if(searchHas(q,x.id,x.receiptNumber,x.storeName,x.storeId,x.referenceNumber))rows.push(["Payment",x.id,x.storeName||x.receiptNumber||x.id,`${x.receiptNumber||x.id} · ₹${fmt(x.amount)}`]);
    for(const x of sets)if(searchHas(q,x.id,x.receiptNumber,x.referenceNumber,x.remarks))rows.push(["Settlement",x.id,x.receiptNumber||x.id,`${x.date||""} · ₹${fmt(x.amount)}`]);
    for(const x of cages)if(searchHas(q,x.id,x.cageNumber,x.liftingId,x.farmerId))rows.push(["Cage",x.id,`Cage ${x.cageNumber||x.id}`,`${fmt(x.weight)} kg · ${x.birdCount||0} birds`]);
@@ -3750,7 +4016,7 @@ async function renderRecentActivity(){
    ...sales.map(x=>({type:"Sale",id:x.id,title:x.storeName||x.invoiceNumber||x.id,sub:`${x.invoiceNumber||x.id} · ₹${fmt(x.netAmount??x.saleAmount??x.totalAmount)}`,date:x.saleDate||"",t:recentTimeValue(x)})),
    ...payments.map(x=>({type:"Payment",id:x.id,title:x.storeName||x.receiptNumber||x.id,sub:`${x.receiptNumber||x.id} · ₹${fmt(x.amount)}`,date:x.paymentDate||"",t:recentTimeValue(x)})),
    ...sets.map(x=>({type:"Settlement",id:x.id,title:x.receiptNumber||x.id,sub:`MPF A/C · ₹${fmt(x.amount)}`,date:x.date||"",t:recentTimeValue(x)}))
-  ].sort((a,b)=>b.t-a.t).slice(0,10);
+  ].sort((a,b)=>b.t-a.t).slice(0,5);
   host.innerHTML=rows.length?rows.map(x=>`<button type="button" class="psm-recent-item" onclick='openGlobalSearchResult(${JSON.stringify(x.type)},${JSON.stringify(String(x.id))})'><span class="psm-recent-main"><span class="psm-recent-title">${esc(x.title)}</span><span class="psm-recent-sub">${esc(x.date)} · ${esc(x.sub)}</span></span><span class="psm-type">${esc(x.type)}</span></button>`).join(""):`<div class="psm-search-empty">No activity yet.</div>`;
  }catch(e){host.innerHTML=`<div class="psm-search-empty">Unable to load recent activity.</div>`}
 }
@@ -3774,7 +4040,14 @@ async function reconcileCageInventoryState({sync=true}={}){
  const saleByCage=new Map(),saleById=new Map(),saleByLegacyKey=new Map();
  for(const s of sales){
    saleById.set(String(s.id),s);
-   if(s.cageId)saleByCage.set(String(s.cageId),s);
+   const ids=Array.isArray(s.cageIds)&&s.cageIds.length?s.cageIds:(s.cageId?[s.cageId]:[]);
+   for(const cid of ids)if(cid!=null)saleByCage.set(String(cid),s);
+   const details=Array.isArray(s.cageDetails)?s.cageDetails:[];
+   for(const d of details){
+     if(d?.cageId!=null)saleByCage.set(String(d.cageId),s);
+     const lk=`${String(d?.liftingId||s.liftingId||"")}|${String(d?.cageNumber||"").trim().toUpperCase()}`;
+     if((d?.liftingId||s.liftingId)&&d?.cageNumber&&!saleByLegacyKey.has(lk))saleByLegacyKey.set(lk,s);
+   }
    const lk=`${String(s.liftingId||"")}|${String(s.cageNumber||"").trim().toUpperCase()}`;
    if(s.liftingId&&s.cageNumber&&!saleByLegacyKey.has(lk))saleByLegacyKey.set(lk,s);
  }
