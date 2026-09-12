@@ -1386,6 +1386,8 @@ input,select,textarea,button{touch-action:manipulation}
  body.psm-print-invoice .psm-invoice{box-shadow:none!important;border:0!important;margin:0!important}
 }
 
+
+.cage-lift-date{display:inline-block;margin-top:4px;padding:3px 7px;border-radius:999px;background:#fff1f2;color:#b42318;font-size:10px;font-weight:900;letter-spacing:.02em}
 </style>
 <meta name="theme-color" content="#b91c1c">
 </head>
@@ -2857,25 +2859,25 @@ async function savePayment(){
 async function openSale(){
  await reconcileCageInventoryState({sync:true});
  const stores=(await txAll("stores")).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
- const cages=(await txAll("cages")).filter(c=>!c.isSold);
  if(!stores.length)return toast("Add a store first.");
+ const cages=(await txAll("cages")).filter(c=>!c.isSold);
  if(!cages.length)return toast("No unsold cages available.");
- const lifts=await txAll("liftings"),farmers=await txAll("farmers"),lm=new Map(lifts.map(x=>[x.id,x])),fm=new Map(farmers.map(x=>[x.id,x]));
- window._saleAvailableCages=cages;
- const list=cages.map(c=>{
-   const l=lm.get(c.liftingId),f=fm.get(c.farmerId);
-   return `<label class="cage-select-row"><input class="saCageCheck" type="checkbox" value="${esc(c.id)}" onchange="updateMultiCageSaleSummary()">
-    <span class="main"><span class="name">Cage ${esc(c.cageNumber||c.id)}</span><span class="meta">${esc(f?.name||l?.farmerName||"")} · ${c.birdCount||0} birds</span></span>
-    <span class="kg">${fmt(c.weight)} kg</span></label>`;
- }).join("");
+ const lifts=await txAll("liftings"),farmers=await txAll("farmers");
+ window._saleAllUnsoldCages=cages;
+ window._saleLiftingMap=new Map(lifts.map(x=>[String(x.id),x]));
+ window._saleFarmerMap=new Map(farmers.map(x=>[String(x.id),x]));
  openModal(`<h3>New Store Sale</h3>
   <div class="grid g2">
-   <div class="field"><label>Date</label><input id="saDate" type="date" value="${today()}"></div>
+   <div class="field"><label>Date</label><input id="saDate" type="date" value="${today()}" onchange="refreshSaleCagesByDate()"></div>
    <div class="field"><label>Store</label><select id="saStore" onchange="updateSaleStoreOutstanding()">${stores.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></div>
    <div class="field"><label>Current Store Outstanding</label><input id="saOutstanding" value="Loading..." disabled></div>
    <div class="field"><label>Sales Rate ₹/kg</label><input id="saRate" type="number" step="0.01" min="0"></div>
   </div>
-  <div class="field" style="margin-top:10px"><label>Select One or More Cages</label><div id="saCageList" class="cage-select-list">${list}</div></div>
+  <div class="field" style="margin-top:10px">
+   <label>Unsold Cages Available on Selected Date</label>
+   <div class="sub" id="saCageDateInfo" style="margin-bottom:6px"></div>
+   <div id="saCageList" class="cage-select-list"></div>
+  </div>
   <div id="saSelectedSummary" class="sale-selected-summary">No cages selected.</div>
   <div class="grid g2" style="margin-top:10px">
    <div class="field"><label>Total Billed Weight kg</label><input id="saWeight" type="number" step="0.01" disabled value="0.00"></div>
@@ -2885,7 +2887,37 @@ async function openSale(){
    <div class="field"><label>Remarks</label><input id="saRem"></div>
   </div>
   <div style="height:12px"></div><button class="btn primary" onclick="saveSale()">Save Sale</button>`);
- await updateSaleStoreOutstanding();updateMultiCageSaleSummary();
+ await updateSaleStoreOutstanding();
+ await refreshSaleCagesByDate();
+}
+async function refreshSaleCagesByDate(){
+ const date=document.getElementById("saDate")?.value||today(),host=document.getElementById("saCageList"),info=document.getElementById("saCageDateInfo");
+ if(!host)return;
+ // Re-read local data so sold status is current, then allow only cages whose lifting existed on/before the selected sale date.
+ const [allCages,lifts,farmers]=await Promise.all([txAll("cages"),txAll("liftings"),txAll("farmers")]);
+ const lm=new Map(lifts.map(x=>[String(x.id),x])),fm=new Map(farmers.map(x=>[String(x.id),x]));
+ const cages=allCages.filter(c=>{
+   if(c.isSold)return false;
+   const l=lm.get(String(c.liftingId));
+   const liftingDate=String(l?.liftingDate||"");
+   return liftingDate && liftingDate<=date;
+ }).sort((a,b)=>{
+   const ad=String(lm.get(String(a.liftingId))?.liftingDate||""),bd=String(lm.get(String(b.liftingId))?.liftingDate||"");
+   return ad.localeCompare(bd)||String(a.cageNumber||"").localeCompare(String(b.cageNumber||""));
+ });
+ window._saleAvailableCages=cages;
+ host.innerHTML=cages.length?cages.map(c=>{
+   const l=lm.get(String(c.liftingId)),f=fm.get(String(c.farmerId));
+   return `<label class="cage-select-row"><input class="saCageCheck" type="checkbox" value="${esc(c.id)}" onchange="updateMultiCageSaleSummary()">
+    <span class="main">
+      <span class="name">Cage ${esc(c.cageNumber||c.id)}</span>
+      <span class="meta">${esc(f?.name||l?.farmerName||"")} · ${c.birdCount||0} birds</span>
+      <span class="cage-lift-date">Lifting Date: ${esc(l?.liftingDate||"—")}</span>
+    </span>
+    <span class="kg">${fmt(c.weight)} kg</span></label>`;
+ }).join(""):`<div class="empty">No unsold cages were available by ${esc(date)}.</div>`;
+ if(info)info.textContent=`Showing ${cages.length} unsold cage${cages.length===1?"":"s"} lifted on or before ${date}. Future lifting cages are hidden.`;
+ updateMultiCageSaleSummary();
 }
 function selectedSaleCageIds(){
  return Array.from(document.querySelectorAll(".saCageCheck:checked")).map(x=>x.value);
@@ -2922,6 +2954,8 @@ async function saveSale(){
  for(const cid of cageIds){
    const c=await txGet("cages",cid);
    if(!c||c.isSold)return toast(`Cage ${c?.cageNumber||cid} is no longer available. Data was refreshed.`);
+   const lifting=await txGet("liftings",c.liftingId);
+   if(!lifting?.liftingDate||lifting.liftingDate>date)return toast(`Cage ${c.cageNumber||cid} was not available on ${date}. Please reselect cages.`);
    current.push(c);
  }
  const store=await txGet("stores",storeId);if(!store)return toast("Store not found.");
