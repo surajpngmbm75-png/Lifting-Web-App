@@ -1452,6 +1452,136 @@ html{scroll-behavior:smooth}
 #v-sale-cages.active ~ * #draftRecoveryBar{display:none!important}
 body:has(#v-sale-cages.active) #draftRecoveryBar{display:none!important}
 
+
+/* ===== PSM DARK MODE ===== */
+body.dark-mode{
+  background:#0b1110!important;
+  color:#e5f0e8!important;
+  color-scheme:dark;
+}
+body.dark-mode .app,
+body.dark-mode .main,
+body.dark-mode .view,
+body.dark-mode .sidebar,
+body.dark-mode .topbar,
+body.dark-mode .mobile-bottom-nav,
+body.dark-mode .mobile-more-menu{
+  background:#0b1110!important;
+  color:#e5f0e8!important;
+}
+body.dark-mode .card,
+body.dark-mode .hero,
+body.dark-mode .metric,
+body.dark-mode .dialog,
+body.dark-mode .detail-item,
+body.dark-mode .confirm-item,
+body.dark-mode .row,
+body.dark-mode .sale-cage-page-item,
+body.dark-mode .entered-cage-row,
+body.dark-mode .cage-entry-editor,
+body.dark-mode .payment-share-card,
+body.dark-mode .psm-global-search-card{
+  background:#121a17!important;
+  color:#e5f0e8!important;
+  border-color:#2b3c33!important;
+}
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode b,
+body.dark-mode .v,
+body.dark-mode .val,
+body.dark-mode .detail-title,
+body.dark-mode .sale-cage-page-title,
+body.dark-mode .ec-value{
+  color:#f0f8f2!important;
+}
+body.dark-mode .sub,
+body.dark-mode .mini,
+body.dark-mode .k,
+body.dark-mode .lab,
+body.dark-mode .detail-sub,
+body.dark-mode .sale-cage-page-meta,
+body.dark-mode .ec-label{
+  color:#a9b9ae!important;
+}
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea{
+  background:#0e1512!important;
+  color:#e8f5eb!important;
+  border-color:#365044!important;
+}
+body.dark-mode input:disabled,
+body.dark-mode select:disabled,
+body.dark-mode textarea:disabled{
+  background:#15201a!important;
+  color:#b9c9be!important;
+}
+body.dark-mode table,
+body.dark-mode th,
+body.dark-mode td{
+  color:#e5f0e8;
+  border-color:#2b3c33!important;
+}
+body.dark-mode th{background:#17231d!important}
+body.dark-mode tr{background:#121a17}
+body.dark-mode .badge{border-color:#365044!important}
+body.dark-mode .sale-cage-sticky-bar{
+  background:rgba(18,26,23,.97)!important;
+  border-color:#2b3c33!important;
+}
+body.dark-mode .sale-total-amount-field input{
+  background:#102119!important;
+  color:#8df0a8!important;
+  border-color:#277a42!important;
+}
+
+/* User requirement: every button is green in Dark Mode. */
+body.dark-mode button,
+body.dark-mode .btn,
+body.dark-mode .btn.primary,
+body.dark-mode .btn.ok,
+body.dark-mode .btn.danger,
+body.dark-mode .btn.bad,
+body.dark-mode .mobile-more-item,
+body.dark-mode .nav-item,
+body.dark-mode .mobile-nav-item{
+  background:#16803d!important;
+  border-color:#16803d!important;
+  color:#fff!important;
+  box-shadow:none!important;
+}
+body.dark-mode button:hover,
+body.dark-mode .btn:hover{
+  background:#1b9849!important;
+  border-color:#1b9849!important;
+}
+body.dark-mode button:disabled,
+body.dark-mode .btn:disabled{
+  background:#31553d!important;
+  border-color:#31553d!important;
+  color:#cbd8cf!important;
+  opacity:.75;
+}
+
+/* Invoices remain white and print-ready even while the app is dark. */
+body.dark-mode .psm-invoice,
+body.dark-mode .psm-invoice *{
+  color:initial;
+}
+body.dark-mode .psm-invoice{
+  background:#fff!important;
+  color:#111827!important;
+}
+body.dark-mode .psm-invoice table,
+body.dark-mode .psm-invoice th,
+body.dark-mode .psm-invoice td,
+body.dark-mode .psm-invoice tr{
+  color:#111827!important;
+}
+
 </style>
 <meta name="theme-color" content="#b91c1c">
 </head>
@@ -1652,6 +1782,7 @@ body:has(#v-sale-cages.active) #draftRecoveryBar{display:none!important}
  <div class="action-group no-print">
   <button class="btn primary" id="completeInvoiceBtn">Invoice</button>
   <button class="btn ok" id="completeWhatsAppBtn">WhatsApp</button>
+  <button class="btn" id="completeMpfWhatsAppBtn" title="WhatsApp 8880674264">To MPF (WhatsApp)</button>
   <button class="btn" onclick="printLiftingCompletion()">Print / Save PDF</button>
   <button class="btn" onclick="openLifting()">+ New Lifting</button>
   <button class="btn" onclick="goToView('sales')">Go to Sales →</button>
@@ -1766,6 +1897,15 @@ body:has(#v-sale-cages.active) #draftRecoveryBar{display:none!important}
  <div class="head"><div><h1>Settings</h1><p>Permissions, Singke opening balance, backup and cloud sync</p></div></div>
  <div class="grid g2">
   <div class="card"><b>User Role</b><div style="height:8px"></div><select id="roleSel" onchange="setRole(this.value)"><option value="admin">Admin</option><option value="staff">Staff / Operator</option></select><p class="sub">Staff can enter operations but cannot delete/reverse financial history or change sensitive settings.</p></div>
+  <div class="card"><b>Appearance</b>
+   <p class="sub">Choose the app display mode. In Dark Mode all app buttons use green.</p>
+   <div class="field" style="margin-top:8px"><label>Theme</label>
+    <select id="appThemeSel" onchange="setAppTheme(this.value)">
+      <option value="light">Light Mode</option>
+      <option value="dark">Dark Mode</option>
+    </select>
+   </div>
+  </div>
   <div class="card"><b>Singke Previous Due</b><div class="grid g2" style="margin-top:8px"><div class="field"><label>Amount ₹</label><input id="prevDueAmt" type="number" step="0.01"></div><div class="field"><label>As-of Date</label><input id="prevDueDate" type="date"></div></div><div class="field" style="margin-top:8px"><label>Remarks</label><input id="prevDueRemarks"></div><div style="height:8px"></div><button class="btn primary" onclick="savePreviousDue()">Save Previous Due</button></div>
   <div class="card"><b>Install on Android</b>
    <p class="sub">Install PSM Broiler Distributor on your Home Screen for faster opening and better offline reliability.</p>
@@ -1934,6 +2074,24 @@ function renderInvoiceTemplatePreview(){
 function injectLogoIntoInvoiceHtml(markup){
   return String(markup||"");
 }
+const PSM_APP_THEME_KEY="psm_app_theme_v1";
+function getAppTheme(){
+ try{return localStorage.getItem(PSM_APP_THEME_KEY)==="dark"?"dark":"light"}catch(e){return"light"}
+}
+function applyAppTheme(){
+ const theme=getAppTheme();
+ document.body.classList.toggle("dark-mode",theme==="dark");
+ const sel=document.getElementById("appThemeSel");if(sel)sel.value=theme;
+ const meta=document.querySelector('meta[name="theme-color"]');
+ if(meta)meta.setAttribute("content",theme==="dark"?"#0b1110":"#b91c1c");
+}
+function setAppTheme(theme){
+ const value=theme==="dark"?"dark":"light";
+ try{localStorage.setItem(PSM_APP_THEME_KEY,value)}catch(e){}
+ applyAppTheme();
+ toast(value==="dark"?"Dark Mode enabled.":"Light Mode enabled.");
+}
+
 function initializePsmBrandImages(){
  const a=document.getElementById("psmAppLogo");if(a)a.src=PSM_LOGO_DATA_URI;
  const l=document.getElementById("psmLoginLogo");if(l)l.src=PSM_LOGO_DATA_URI;
@@ -2139,7 +2297,7 @@ async function openLiftingDetails(lid){
    const sale=c.saleId?saleMap.get(String(c.saleId)):null;
    return `<tr><td>${i+1}</td><td><b>${esc(c.cageNumber||"—")}</b></td><td>${fmt(c.weight)} kg</td><td>${c.birdCount||0}</td><td><span class="badge ${c.isSold?"orange":"green"}">${c.isSold?"Sold":"Unsold"}</span></td><td>${sale?esc(sale.storeName||sale.storeId||"—"):"—"}</td><td class="mono">${sale?esc(sale.invoiceNumber||sale.id):"—"}</td></tr>`;
  }).join("");
- const actions=`<button class="btn" onclick="closeModal();openLiftingRateEditor('${l.id}')">Edit Rate</button><button class="btn primary" onclick="closeModal();previewFarmerInvoice('${l.id}')">Invoice</button><button class="btn" onclick="shareFarmerLiftingPdf('${l.id}')">WhatsApp</button><button class="btn" onclick="sendFarmerInvoiceSms('${l.id}')">SMS</button>${S.role==="admin"?`<button class="btn danger" onclick="closeModal();deleteLifting('${l.id}')">Delete</button>`:""}`;
+ const actions=`<button class="btn" onclick="closeModal();openLiftingRateEditor('${l.id}')">Edit Rate</button><button class="btn primary" onclick="closeModal();previewFarmerInvoice('${l.id}')">Invoice</button><button class="btn" onclick="shareFarmerLiftingPdf('${l.id}')">WhatsApp</button><button class="btn" onclick="shareLiftingToMpf('${l.id}')" title="WhatsApp 8880674264">To MPF (WhatsApp)</button><button class="btn" onclick="sendFarmerInvoiceSms('${l.id}')">SMS</button>${S.role==="admin"?`<button class="btn danger" onclick="closeModal();deleteLifting('${l.id}')">Delete</button>`:""}`;
  openModal(`<div class="detail-title">${esc(f?.name||l.farmerName||"Lifting")}</div>
  <div class="detail-sub">Invoice ${esc(l.invoiceNumber||l.id)}</div>
  <div class="detail-grid">
@@ -3741,7 +3899,7 @@ async function showLiftingCompletion(lid){
  <div class="confirm-item"><div class="k">Rate</div><div class="v">₹${fmt(l.liftingRate)}/kg</div></div>
  <div class="confirm-item"><div class="k">Net Payable</div><div class="v">₹${fmt(rr.rounded)}</div></div></div>
  <div style="height:12px"></div><div class="tablewrap"><table><thead><tr><th>#</th><th>Cage</th><th>Weight kg</th><th>Birds</th><th>Avg. Wt.</th></tr></thead><tbody>${c.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.cageNumber)}</td><td>${fmt(x.weight)}</td><td>${x.birdCount||0}</td><td>${fmt((Number(x.birdCount)||0)?Number(x.weight)/Number(x.birdCount):0)} kg</td></tr>`).join("")}</tbody></table></div>`;
- const ib=document.getElementById("completeInvoiceBtn"),wb=document.getElementById("completeWhatsAppBtn");if(ib)ib.onclick=()=>previewFarmerInvoice(lid);if(wb)wb.onclick=()=>shareFarmerLiftingPdf(lid);
+ const ib=document.getElementById("completeInvoiceBtn"),wb=document.getElementById("completeWhatsAppBtn"),mb=document.getElementById("completeMpfWhatsAppBtn");if(ib)ib.onclick=()=>previewFarmerInvoice(lid);if(wb)wb.onclick=()=>shareFarmerLiftingPdf(lid);if(mb)mb.onclick=()=>shareLiftingToMpf(lid);
 }
 function printLiftingCompletion(){window.print()}
 
@@ -3795,7 +3953,7 @@ async function previewFarmerInvoice(liftingId){
       </div>
     </div>
     <div class="invoice-preview-template">Template: <b>${esc(invoiceTemplateLabel())}</b></div><div style="height:12px"></div><div class="action-group invoice-actions">
-      <button class="btn primary" onclick="printInvoiceView()">Print / Save PDF</button><button class="btn ok" onclick="shareFarmerLiftingPdf('${liftingId}')">WhatsApp</button><button class="btn" onclick="sendFarmerInvoiceSms('${liftingId}')">SMS</button>
+      <button class="btn primary" onclick="printInvoiceView()">Print / Save PDF</button><button class="btn ok" onclick="shareFarmerLiftingPdf('${liftingId}')">WhatsApp</button><button class="btn" onclick="shareLiftingToMpf('${liftingId}')" title="WhatsApp 8880674264">To MPF (WhatsApp)</button><button class="btn" onclick="sendFarmerInvoiceSms('${liftingId}')">SMS</button>
     </div>`);
     audit("invoice","PREVIEW",liftingId);
   }catch(e){toast(e.message)}
@@ -3959,6 +4117,25 @@ ${cageLines||"No cage details available."}
  }catch(e){toast("WhatsApp share error: "+e.message)}
 }
 
+
+async function shareLiftingToMpf(liftingId){
+ try{
+   const l=await txGet("liftings",liftingId);
+   if(!l)throw new Error("Lifting not found.");
+   const f=await txGet("farmers",l.farmerId);
+   const cages=(await txAll("cages")).filter(c=>String(c.liftingId)===String(liftingId));
+   const totalKg=Number(l.totalWeight)||cages.reduce((s,c)=>s+(Number(c.weight)||0),0);
+   const totalBirds=Number(l.totalBirds)||cages.reduce((s,c)=>s+(Number(c.birdCount)||0),0);
+   const msg=`Farmer Name: ${f?.name||l.farmerName||""}
+Lifting Date: ${l.liftingDate||""}
+Total Kg: ${fmt(totalKg)} kg
+Total Birds: ${totalBirds}`;
+   const phone=normalizeWhatsappPhone("8880674264");
+   openWhatsAppUrl(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`);
+   audit("liftings","WHATSAPP_TO_MPF",liftingId,"8880674264");
+ }catch(e){toast("MPF WhatsApp share error: "+e.message)}
+}
+
 async function renderFarmersCombined(){
  let q=(document.getElementById("farmerSearchCombined")?.value||"").toLowerCase(),a=(await txAll("farmers")).filter(f=>!q||[f.id,f.name,f.phone].some(x=>String(x).toLowerCase().includes(q))).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
  const el=document.getElementById("farmerRowsCombined");if(!el)return;
@@ -4037,6 +4214,7 @@ function openLiftingActions(id){
  ${S.role==="admin"?`<button class="btn bad" onclick="closeModal();deleteLifting('${id}')">Delete</button>`:""}
  <button class="btn primary" onclick="closeModal();previewFarmerInvoice('${id}')">Invoice</button>
  <button class="btn ok" onclick="shareFarmerLiftingPdf('${id}')">Share WhatsApp</button>
+ <button class="btn" onclick="shareLiftingToMpf('${id}')" title="WhatsApp 8880674264">To MPF (WhatsApp)</button>
  </div>`);
 }
 async function renderSales(){
@@ -5264,6 +5442,7 @@ async function deleteAllRowsFromSupabaseTable(table){
 
 
 (async()=>{
+ applyAppTheme();
  initializePsmBrandImages();
  initAndroidViewportFix();
  initInstallSupport();
@@ -5278,6 +5457,7 @@ async function deleteAllRowsFromSupabaseTable(table){
  // Render local IndexedDB data immediately; never wait for the network before showing the app.
  const badge=document.getElementById("roleBadge");if(badge)badge.textContent=String(S.role||"admin").toUpperCase();
  const roleSel=document.getElementById("roleSel");if(roleSel)roleSel.value=S.role;
+ applyAppTheme();
  await refreshAll();
 
  initAppBackNavigation();
