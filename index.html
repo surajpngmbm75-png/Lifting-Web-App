@@ -1388,6 +1388,25 @@ input,select,textarea,button{touch-action:manipulation}
 
 
 .cage-lift-date{display:inline-block;margin-top:4px;padding:3px 7px;border-radius:999px;background:#fff1f2;color:#b42318;font-size:10px;font-weight:900;letter-spacing:.02em}
+
+/* ===== FULL-PAGE SALE CAGE SELECTION ===== */
+.sale-cage-page-list{display:grid;gap:8px;margin-top:10px;padding-bottom:110px}
+.sale-cage-page-item{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:flex-start;padding:12px;border:1px solid #e4e7ec;border-radius:12px;background:#fff;cursor:pointer;min-height:72px}
+.sale-cage-page-item.selected{border-color:#b91c1c;background:#fff7f7;box-shadow:0 0 0 1px rgba(185,28,28,.08)}
+.sale-cage-page-item input{width:22px;height:22px;margin-top:3px;accent-color:#b91c1c}
+.sale-cage-page-title{font-weight:900;font-size:15px;color:#101828}
+.sale-cage-page-meta{font-size:12px;color:#667085;margin-top:3px}
+.sale-cage-page-date{display:inline-block;margin-top:6px;padding:3px 7px;border-radius:999px;background:#fff1f2;color:#b42318;font-size:10px;font-weight:900}
+.sale-cage-sticky-bar{position:sticky;bottom:calc(74px + env(safe-area-inset-bottom));z-index:18;display:flex;justify-content:space-between;align-items:center;gap:12px;margin:12px 0 0;padding:12px 14px;border:1px solid #fecaca;border-radius:14px;background:rgba(255,255,255,.97);backdrop-filter:blur(8px);box-shadow:0 -8px 24px rgba(16,24,40,.08)}
+@media(max-width:820px){
+ #v-sale-cages.active{min-height:100dvh}
+ #v-sale-cages .card{padding-bottom:14px}
+ .sale-cage-page-list{gap:7px}
+ .sale-cage-page-item{min-height:78px;padding:12px 10px}
+ .sale-cage-sticky-bar{bottom:calc(68px + env(safe-area-inset-bottom));border-radius:12px}
+ .sale-cage-sticky-bar .btn{min-height:46px}
+}
+
 </style>
 <meta name="theme-color" content="#b91c1c">
 </head>
@@ -1593,6 +1612,28 @@ input,select,textarea,button{touch-action:manipulation}
   <button class="btn" onclick="goToView('sales')">Go to Sales →</button>
  </div>
 </section>
+
+<section id="v-sale-cages" class="view">
+ <div class="head">
+  <div><h1>Select Cages</h1><p id="saleCagePageContext">Choose unsold cages for the selected sale date</p></div>
+  <button class="btn" onclick="cancelSaleCageSelection()">Cancel</button>
+ </div>
+ <div class="card">
+  <div class="toolbar" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+   <div class="field" style="flex:1;min-width:220px">
+    <label>Search Cages</label>
+    <input id="saleCageSearch" type="search" placeholder="Cage no., farmer or lifting date" oninput="renderSaleCageSelectionPage()">
+   </div>
+   <div class="cage-chip">Selected: <span id="saleCageSelectedCount">0</span></div>
+  </div>
+  <div id="saleCageSelectionList" class="sale-cage-page-list"></div>
+ </div>
+ <div class="sale-cage-sticky-bar">
+  <div><b id="saleCageStickyCount">0 cages selected</b><div class="sub" id="saleCageStickyTotal">0.00 kg · 0 birds</div></div>
+  <button class="btn primary" onclick="confirmSaleCageSelection()">Use Selected Cages</button>
+ </div>
+</section>
+
 <section id="v-sales" class="view">
  <div class="head"><div><h1>Store Sales</h1><p>Bill available cages to stores and track payments</p><div class="page-mini-summary" id="salesPageMini"></div></div><button class="btn primary" onclick="openSale()">+ New Sale</button></div>
  <div class="card"><div class="tablewrap"><table class="simple-list"><thead><tr><th>Date</th><th>ID</th><th>Name</th></tr></thead><tbody id="saleRows"></tbody></table></div></div>
@@ -2860,27 +2901,22 @@ async function openSale(){
  await reconcileCageInventoryState({sync:true});
  const stores=(await txAll("stores")).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
  if(!stores.length)return toast("Add a store first.");
- const cages=(await txAll("cages")).filter(c=>!c.isSold);
- if(!cages.length)return toast("No unsold cages available.");
- const lifts=await txAll("liftings"),farmers=await txAll("farmers");
- window._saleAllUnsoldCages=cages;
- window._saleLiftingMap=new Map(lifts.map(x=>[String(x.id),x]));
- window._saleFarmerMap=new Map(farmers.map(x=>[String(x.id),x]));
+ window._saleSelectedCageIds=[];
  openModal(`<h3>New Store Sale</h3>
   <div class="grid g2">
-   <div class="field"><label>Date</label><input id="saDate" type="date" value="${today()}" onchange="refreshSaleCagesByDate()"></div>
+   <div class="field"><label>Date</label><input id="saDate" type="date" value="${today()}" onchange="handleSaleDateChange()"></div>
    <div class="field"><label>Store</label><select id="saStore" onchange="updateSaleStoreOutstanding()">${stores.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></div>
    <div class="field"><label>Current Store Outstanding</label><input id="saOutstanding" value="Loading..." disabled></div>
    <div class="field"><label>Sales Rate ₹/kg</label><input id="saRate" type="number" step="0.01" min="0"></div>
   </div>
   <div class="field" style="margin-top:10px">
-   <label>Unsold Cages Available on Selected Date</label>
-   <div class="sub" id="saCageDateInfo" style="margin-bottom:6px"></div>
-   <div id="saCageList" class="cage-select-list"></div>
+   <label>Cages</label>
+   <button class="btn primary" style="width:100%;min-height:48px" onclick="openSaleCageSelectionPage()">Select Cages</button>
+   <div id="saSelectedSummary" class="sale-selected-summary">No cages selected.</div>
+   <div class="sub" style="margin-top:5px">Billed Weight is filled from selected cages automatically, but you can edit it before saving the sale.</div>
   </div>
-  <div id="saSelectedSummary" class="sale-selected-summary">No cages selected.</div>
   <div class="grid g2" style="margin-top:10px">
-   <div class="field"><label>Total Billed Weight kg</label><input id="saWeight" type="number" step="0.01" disabled value="0.00"></div>
+   <div class="field"><label>Billed Weight kg (Editable)</label><input id="saWeight" type="number" step="0.01" min="0" inputmode="decimal" value="0.00"></div>
    <div class="field"><label>Total Birds</label><input id="saBirds" disabled value="0"></div>
    <div class="field"><label>Paid Amount ₹</label><input id="saPaid" type="number" step="0.01" value="0"></div>
    <div class="field"><label>Payment Method</label><select id="saMode"><option>Cash</option><option>UPI</option><option>Credit</option><option>Bank</option></select></div>
@@ -2888,46 +2924,110 @@ async function openSale(){
   </div>
   <div style="height:12px"></div><button class="btn primary" onclick="saveSale()">Save Sale</button>`);
  await updateSaleStoreOutstanding();
- await refreshSaleCagesByDate();
+ await updateMultiCageSaleSummary();
 }
-async function refreshSaleCagesByDate(){
- const date=document.getElementById("saDate")?.value||today(),host=document.getElementById("saCageList"),info=document.getElementById("saCageDateInfo");
- if(!host)return;
- // Re-read local data so sold status is current, then allow only cages whose lifting existed on/before the selected sale date.
+async function handleSaleDateChange(){
+ window._saleSelectedCageIds=[];
+ await updateMultiCageSaleSummary();
+}
+async function getAvailableSaleCagesForDate(date){
  const [allCages,lifts,farmers]=await Promise.all([txAll("cages"),txAll("liftings"),txAll("farmers")]);
  const lm=new Map(lifts.map(x=>[String(x.id),x])),fm=new Map(farmers.map(x=>[String(x.id),x]));
  const cages=allCages.filter(c=>{
    if(c.isSold)return false;
-   const l=lm.get(String(c.liftingId));
-   const liftingDate=String(l?.liftingDate||"");
-   return liftingDate && liftingDate<=date;
+   const l=lm.get(String(c.liftingId)),liftingDate=String(l?.liftingDate||"");
+   return liftingDate&&liftingDate<=date;
  }).sort((a,b)=>{
    const ad=String(lm.get(String(a.liftingId))?.liftingDate||""),bd=String(lm.get(String(b.liftingId))?.liftingDate||"");
-   return ad.localeCompare(bd)||String(a.cageNumber||"").localeCompare(String(b.cageNumber||""));
+   return ad.localeCompare(bd)||String(a.cageNumber||"").localeCompare(String(b.cageNumber||""),undefined,{numeric:true});
  });
+ return {cages,lm,fm};
+}
+async function openSaleCageSelectionPage(){
+ const date=document.getElementById("saDate")?.value||today();
+ window._saleModalDraft={
+   date,
+   storeId:document.getElementById("saStore")?.value||"",
+   rate:document.getElementById("saRate")?.value||"",
+   paid:document.getElementById("saPaid")?.value||"0",
+   mode:document.getElementById("saMode")?.value||"Cash",
+   remarks:document.getElementById("saRem")?.value||""
+ };
+ closeModal();
+ pushAppView("sale-cages");
+ const ctx=document.getElementById("saleCagePageContext");if(ctx)ctx.textContent=`Unsold cages available on or before ${date}`;
+ const search=document.getElementById("saleCageSearch");if(search)search.value="";
+ await renderSaleCageSelectionPage();
+}
+async function renderSaleCageSelectionPage(){
+ const date=window._saleModalDraft?.date||today(),q=(document.getElementById("saleCageSearch")?.value||"").trim().toLowerCase();
+ const {cages,lm,fm}=await getAvailableSaleCagesForDate(date);
  window._saleAvailableCages=cages;
- host.innerHTML=cages.length?cages.map(c=>{
+ const selected=new Set((window._saleSelectedCageIds||[]).map(String));
+ const filtered=cages.filter(c=>{
+   if(!q)return true;
    const l=lm.get(String(c.liftingId)),f=fm.get(String(c.farmerId));
-   return `<label class="cage-select-row"><input class="saCageCheck" type="checkbox" value="${esc(c.id)}" onchange="updateMultiCageSaleSummary()">
-    <span class="main">
-      <span class="name">Cage ${esc(c.cageNumber||c.id)}</span>
-      <span class="meta">${esc(f?.name||l?.farmerName||"")} · ${c.birdCount||0} birds</span>
-      <span class="cage-lift-date">Lifting Date: ${esc(l?.liftingDate||"—")}</span>
-    </span>
-    <span class="kg">${fmt(c.weight)} kg</span></label>`;
- }).join(""):`<div class="empty">No unsold cages were available by ${esc(date)}.</div>`;
- if(info)info.textContent=`Showing ${cages.length} unsold cage${cages.length===1?"":"s"} lifted on or before ${date}. Future lifting cages are hidden.`;
- updateMultiCageSaleSummary();
+   return [c.cageNumber,c.id,l?.liftingDate,f?.name,l?.farmerName].some(v=>String(v||"").toLowerCase().includes(q));
+ });
+ const host=document.getElementById("saleCageSelectionList");if(!host)return;
+ host.innerHTML=filtered.length?filtered.map(c=>{
+   const l=lm.get(String(c.liftingId)),f=fm.get(String(c.farmerId)),checked=selected.has(String(c.id));
+   return `<label class="sale-cage-page-item ${checked?"selected":""}">
+    <input type="checkbox" value="${esc(c.id)}" ${checked?"checked":""} onchange="toggleSaleCageSelection(this)">
+    <div class="sale-cage-page-main">
+      <div class="sale-cage-page-title">Cage ${esc(c.cageNumber||c.id)}</div>
+      <div class="sale-cage-page-meta">${esc(f?.name||l?.farmerName||"")} · ${c.birdCount||0} birds · ${fmt(c.weight)} kg</div>
+      <div class="sale-cage-page-date">Lifting Date: ${esc(l?.liftingDate||"—")}</div>
+    </div>
+   </label>`;
+ }).join(""):`<div class="empty">No matching unsold cages for ${esc(date)}.</div>`;
+ updateSaleCageSelectionFooter();
+}
+function toggleSaleCageSelection(input){
+ const id=String(input.value),set=new Set((window._saleSelectedCageIds||[]).map(String));
+ if(input.checked)set.add(id);else set.delete(id);
+ window._saleSelectedCageIds=[...set];
+ input.closest(".sale-cage-page-item")?.classList.toggle("selected",input.checked);
+ updateSaleCageSelectionFooter();
+}
+function updateSaleCageSelectionFooter(){
+ const selected=new Set((window._saleSelectedCageIds||[]).map(String)),cages=(window._saleAvailableCages||[]).filter(c=>selected.has(String(c.id)));
+ const count=cages.length,weight=cages.reduce((a,c)=>a+(Number(c.weight)||0),0),birds=cages.reduce((a,c)=>a+(Number(c.birdCount)||0),0);
+ const a=document.getElementById("saleCageSelectedCount"),b=document.getElementById("saleCageStickyCount"),c=document.getElementById("saleCageStickyTotal");
+ if(a)a.textContent=count;if(b)b.textContent=`${count} cage${count===1?"":"s"} selected`;if(c)c.textContent=`${fmt(weight)} kg · ${birds} birds`;
+}
+async function confirmSaleCageSelection(){
+ await reopenSaleModalFromDraft();
+}
+async function cancelSaleCageSelection(){
+ await reopenSaleModalFromDraft();
+}
+async function reopenSaleModalFromDraft(){
+ const d=window._saleModalDraft||{},selected=[...(window._saleSelectedCageIds||[])];
+ renderAppView("sales");
+ await openSale();
+ const date=document.getElementById("saDate");if(date)date.value=d.date||today();
+ const store=document.getElementById("saStore");if(store&&d.storeId)store.value=d.storeId;
+ const rate=document.getElementById("saRate");if(rate)rate.value=d.rate||"";
+ const paid=document.getElementById("saPaid");if(paid)paid.value=d.paid||"0";
+ const mode=document.getElementById("saMode");if(mode&&d.mode)mode.value=d.mode;
+ const rem=document.getElementById("saRem");if(rem)rem.value=d.remarks||"";
+ window._saleSelectedCageIds=selected;
+ await updateSaleStoreOutstanding();
+ await updateMultiCageSaleSummary();
 }
 function selectedSaleCageIds(){
- return Array.from(document.querySelectorAll(".saCageCheck:checked")).map(x=>x.value);
+ return Array.isArray(window._saleSelectedCageIds)?window._saleSelectedCageIds:[];
 }
-function updateMultiCageSaleSummary(){
- const ids=new Set(selectedSaleCageIds()),cages=Array.isArray(window._saleAvailableCages)?window._saleAvailableCages.filter(c=>ids.has(String(c.id))):[];
- const weight=cages.reduce((a,c)=>a+(Number(c.weight)||0),0),birds=cages.reduce((a,c)=>a+(Number(c.birdCount)||0),0);
+async function updateMultiCageSaleSummary(){
+ const ids=new Set(selectedSaleCageIds().map(String));
+ const date=document.getElementById("saDate")?.value||window._saleModalDraft?.date||today();
+ const {cages}=await getAvailableSaleCagesForDate(date);
+ const chosen=cages.filter(c=>ids.has(String(c.id)));
+ const weight=chosen.reduce((a,c)=>a+(Number(c.weight)||0),0),birds=chosen.reduce((a,c)=>a+(Number(c.birdCount)||0),0);
  const w=document.getElementById("saWeight"),b=document.getElementById("saBirds"),s=document.getElementById("saSelectedSummary");
  if(w)w.value=fmt(weight);if(b)b.value=birds;
- if(s)s.innerHTML=cages.length?`<b>${cages.length} cage${cages.length===1?"":"s"} selected</b> · ${fmt(weight)} kg · ${birds} birds<br>${cages.map(c=>`Cage ${esc(c.cageNumber||c.id)}`).join(", ")}`:"No cages selected.";
+ if(s)s.innerHTML=chosen.length?`<b>${chosen.length} cage${chosen.length===1?"":"s"} selected</b> · ${fmt(weight)} kg · ${birds} birds<br>${chosen.map(c=>`Cage ${esc(c.cageNumber||c.id)}`).join(", ")}`:"No cages selected.";
 }
 function fillSaleWeight(){updateMultiCageSaleSummary()}
 async function updateSaleStoreOutstanding(){
@@ -2960,7 +3060,9 @@ async function saveSale(){
  }
  const store=await txGet("stores",storeId);if(!store)return toast("Store not found.");
  const fin=await storeSummary(storeId);
- const weight=current.reduce((a,c)=>a+(Number(c.weight)||0),0),birds=current.reduce((a,c)=>a+(Number(c.birdCount)||0),0);
+ const cageWeight=current.reduce((a,c)=>a+(Number(c.weight)||0),0),birds=current.reduce((a,c)=>a+(Number(c.birdCount)||0),0);
+ const weight=Number(document.getElementById("saWeight")?.value)||0;
+ if(weight<=0)return toast("Enter a valid billed weight.");
  const exactAmount=Math.round(weight*rate*100)/100,rr=invoiceRound(exactAmount),netAmount=rr.rounded;
  const inv=await nextSequentialNumber("sale",date),sid=inv;
  if((await txAll("sales")).some(x=>x.id!==sid&&x.invoiceNumber===inv))return toast("Invoice number conflict detected. Please retry.");
@@ -2971,7 +3073,7 @@ async function saveSale(){
  const r={id:sid,invoiceNumber:inv,storeId,storeName:store.name,storePhone:store.phone||"",saleDate:date,
    liftingId:liftingIds[0]||null,liftingIds,farmerId:farmerIds[0]||null,farmerIds,farmerName,
    cageId:current[0].id,cageIds:current.map(c=>c.id),cageNumber:current.map(c=>c.cageNumber||c.id).join(", "),cageNumbers:current.map(c=>c.cageNumber||c.id),cageDetails,
-   birdsCount:birds,totalBirds:birds,netWeight:weight,weight,totalWeight:weight,salesRate:rate,ratePerKg:rate,
+   birdsCount:birds,totalBirds:birds,originalCageWeight:cageWeight,netWeight:weight,weight,totalWeight:weight,salesRate:rate,ratePerKg:rate,
    saleAmount:exactAmount,totalAmount:exactAmount,roundOff:rr.roundOff,netAmount,invoiceNetAmount:netAmount,paidAmount:paid,
    previousDue:fin.outstanding,outstanding:Math.round((fin.outstanding+netAmount-paid)*100)/100,
    paymentMethod:document.getElementById("saMode").value,remarks:document.getElementById("saRem").value.trim(),isWangkheiSale:!!store.isWangkhei,
