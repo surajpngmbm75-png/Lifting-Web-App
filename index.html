@@ -1875,12 +1875,12 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
 
  <div style="height:12px"></div>
  <div class="card">
-  <div class="split"><div><b>Farmer Ledger</b><div class="sub">All lifting dates for the selected farmer. Different rates remain on separate rows.</div></div><div class="action-group"><button class="btn primary" onclick="downloadFarmerLedgerPdf()">Farmer PDF</button><button class="btn" onclick="exportFarmerLedgerExcel()">Excel</button></div></div>
+  <div class="split"><div><b>Farmer Ledger</b><div class="sub">Lifting payable, farmer payments and running outstanding balance. Different lifting dates/rates remain separate.</div></div><div class="action-group"><button class="btn primary" onclick="downloadFarmerLedgerPdf()">Farmer PDF</button><button class="btn" onclick="exportFarmerLedgerExcel()">Excel</button></div></div>
   <div style="height:10px"></div>
   <div class="toolbar"><div class="field"><label>Farmer</label><select id="farmerLedgerFarmer" onchange="renderFarmerLedger()"></select></div><div class="field"><label>Amount Rule</label><input value="1–49 → 00, 50–99 → 50" disabled></div></div>
   <div class="sub" style="margin-top:8px">Farmer ledger amount is rounded DOWN to the lower ₹50 step for statement display only. Example: ₹58,049 → ₹58,000 and ₹58,099 → ₹58,050.</div>
   <div style="height:10px"></div>
-  <div class="tablewrap"><table class="accounting-report-table"><thead><tr><th>Date</th><th>Farmer Name</th><th>Total Kg</th><th>Rate</th><th>Total Amount</th></tr></thead><tbody id="farmerLedgerRows"></tbody></table></div>
+  <div class="tablewrap"><table class="accounting-report-table"><thead><tr><th>Date</th><th>Farmer Name</th><th>Total Kg</th><th>Rate</th><th>Total Amount</th><th>Payment Received</th><th>Balance</th></tr></thead><tbody id="farmerLedgerRows"></tbody></table></div>
   <div id="farmerLedgerSummary" class="sub" style="margin-top:10px"></div>
  </div>
 </section>
@@ -1908,6 +1908,7 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
     <option value="farmer">Farmer Lifting Purchase Register</option>
     <option value="sales">Store Sales Register</option>
     <option value="payments">Store Payment Register</option>
+    <option value="farmerpayments">Farmer Payment Register</option>
     <option value="storeledger">All Store Ledger Transactions</option>
     <option value="outstanding">Store Outstanding Statement</option>
     <option value="singke">MPF / Singke Reconciliation Ledger</option>
@@ -2044,7 +2045,7 @@ function enhanceMobileTables(){
 }
 function initMobileTableCards(){enhanceMobileTables()}
 function draftTitle(){return (document.querySelector("#modalBody h3")?.textContent||document.querySelector("#modalBody .lifting-step-title")?.textContent||"").trim()}
-function draftEligible(){return /New Lifting|New Store Sale|Record Store Payment|Add Farmer|Add Store|Edit Sale|Edit Store|Edit Farmer/i.test(draftTitle())}
+function draftEligible(){return /New Lifting|New Store Sale|Record Store Payment|Pay Farmer|Add Farmer|Add Store|Edit Sale|Edit Store|Edit Farmer/i.test(draftTitle())}
 function getSavedDraft(){try{return JSON.parse(localStorage.getItem(FORM_DRAFT_KEY)||"null")}catch(e){return null}}
 function captureCurrentDraft(){if(!draftEligible())return null;const fs=[...document.querySelectorAll("#modalBody input,#modalBody select,#modalBody textarea")].filter(x=>x.id&&x.type!=="password"&&!x.disabled);if(!fs.length)return null;const values={};fs.forEach(x=>values[x.id]=x.value);return {title:draftTitle(),values,savedAt:new Date().toISOString()}}
 function updateDraftRecoveryBar(){const b=document.getElementById("draftRecoveryBar"),d=getSavedDraft();if(!b)return;b.hidden=!d;if(d)b.querySelector("span").textContent=`📝 Unsaved ${d.title} draft available`}
@@ -2320,11 +2321,12 @@ function openDetailsModal(title,sub,items,actions=""){
 }
 async function openFarmerDetails(fid){
  const f=await txGet("farmers",fid);if(!f)return toast("Farmer not found.");
- const lift=(await txAll("liftings")).filter(x=>x.farmerId===fid);
+ const lift=(await txAll("liftings")).filter(x=>x.farmerId===fid),ledger=await getFarmerLedgerData(fid);
  openDetailsModal(f.name,`Farmer ${f.id}`,[
   ["Date",simpleDate(f.createdAt)],["Farmer ID",f.id],["Name",f.name],["Phone",f.phone],
-  ["Liftings",lift.length],["Created",f.createdAt?new Date(f.createdAt).toLocaleString("en-IN"):"—"],["Updated",f.updatedAt?new Date(f.updatedAt).toLocaleString("en-IN"):"—"]
- ],`<button class="btn primary" onclick="closeModal();openFarmerById('${f.id}')">Edit</button>${S.role==="admin"?`<button class="btn danger" onclick="closeModal();deleteFarmer('${f.id}')">Delete</button>`:""}`);
+  ["Liftings",lift.length],["Total Lifting Amount","Rs. "+fmt(ledger.totalAmount)],["Payment Received","Rs. "+fmt(ledger.totalPaid)],["Outstanding","Rs. "+fmt(ledger.balance)],
+  ["Created",f.createdAt?new Date(f.createdAt).toLocaleString("en-IN"):"—"],["Updated",f.updatedAt?new Date(f.updatedAt).toLocaleString("en-IN"):"—"]
+ ],`<button class="btn primary" onclick="closeModal();openFarmerById('${f.id}')">Edit</button><button class="btn ok" onclick="closeModal();openFarmerPayment('${f.id}')">Payment</button><button class="btn" onclick="closeModal();goToView('ledger');setTimeout(()=>{const s=document.getElementById('farmerLedgerFarmer');if(s){s.value='${f.id}';renderFarmerLedger()}},80)">Farmer Ledger</button>${S.role==="admin"?`<button class="btn danger" onclick="closeModal();deleteFarmer('${f.id}')">Delete</button>`:""}`);
 }
 async function openFarmerById(fid){const f=await txGet("farmers",fid);if(f)openFarmer(f)}
 async function openStoreDetails(storeId){
@@ -4619,37 +4621,92 @@ async function populateFarmerLedgerSelect(){
  sel.innerHTML=farmers.map(f=>`<option value="${f.id}">${esc(f.name)}</option>`).join("");
  if(farmers.some(f=>String(f.id)===String(old)))sel.value=old;
 }
+
+function farmerPaymentSettingKey(id){return `farmer_payment_${id}`}
+async function getFarmerPayments(farmerId=""){
+ const rows=await txAll("settings"),out=[];
+ for(const r of rows){
+   if(!String(r?.key||"").startsWith("farmer_payment_"))continue;
+   const p=r?.value||{};
+   if(farmerId&&String(p.farmerId)!==String(farmerId))continue;
+   out.push({...p,_settingKey:r.key});
+ }
+ return out.sort((a,b)=>String(a.paymentDate||"").localeCompare(String(b.paymentDate||""))||String(a.createdAt||"").localeCompare(String(b.createdAt||"")));
+}
+async function farmerOutstanding(farmerId){
+ const d=await getFarmerLedgerData(farmerId);
+ return money2(d.balance);
+}
+async function openFarmerPayment(farmerId){
+ const f=await txGet("farmers",farmerId);if(!f)return toast("Farmer not found.");
+ const d=await getFarmerLedgerData(farmerId),due=money2(d.balance);
+ openModal(`<h3>Pay Farmer</h3>
+  <div class="sub" style="margin-bottom:12px">Record an amount paid to ${esc(f.name)}. The farmer ledger balance will update automatically.</div>
+  <div class="grid g2">
+   <div class="field"><label>Farmer</label><input value="${esc(f.name)}" disabled></div>
+   <div class="field"><label>Current Outstanding ₹</label><input id="fpCurrentDue" value="${fmt(due)}" disabled data-value="${due}"></div>
+   <div class="field"><label>Date</label><input id="fpDate" type="date" value="${today()}"></div>
+   <div class="field"><label>Amount ₹</label><input id="fpAmount" type="number" min="0.01" step="0.01" inputmode="decimal" oninput="updateFarmerPaymentPreview()"></div>
+   <div class="field"><label>Payment Mode</label><select id="fpMode"><option>Cash</option><option>UPI</option><option>Bank</option><option>Cheque</option></select></div>
+   <div class="field"><label>Outstanding After Payment ₹</label><input id="fpRemaining" value="${fmt(due)}" disabled></div>
+   <div class="field" style="grid-column:1/-1"><label>Remarks</label><input id="fpRemarks" placeholder="Optional"></div>
+  </div>
+  <div style="height:12px"></div><button class="btn primary" onclick="saveFarmerPayment('${farmerId}')">Save Payment</button>`);
+}
+function updateFarmerPaymentPreview(){
+ const due=Number(document.getElementById("fpCurrentDue")?.dataset?.value)||0,amt=Number(document.getElementById("fpAmount")?.value)||0,el=document.getElementById("fpRemaining");
+ if(el)el.value=fmt(money2(due-amt));
+}
+async function saveFarmerPayment(farmerId){
+ const f=await txGet("farmers",farmerId);if(!f)return toast("Farmer not found.");
+ const date=document.getElementById("fpDate")?.value||"",amount=money2(document.getElementById("fpAmount")?.value),mode=document.getElementById("fpMode")?.value||"Cash",remarks=document.getElementById("fpRemarks")?.value?.trim()||"";
+ if(!date||amount<=0)return toast("Enter a valid date and payment amount.");
+ const before=await getFarmerLedgerData(farmerId),previousOutstanding=money2(before.balance);
+ if(amount>previousOutstanding+.009&&!confirm(`Payment ₹${fmt(amount)} is higher than current farmer outstanding ₹${fmt(previousOutstanding)}. Save as an advance/credit balance?`))return;
+ const idv=id("FP"),remainingOutstanding=money2(previousOutstanding-amount),now=iso();
+ const p={id:idv,farmerId,farmerName:f.name||"",paymentDate:date,amount,paymentMode:mode,remarks,previousOutstanding,remainingOutstanding,createdAt:now,updatedAt:now};
+ await setSetting(farmerPaymentSettingKey(idv),p);
+ audit("farmer_payments","CREATE",idv,`${f.name} | ₹${fmt(amount)} | ${mode}`);
+ clearCurrentFormDraft();closeModal();await refreshAll();
+ const sel=document.getElementById("farmerLedgerFarmer");if(sel){sel.value=farmerId;await renderFarmerLedger()}
+ toast(`Farmer payment saved. Balance: ₹${fmt(remainingOutstanding)}`);
+}
 async function getFarmerLedgerData(farmerId){
  const farmer=await txGet("farmers",farmerId);
  if(!farmer)throw new Error("Select a farmer.");
  const liftings=(await txAll("liftings")).filter(l=>String(l.farmerId)===String(farmerId));
+ const payments=await getFarmerPayments(farmerId);
  const grouped=new Map();
  for(const l of liftings){
    const date=String(l.liftingDate||""),rate=Number(l.liftingRate??l.ratePerKg)||0,key=`${date}|${rate}`;
-   const g=grouped.get(key)||{date,rate,kg:0,farmerName:farmer.name};
+   const g=grouped.get(key)||{date,rate,kg:0,farmerName:farmer.name,kind:"lifting",sortKey:`L-${l.invoiceNumber||l.id||""}`};
    g.kg+=Number(l.totalWeight)||0;grouped.set(key,g);
  }
- const rows=[...grouped.values()].sort((a,b)=>String(a.date).localeCompare(String(b.date))||a.rate-b.rate).map(g=>{
+ const liftingRows=[...grouped.values()].map(g=>{
    const kg=money2(g.kg),raw=money2(kg*g.rate),amount=farmerLedgerRound50(raw);
-   return {...g,kg,raw,amount};
+   return {...g,kg,raw,amount,payment:0};
  });
- return {farmer,rows,totalKg:money2(rows.reduce((s,r)=>s+r.kg,0)),totalAmount:rows.reduce((s,r)=>s+r.amount,0)};
+ const paymentRows=payments.map(p=>({date:String(p.paymentDate||""),rate:null,kg:null,raw:0,amount:0,payment:money2(p.amount),farmerName:farmer.name,kind:"payment",paymentMode:p.paymentMode||"",paymentId:p.id||"",sortKey:`P-${p.createdAt||p.id||""}`}));
+ const events=[...liftingRows,...paymentRows].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.sortKey).localeCompare(String(b.sortKey)));
+ let balance=0;
+ const rows=events.map(e=>{balance=money2(balance+(Number(e.amount)||0)-(Number(e.payment)||0));return {...e,balance}});
+ return {farmer,rows,totalKg:money2(liftingRows.reduce((s,r)=>s+(Number(r.kg)||0),0)),totalAmount:money2(liftingRows.reduce((s,r)=>s+(Number(r.amount)||0),0)),totalPaid:money2(paymentRows.reduce((s,r)=>s+(Number(r.payment)||0),0)),balance:money2(balance)};
 }
 async function renderFarmerLedger(){
  await populateFarmerLedgerSelect();
  const id=document.getElementById("farmerLedgerFarmer")?.value||"",host=document.getElementById("farmerLedgerRows"),sum=document.getElementById("farmerLedgerSummary");
  if(!host)return;
- if(!id){host.innerHTML=`<tr><td colspan="5" class="empty">No farmer selected</td></tr>`;if(sum)sum.textContent="";return}
+ if(!id){host.innerHTML=`<tr><td colspan="7" class="empty">No farmer selected</td></tr>`;if(sum)sum.textContent="";return}
  const d=await getFarmerLedgerData(id);
- host.innerHTML=d.rows.length?d.rows.map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(d.farmer.name)}</td><td>${fmt(r.kg)}</td><td>₹${fmt(r.rate)}</td><td><b>₹${fmt(r.amount)}</b></td></tr>`).join(""):`<tr><td colspan="5" class="empty">No lifting records for this farmer.</td></tr>`;
- if(sum)sum.innerHTML=`<b>Total:</b> ${fmt(d.totalKg)} kg &nbsp; | &nbsp; Statement Amount: <b>₹${fmt(d.totalAmount)}</b>`;
+ host.innerHTML=d.rows.length?d.rows.map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(d.farmer.name)}</td><td>${r.kind==="lifting"?fmt(r.kg):"—"}</td><td>${r.kind==="lifting"?"₹"+fmt(r.rate):"—"}</td><td>${r.amount?"₹"+fmt(r.amount):"—"}</td><td>${r.payment?"₹"+fmt(r.payment):"—"}</td><td><b>₹${fmt(r.balance)}</b></td></tr>`).join(""):`<tr><td colspan="7" class="empty">No lifting or payment records for this farmer.</td></tr>`;
+ if(sum)sum.innerHTML=`<b>Total:</b> ${fmt(d.totalKg)} kg &nbsp; | &nbsp; Lifting Amount: <b>₹${fmt(d.totalAmount)}</b> &nbsp; | &nbsp; Payments: <b>₹${fmt(d.totalPaid)}</b> &nbsp; | &nbsp; Outstanding: <b>₹${fmt(d.balance)}</b>`;
 }
 async function downloadFarmerLedgerPdf(){
  try{
    const id=document.getElementById("farmerLedgerFarmer")?.value||"",d=await getFarmerLedgerData(id);
-   const rows=d.rows.map(r=>[r.date,d.farmer.name,r.kg,r.rate,r.amount]);
-   const summary=[["Total Kg",d.totalKg],["Statement Amount",d.totalAmount],["Amount Rule","Round down to lower Rs. 50 step"]];
-   const blob=buildAccountingTablePdf({title:"FARMER LIFTING LEDGER",subtitle:`Farmer: ${d.farmer.name} | Generated: ${new Date().toLocaleString("en-IN")}`,headers:["Date","Farmer Name","Total Kg","Rate","Total Amount"],rows,summary});
+   const rows=d.rows.map(r=>[r.date,d.farmer.name,r.kind==="lifting"?r.kg:"—",r.kind==="lifting"?r.rate:"—",r.amount||"—",r.payment||"—",r.balance]);
+   const summary=[["Total Kg",d.totalKg],["Lifting Amount",d.totalAmount],["Payment Received",d.totalPaid],["Outstanding",d.balance],["Amount Rule","Round down to lower Rs. 50 step"]];
+   const blob=buildAccountingTablePdf({title:"FARMER LIFTING & PAYMENT LEDGER",subtitle:`Farmer: ${d.farmer.name} | Generated: ${new Date().toLocaleString("en-IN")}`,headers:["Date","Farmer Name","Total Kg","Rate","Total Amount","Payment Received","Balance"],rows,summary});
    await downloadPdfBlob(blob,`PSM_Farmer_Ledger_${d.farmer.name.replace(/[^a-z0-9]+/gi,"_")}_${today()}`);
    audit("ledger","FARMER_PDF",id,d.farmer.name);
  }catch(e){toast(e.message)}
@@ -4657,8 +4714,8 @@ async function downloadFarmerLedgerPdf(){
 async function exportFarmerLedgerExcel(){
  try{
    const id=document.getElementById("farmerLedgerFarmer")?.value||"",d=await getFarmerLedgerData(id);
-   const rows=d.rows.map(r=>[r.date,d.farmer.name,r.kg,r.rate,r.amount]);
-   downloadExcelXml(`Farmer Ledger - ${d.farmer.name}`,["Date","Farmer Name","Total Kg","Rate","Total Amount"],rows,`PSM_Farmer_Ledger_${d.farmer.name.replace(/[^a-z0-9]+/gi,"_")}_${today()}.xls`,[["Total Kg",d.totalKg],["Statement Amount",d.totalAmount],["Amount Rule","1-49 -> 00; 50-99 -> 50"]]);
+   const rows=d.rows.map(r=>[r.date,d.farmer.name,r.kind==="lifting"?r.kg:"",r.kind==="lifting"?r.rate:"",r.amount||"",r.payment||"",r.balance]);
+   downloadExcelXml(`Farmer Ledger - ${d.farmer.name}`,["Date","Farmer Name","Total Kg","Rate","Total Amount","Payment Received","Balance"],rows,`PSM_Farmer_Ledger_${d.farmer.name.replace(/[^a-z0-9]+/gi,"_")}_${today()}.xls`,[["Total Kg",d.totalKg],["Lifting Amount",d.totalAmount],["Payment Received",d.totalPaid],["Outstanding",d.balance],["Amount Rule","1-49 -> 00; 50-99 -> 50"]]);
  }catch(e){toast(e.message)}
 }
 
@@ -4722,12 +4779,14 @@ async function runGlobalSearch(value){
  if(q.length<2){host.innerHTML=`<div class="psm-search-empty">Type at least 2 characters to search all records.</div>`;return}
  try{
    const [farmers,stores,liftings,sales,payments,sets,cages]=await Promise.all(["farmers","stores","liftings","sales","payments","singke_settlements","cages"].map(txAll));
+   const farmerPayments=await getFarmerPayments();
    const rows=[];
    for(const x of farmers)if(searchHas(q,x.id,x.name,x.phone))rows.push(["Farmer",x.id,x.name||x.id,`${x.id} · ${x.phone||""}`]);
    for(const x of stores)if(searchHas(q,x.id,x.name,x.phone))rows.push(["Store",x.id,x.name||x.id,`${x.id} · ${x.phone||""}`]);
    for(const x of liftings)if(searchHas(q,x.id,x.invoiceNumber,x.farmerName,x.farmerId,x.remarks))rows.push(["Lifting",x.id,x.farmerName||x.invoiceNumber||x.id,`${x.invoiceNumber||x.id} · ${x.liftingDate||""}`]);
    for(const x of sales)if(searchHas(q,x.id,x.invoiceNumber,x.storeName,x.storeId,x.cageNumber,x.cageId,x.cageNumbers?.join(" "),x.cageIds?.join(" "),x.farmerName))rows.push(["Sale",x.id,x.storeName||x.invoiceNumber||x.id,`${x.invoiceNumber||x.id} · Cage ${x.cageNumber||x.cageId||"—"}`]);
    for(const x of payments)if(searchHas(q,x.id,x.receiptNumber,x.storeName,x.storeId,x.referenceNumber))rows.push(["Payment",x.id,x.storeName||x.receiptNumber||x.id,`${x.receiptNumber||x.id} · ₹${fmt(x.amount)}`]);
+   for(const x of farmerPayments)if(searchHas(q,x.id,x.farmerName,x.farmerId,x.paymentMode))rows.push(["Farmer Payment",x.id,x.farmerName||x.farmerId,`${x.paymentDate||""} · ₹${fmt(x.amount)}`]);
    for(const x of sets)if(searchHas(q,x.id,x.receiptNumber,x.referenceNumber,x.remarks))rows.push(["Settlement",x.id,x.receiptNumber||x.id,`${x.date||""} · ₹${fmt(x.amount)}`]);
    for(const x of cages)if(searchHas(q,x.id,x.cageNumber,x.liftingId,x.farmerId))rows.push(["Cage",x.id,`Cage ${x.cageNumber||x.id}`,`${fmt(x.weight)} kg · ${x.birdCount||0} birds`]);
    const shown=rows.slice(0,PSM_GLOBAL_SEARCH_LIMIT);
@@ -4749,6 +4808,10 @@ async function openGlobalSearchResult(type,idv){
     const x=await txGet("payments",idv);if(!x)return toast("Payment not found.");
     return openGenericDetails("Store Payment",x.receiptNumber||x.id,{date:x.paymentDate,id:x.receiptNumber||x.id,store:x.storeName||x.storeId,amount:"Rs. "+fmt(x.amount),paymentMode:x.paymentMode||"—",reference:x.referenceNumber||"—",remarks:x.remarks||"—"});
   }
+  if(type==="Farmer Payment"){
+    const x=(await getFarmerPayments()).find(p=>String(p.id)===String(idv));if(!x)return toast("Farmer payment not found.");
+    return openGenericDetails("Farmer Payment",x.id,{date:x.paymentDate,id:x.id,farmer:x.farmerName||x.farmerId,amount:"Rs. "+fmt(x.amount),paymentMode:x.paymentMode||"—",previousOutstanding:"Rs. "+fmt(x.previousOutstanding),remainingOutstanding:"Rs. "+fmt(x.remainingOutstanding),remarks:x.remarks||"—"});
+  }
   if(type==="Settlement"){
     const x=await txGet("singke_settlements",idv);if(!x)return toast("Settlement not found.");
     return openGenericDetails("MPF A/C Settlement",x.receiptNumber||x.id,{date:x.date,id:x.receiptNumber||x.id,amount:"Rs. "+fmt(x.amount),paymentMethod:x.paymentMethod||"—",reference:x.referenceNumber||"—",remarks:x.remarks||"—"});
@@ -4763,11 +4826,12 @@ function recentTimeValue(x){return Date.parse(x.updatedAt||x.createdAt||x.date||
 async function renderRecentActivity(){
  const host=document.getElementById("recentActivityList");if(!host)return;
  try{
-  const [liftings,sales,payments,sets]=await Promise.all(["liftings","sales","payments","singke_settlements"].map(txAll));
+  const [liftings,sales,payments,sets]=await Promise.all(["liftings","sales","payments","singke_settlements"].map(txAll)),farmerPayments=await getFarmerPayments();
   const rows=[
    ...liftings.map(x=>({type:"Lifting",id:x.id,title:x.farmerName||x.invoiceNumber||x.id,sub:`${x.invoiceNumber||x.id} · ${fmt(x.totalWeight)} kg`,date:x.liftingDate||"",t:recentTimeValue(x)})),
    ...sales.map(x=>({type:"Sale",id:x.id,title:x.storeName||x.invoiceNumber||x.id,sub:`${x.invoiceNumber||x.id} · ₹${fmt(x.netAmount??x.saleAmount??x.totalAmount)}`,date:x.saleDate||"",t:recentTimeValue(x)})),
    ...payments.map(x=>({type:"Payment",id:x.id,title:x.storeName||x.receiptNumber||x.id,sub:`${x.receiptNumber||x.id} · ₹${fmt(x.amount)}`,date:x.paymentDate||"",t:recentTimeValue(x)})),
+   ...farmerPayments.map(x=>({type:"Farmer Payment",id:x.id,title:x.farmerName||x.farmerId,sub:`Paid · ₹${fmt(x.amount)}`,date:x.paymentDate||"",t:recentTimeValue(x)})),
    ...sets.map(x=>({type:"Settlement",id:x.id,title:x.receiptNumber||x.id,sub:`MPF A/C · ₹${fmt(x.amount)}`,date:x.date||"",t:recentTimeValue(x)}))
   ].sort((a,b)=>b.t-a.t).slice(0,5);
   host.innerHTML=rows.length?rows.map(x=>`<button type="button" class="psm-recent-item" onclick='openGlobalSearchResult(${JSON.stringify(x.type)},${JSON.stringify(String(x.id))})'><span class="psm-recent-main"><span class="psm-recent-title">${esc(x.title)}</span><span class="psm-recent-sub">${esc(x.date)} · ${esc(x.sub)}</span></span><span class="psm-type">${esc(x.type)}</span></button>`).join(""):`<div class="psm-search-empty">No activity yet.</div>`;
@@ -4877,10 +4941,10 @@ async function getDateRangeReportData(){
  const farmersArr=await txAll("farmers"),farmers=new Map(farmersArr.map(x=>[String(x.id),x]));
  const stores=await txAll("stores"),storeMap=new Map(stores.map(x=>[String(x.id),x]));
  const liftings=await txAll("liftings"),liftMap=new Map(liftings.map(x=>[String(x.id),x]));
- const sales=await txAll("sales"),payments=await txAll("payments"),sets=await txAll("singke_settlements"),cages=await txAll("cages");
+ const sales=await txAll("sales"),payments=await txAll("payments"),sets=await txAll("singke_settlements"),cages=await txAll("cages"),farmerPayments=await getFarmerPayments();
  let headers=[],rows=[],title="",summary=[];
 
- const periodSales=sales.filter(x=>ok(x.saleDate)),periodLift=liftings.filter(x=>ok(x.liftingDate)),periodPayments=payments.filter(x=>ok(x.paymentDate)),periodSets=sets.filter(x=>ok(x.date));
+ const periodSales=sales.filter(x=>ok(x.saleDate)),periodLift=liftings.filter(x=>ok(x.liftingDate)),periodPayments=payments.filter(x=>ok(x.paymentDate)),periodFarmerPayments=farmerPayments.filter(x=>ok(x.paymentDate)),periodSets=sets.filter(x=>ok(x.date));
  const netSales=money2(periodSales.reduce((s,x)=>s+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0));
  const liftingPayable=money2(periodLift.reduce((s,x)=>s+(Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0),0));
  const paymentsReceived=money2(periodPayments.reduce((s,x)=>s+(Number(x.amount)||0),0)+periodSales.reduce((s,x)=>s+(Number(x.paidAmount)||0),0));
@@ -4903,6 +4967,7 @@ async function getDateRangeReportData(){
      ["Net Store Sales",netSales,"Selected period"],
      ["Lifting Payable",liftingPayable,"Selected period"],
      ["Payments Received",paymentsReceived,"Sale payments + payment receipts"],
+     ["Farmer Payments Made",money2(periodFarmerPayments.reduce((s,x)=>s+(Number(x.amount)||0),0)),"Selected period"],
      ["Physical Lifting Cost of Sold Cages",liftingCost,"Used for gross profit"],
      ["Gross Profit",grossProfit,"Net sales - lifting cost"],
      ["Wangkhei Adjustments",wang,"Selected period"],
@@ -4925,6 +4990,11 @@ async function getDateRangeReportData(){
    title="Store Payment Register";
    headers=["Date","Receipt","Store","Mode","Reference","Previous Due","Amount Received","Remaining Due","Remarks"];
    rows=periodPayments.map(x=>[x.paymentDate,x.receiptNumber||x.id,x.storeName||storeMap.get(String(x.storeId))?.name||"",x.paymentMode||"",x.referenceNumber||"",Number(x.previousDue)||0,Number(x.amount)||0,Number(x.remainingDue)||0,x.remarks||""]);
+ }
+ if(type==="farmerpayments"){
+   title="Farmer Payment Register";
+   headers=["Date","Farmer","Payment Mode","Amount Paid","Previous Outstanding","Remaining Outstanding","Remarks"];
+   rows=periodFarmerPayments.map(x=>[x.paymentDate,x.farmerName||farmers.get(String(x.farmerId))?.name||"",x.paymentMode||"",Number(x.amount)||0,Number(x.previousOutstanding)||0,Number(x.remainingOutstanding)||0,x.remarks||""]);
  }
  if(type==="storeledger"){
    title="All Store Ledger Transactions";
