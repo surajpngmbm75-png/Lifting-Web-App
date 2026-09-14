@@ -1690,6 +1690,7 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
   <div class="card metric"><div class="lab">Store Outstanding</div><div class="val">₹<span id="mDue">0.00</span></div><div class="mini">All stores</div></div>
   <div class="card metric"><div class="lab">Unsold Cages</div><div class="val" id="mUnsold">0</div><div class="mini" id="mUnsoldSub">Calculated from actual cage + sale records</div></div>
   <div class="card metric"><div class="lab">Gross Profit</div><div class="val">₹<span id="mGrossProfit">0.00</span></div><div class="mini" id="mGrossProfitSub">Sales minus lifting cost</div></div>
+  <div class="card metric"><div class="lab">Cash in Hand</div><div class="val">₹<span id="mCashInHand">0.00</span></div><div class="mini">Cash received − cash paid</div></div>
  </div>
  <div style="height:12px"></div>
  <div class="grid g2">
@@ -1698,7 +1699,7 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
    <div id="attention" class="alerts"></div>
   </div>
   <div class="card">
-   <div class="kicker">MPF A/C</div><div class="hero" style="margin-top:8px"><div class="sub">Remaining Due to MPF</div><div class="val">₹<span id="dashSingke">0.00</span></div><div class="sub">Previous Due + Lifting Payable − Wangkhei − Settlements</div></div>
+   <div class="kicker">MPF A/C</div><div class="hero" style="margin-top:8px"><div class="sub">Remaining Due to MPF</div><div class="val">₹<span id="dashSingke">0.00</span></div><div class="sub">Previous Due + Lifting Payable − Wangkhei − Settlements − Farmer Payments</div></div>
   </div>
  </div>
 
@@ -1844,9 +1845,11 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
   <div class="card metric"><div class="lab">Lifting Payable</div><div class="val">₹<span id="sLift">0.00</span></div><div class="mini">All liftings</div></div>
   <div class="card metric"><div class="lab">Wangkhei Adjustments</div><div class="val">₹<span id="sWang">0.00</span></div><div class="mini"><span id="sWangKg">0.00</span> kg total</div></div>
   <div class="card metric"><div class="lab">Other Settlements</div><div class="val">₹<span id="sSet">0.00</span></div><div class="mini">Cash / bank payouts</div></div>
+  <div class="card metric"><div class="lab">Paid Directly to Farmers</div><div class="val">₹<span id="sFarmerPaid">0.00</span></div><div class="mini">Deducted from Due to Singke</div></div>
+  <div class="card metric"><div class="lab">Cash in Hand</div><div class="val">₹<span id="sCashHand">0.00</span></div><div class="mini">Cash receipts − cash payouts</div></div>
  </div>
  <div style="height:12px"></div>
- <div class="hero"><div class="sub">Remaining Due to Singke</div><div class="val">₹<span id="sRemain">0.00</span></div><div class="sub">Previous Due + Lifting Payable − Wangkhei Adjustments − Other Settlements</div></div>
+ <div class="hero"><div class="sub">Remaining Due to Singke</div><div class="val">₹<span id="sRemain">0.00</span></div><div class="sub">Previous Due + Lifting Payable − Wangkhei Adjustments − Other Settlements − Payments Made Directly to Farmers</div></div>
  <div style="height:12px"></div>
  <div class="card">
   <div class="toolbar" style="justify-content:space-between;align-items:end">
@@ -3412,7 +3415,8 @@ async function buildSingkeLedgerPdf(){
   let ev=[
     ...(await txAll("liftings")).map(x=>({date:x.liftingDate||"",type:"Lifting Payable",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,debit:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,credit:0})),
     ...(await txAll("sales")).filter(x=>x.isWangkheiSale||wm.has(x.storeId)).map(x=>({date:x.saleDate||"",type:"Wangkhei Adjustment",ref:x.invoiceNumber||x.id,kg:Number(x.netWeight??x.weight??x.totalWeight)||0,debit:0,credit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0})),
-    ...(await txAll("singke_settlements")).map(x=>({date:x.date||"",type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,debit:0,credit:Number(x.amount)||0}))
+    ...(await txAll("singke_settlements")).map(x=>({date:x.date||"",type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,debit:0,credit:Number(x.amount)||0})),
+    ...(await getFarmerPayments()).map(x=>({date:x.paymentDate||"",type:"Farmer Payment",ref:x.farmerName||x.id,kg:0,debit:0,credit:Number(x.amount)||0}))
   ].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
   const from=document.getElementById("singkeFrom")?.value||"",to=document.getElementById("singkeTo")?.value||"";
   let bal=Number(s.p?.amount)||0;
@@ -3420,7 +3424,8 @@ async function buildSingkeLedgerPdf(){
   const filtered=ev.filter(e=>(!from||e.date>=from)&&(!to||e.date<=to)),rows=[];
   for(const e of filtered){bal=money2(bal+e.debit-e.credit);rows.push([e.date,e.type,e.ref,e.kg,e.debit,e.credit,bal])}
   const period=from||to?`${from||"Beginning"} to ${to||"Latest"}`:"All Transactions";
-  const summary=[["Previous Due",Number(s.p?.amount)||0],["Lifting Payable",s.liftingPayable],["Wangkhei Adjustments",s.wang],["Settlements",s.sett],["Current Remaining Due",s.remain]];
+  const cash=await cashInHandSummary();
+  const summary=[["Previous Due",Number(s.p?.amount)||0],["Lifting Payable",s.liftingPayable],["Wangkhei Adjustments",s.wang],["Settlements",s.sett],["Farmer Payments",s.farmerPaid],["Current Remaining Due",s.remain],["Cash in Hand",cash.cashInHand]];
   return {blob:buildAccountingTablePdf({title:"MPF / SINGKE RECONCILIATION LEDGER",subtitle:`Period: ${period} | Generated: ${new Date().toLocaleString("en-IN")}`,headers:["Date","Type","Reference","Kg","Debit","Credit","Running Due"],rows,summary}),fileName:`PSM_Singke_Reconciliation_${from||"All"}_${to||today()}.pdf`};
 }
 
@@ -3904,6 +3909,8 @@ async function buildDailyOperationalSummaryPdf(dateValue=today()){
    ["Wangkhei Kg",wangKg],
    ["Wangkhei Adjustment",wangAmt],
    ["MPF / Singke Settlements",settlements],
+   ["Payments Made Directly to Farmers",money2((await getFarmerPayments()).filter(x=>x.paymentDate===dateValue).reduce((a,x)=>a+(Number(x.amount)||0),0))],
+   ["Cash in Hand",money2((await cashInHandSummary()).cashInHand)],
    ["Current Store Outstanding",money2(outstanding)],
    ["Current MPF / Singke Balance",money2(sg.remain)]
  ];
@@ -4564,16 +4571,27 @@ As on: ${new Date().toLocaleString("en-IN")}
 Kindly arrange payment at the earliest. Thank you.`;
  const ph=normalizeWhatsappPhone(st.phone);window.open(`https://wa.me/${ph}?text=${encodeURIComponent(msg)}`,"_blank");audit("stores","OUTSTANDING_REMINDER",storeId,`₹${fmt(f.outstanding)}`)
 }
+
+function isCashMode(mode){return String(mode||"").trim().toLowerCase()==="cash"}
+async function cashInHandSummary(){
+ const sales=await txAll("sales"),payments=await txAll("payments"),sets=await txAll("singke_settlements"),farmerPayments=await getFarmerPayments();
+ const saleCash=money2(sales.filter(x=>isCashMode(x.paymentMethod)).reduce((a,x)=>a+(Number(x.paidAmount)||0),0));
+ const storeCash=money2(payments.filter(x=>isCashMode(x.paymentMode)).reduce((a,x)=>a+(Number(x.amount)||0),0));
+ const farmerCash=money2(farmerPayments.filter(x=>isCashMode(x.paymentMode)).reduce((a,x)=>a+(Number(x.amount)||0),0));
+ const singkeCash=money2(sets.filter(x=>isCashMode(x.paymentMethod)).reduce((a,x)=>a+(Number(x.amount)||0),0));
+ return {saleCash,storeCash,farmerCash,singkeCash,cashInHand:money2(saleCash+storeCash-farmerCash-singkeCash)};
+}
 async function singkeSummary(){
  const p=await setting("singke_previous_due",{amount:0});
- const lift=await txAll("liftings"),sales=await txAll("sales"),stores=await txAll("stores"),sets=await txAll("singke_settlements");
+ const lift=await txAll("liftings"),sales=await txAll("sales"),stores=await txAll("stores"),sets=await txAll("singke_settlements"),farmerPayments=await getFarmerPayments();
  const wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>s.id));
  const wangSales=sales.filter(s=>s.isWangkheiSale||wm.has(s.storeId));
- const liftingPayable=lift.reduce((a,l)=>a+(Number(l.netAmount??l.payableAmount??l.liftingAmount??l.totalAmount)||0),0);
- const wang=wangSales.reduce((a,s)=>a+(Number(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)||0),0);
- const wangKg=wangSales.reduce((a,s)=>a+(Number(s.netWeight??s.weight??s.totalWeight)||0),0);
- const sett=sets.reduce((a,s)=>a+(Number(s.amount)||0),0);
- return {p,liftingPayable,wang,wangKg,sett,remain:(Number(p?.amount)||0)+liftingPayable-wang-sett};
+ const liftingPayable=money2(lift.reduce((a,l)=>a+(Number(l.netAmount??l.payableAmount??l.liftingAmount??l.totalAmount)||0),0));
+ const wang=money2(wangSales.reduce((a,s)=>a+(Number(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)||0),0));
+ const wangKg=money2(wangSales.reduce((a,s)=>a+(Number(s.netWeight??s.weight??s.totalWeight)||0),0));
+ const sett=money2(sets.reduce((a,s)=>a+(Number(s.amount)||0),0));
+ const farmerPaid=money2(farmerPayments.reduce((a,s)=>a+(Number(s.amount)||0),0));
+ return {p,liftingPayable,wang,wangKg,sett,farmerPaid,remain:money2((Number(p?.amount)||0)+liftingPayable-wang-sett-farmerPaid)};
 }
 
 async function renderSingke(){
@@ -4584,6 +4602,8 @@ async function renderSingke(){
   document.getElementById("sWang").textContent=fmt(s.wang);
   const kgEl=document.getElementById("sWangKg");if(kgEl)kgEl.textContent=fmt(s.wangKg);
   document.getElementById("sSet").textContent=fmt(s.sett);
+  const sfp=document.getElementById("sFarmerPaid");if(sfp)sfp.textContent=fmt(s.farmerPaid);
+  const cash=await cashInHandSummary(),sch=document.getElementById("sCashHand");if(sch)sch.textContent=fmt(cash.cashInHand);
   document.getElementById("sRemain").textContent=fmt(s.remain);
   const dash=document.getElementById("dashSingke");if(dash)dash.textContent=fmt(s.remain);
 
@@ -4592,7 +4612,8 @@ async function renderSingke(){
   let ev=[
     ...(await txAll("liftings")).map(x=>({date:x.liftingDate||"",type:"Lifting Payable",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,debit:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,credit:0})),
     ...(await txAll("sales")).filter(x=>x.isWangkheiSale||wm.has(x.storeId)).map(x=>({date:x.saleDate||"",type:"Wangkhei Adjustment",ref:x.invoiceNumber||x.id,kg:Number(x.netWeight??x.weight??x.totalWeight)||0,debit:0,credit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0})),
-    ...(await txAll("singke_settlements")).map(x=>({date:x.date||"",type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,debit:0,credit:Number(x.amount)||0}))
+    ...(await txAll("singke_settlements")).map(x=>({date:x.date||"",type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,debit:0,credit:Number(x.amount)||0})),
+    ...(await getFarmerPayments()).map(x=>({date:x.paymentDate||"",type:"Farmer Payment",ref:x.farmerName||x.id,kg:0,debit:0,credit:Number(x.amount)||0}))
   ].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
   const from=document.getElementById("singkeFrom")?.value||"",to=document.getElementById("singkeTo")?.value||"";
   let bal=Number(s.p?.amount)||0;if(from){for(const e of ev){if(e.date&&e.date<from)bal+=e.debit-e.credit}}
@@ -4913,6 +4934,7 @@ async function renderDashboard(){
  let liftMap=new Map(allLift.map(x=>[String(x.id),x])),cageMap=new Map(cages.map(x=>[x.id,x]));
  let cost=money2(sales.reduce((sum,s)=>sum+saleLiftingCost(s,liftMap),0));
  let gp=money2(salesAmt-cost);document.getElementById("mGrossProfit").textContent=fmt(gp);document.getElementById("mGrossProfitSub").textContent=`${periodLabel}: net sales − physical cage lifting cost`;
+ const cashSummary=await cashInHandSummary(),cashEl=document.getElementById("mCashInHand");if(cashEl)cashEl.textContent=fmt(cashSummary.cashInHand);
  let att=[];
  if(inventory.missing.length){
    const totalMissing=inventory.missing.reduce((a,x)=>a+x.missing,0);
@@ -4972,8 +4994,10 @@ async function getDateRangeReportData(){
      ["Gross Profit",grossProfit,"Net sales - lifting cost"],
      ["Wangkhei Adjustments",wang,"Selected period"],
      ["MPF / Singke Settlements",settlements,"Selected period"],
+     ["Payments Made Directly to Farmers",money2(periodFarmerPayments.reduce((a,x)=>a+(Number(x.amount)||0),0)),"Deducted from Due to Singke"],
      ["Current Regular Store Outstanding",money2(outstanding),"As of current database"],
-     ["Current MPF / Singke Remaining Due",money2(sg.remain),"As of current database"]
+     ["Current MPF / Singke Remaining Due",money2(sg.remain),"After direct farmer payments"],
+     ["Current Cash in Hand",money2((await cashInHandSummary()).cashInHand),"Cash receipts minus cash payouts"]
    ];
  }
  if(type==="farmer"){
