@@ -1657,7 +1657,7 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
 <div id="draftRecoveryBar" class="draft-recovery-bar" hidden><span>📝 Unsaved draft available</span><button class="btn primary" onclick="resumeLastDraft()">Resume Draft</button><button class="btn" onclick="discardLastDraft()">Discard</button></div>
 <main class="main">
 <section id="v-home" class="view active">
- <div class="head"><div><h1>Operational Dashboard</h1><p>Operational and profitability overview</p></div><div class="toolbar"><button class="btn primary" onclick="downloadDailyOperationalSummaryPdf()">Daily Summary PDF</button><button class="btn dashPeriod active" data-period="today" onclick="setDashboardPeriod('today',this)">Today</button><button class="btn dashPeriod" data-period="week" onclick="setDashboardPeriod('week',this)">Week</button><button class="btn dashPeriod" data-period="month" onclick="setDashboardPeriod('month',this)">Month</button><button class="btn dashPeriod" data-period="year" onclick="setDashboardPeriod('year',this)">Year</button></div></div>
+ <div class="head"><div><h1>Operational Dashboard</h1><p>Operational and profitability overview</p></div><div class="toolbar"><button class="btn primary" onclick="downloadDailyOperationalSummaryPdf()">Download Today's Summary PDF</button><button class="btn dashPeriod active" data-period="today" onclick="setDashboardPeriod('today',this)">Today</button><button class="btn dashPeriod" data-period="week" onclick="setDashboardPeriod('week',this)">Week</button><button class="btn dashPeriod" data-period="month" onclick="setDashboardPeriod('month',this)">Month</button><button class="btn dashPeriod" data-period="year" onclick="setDashboardPeriod('year',this)">Year</button></div></div>
  <div class="grid g2 psm-easy-tools">
   <div class="card psm-global-search-card">
    <div class="split"><div><b>Quick Search</b><div class="sub">Find farmers, stores, invoices, cages, payments and settlements.</div></div><span class="badge blue">SEARCH</span></div>
@@ -1715,7 +1715,9 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
 
 <section id="v-farmers" class="view" style="display:none!important">
  <div class="head"><div><h1>Farmer Master</h1><p>Central farmer records with duplicate protection and permanent delete support</p></div><button class="btn primary" onclick="openFarmer()">+ Add Farmer</button></div>
- <div class="card"><div class="toolbar"><div class="field"><label>Search</label><input id="farmerSearch" placeholder="Name, phone or ID" oninput="renderFarmers()"></div></div><div style="height:10px"></div><div class="tablewrap"><table><thead><tr><th>ID</th><th>Name</th><th>Phone</th><th>Updated</th><th></th></tr></thead><tbody id="farmerRows"></tbody></table></div></div>
+ <div class="card"><div class="toolbar"><div class="field"><label>Search</label><input id="farmerSearch" placeholder="Name, phone or ID" oninput="farmerPage=1;renderFarmers()"></div></div><div style="height:10px"></div><div class="tablewrap"><table><thead><tr><th>ID</th><th>Name</th><th>Phone</th><th>Updated</th><th></th></tr></thead><tbody id="farmerRows"></tbody></table></div>
+ <div class="split" style="margin-top:10px"><div class="sub" id="farmerPageInfo">Page 1</div><div class="action-group"><button class="btn" id="farmerPrevBtn" onclick="changeFarmerPage(-1)">Previous</button><button class="btn" id="farmerNextBtn" onclick="changeFarmerPage(1)">Next</button></div></div>
+ </div>
 </section>
 
 <section id="v-lifting" class="view">
@@ -1724,9 +1726,10 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
   <div class="card">
    <div class="split"><div><b>Farmer Master</b><div class="sub">Search, edit and manage farmer records</div></div></div>
    <div style="height:8px"></div>
-   <div class="field"><label>Search Farmer</label><input id="farmerSearchCombined" placeholder="Name, phone or ID" oninput="renderFarmersCombined()"></div>
+   <div class="field"><label>Search Farmer</label><input id="farmerSearchCombined" placeholder="Name, phone or ID" oninput="farmerCombinedPage=1;renderFarmersCombined()"></div>
    <div style="height:10px"></div>
-   <div class="tablewrap" style="max-height:340px"><table class="simple-list"><thead><tr><th>Date</th><th>ID</th><th>Name</th></tr></thead><tbody id="farmerRowsCombined"></tbody></table></div>
+   <div class="tablewrap"><table class="simple-list"><thead><tr><th>Date</th><th>ID</th><th>Name</th></tr></thead><tbody id="farmerRowsCombined"></tbody></table></div>
+   <div class="split" style="margin-top:10px"><div class="sub" id="farmerCombinedPageInfo">Page 1</div><div class="action-group"><button class="btn" id="farmerCombinedPrevBtn" onclick="changeFarmerCombinedPage(-1)">Previous</button><button class="btn" id="farmerCombinedNextBtn" onclick="changeFarmerCombinedPage(1)">Next</button></div></div>
   </div>
   <div class="card">
    <div class="split"><div><b>Quick Lifting Summary</b><div class="sub">Current lifting totals</div></div></div>
@@ -1741,10 +1744,18 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
  <div style="height:12px"></div>
  <div class="card">
   <div class="split"><div><b>Lifting Log</b><div class="sub">Only the lifting rate can be edited from this log.</div></div></div>
-  <div class="field" style="max-width:520px;margin-top:10px">
-   <label>Search Lifting</label>
-   <input id="liftingSearch" type="search" placeholder="Farmer name, phone, ID, invoice or date" autocomplete="off" oninput="renderLiftings()">
+  <div class="toolbar" style="margin-top:10px">
+   <div class="field" style="max-width:220px">
+    <label>Lifting Date</label>
+    <input id="liftingListDate" type="date" onchange="renderLiftings()">
+   </div>
+   <div class="field" style="max-width:420px">
+    <label>Search Today's Lifting</label>
+    <input id="liftingSearch" type="search" placeholder="Farmer name, phone, ID or invoice" autocomplete="off" oninput="renderLiftings()">
+   </div>
+   <button class="btn" type="button" onclick="document.getElementById('liftingListDate').value=today();renderLiftings()">Today</button>
   </div>
+  <div class="sub" id="liftingListHint" style="margin-top:8px">Showing today's liftings only. Select another date to view previous liftings.</div>
   <div style="height:8px"></div>
   <div class="tablewrap"><table class="simple-list"><thead><tr><th>Date</th><th>ID</th><th>Name</th><th>Rate</th><th></th></tr></thead><tbody id="liftingRows"></tbody></table></div>
  </div>
@@ -1785,14 +1796,14 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
 </section>
 
 <section id="v-lifting-complete" class="view">
- <div class="head"><div><h1>Lifting Completed</h1><p>Review, print/save as PDF, or continue to the next operation.</p></div></div>
+ <div class="head"><div><h1>Lifting Completed</h1><p>Review, download the named PDF, or continue to the next operation.</p></div></div>
  <div class="card print-lifting-summary" id="liftingCompletionSummary"></div>
  <div style="height:12px"></div>
  <div class="action-group no-print">
   <button class="btn primary" id="completeInvoiceBtn">Invoice</button>
   <button class="btn ok" id="completeWhatsAppBtn">WhatsApp</button>
   <button class="btn" id="completeMpfWhatsAppBtn" title="WhatsApp 8880674264">To MPF (WhatsApp)</button>
-  <button class="btn" onclick="printLiftingCompletion()">Print / Save PDF</button>
+  <button class="btn" id="completePdfBtn">Download Farmer Invoice PDF</button>
   <button class="btn" onclick="openLifting()">+ New Lifting</button>
   <button class="btn" onclick="goToView('sales')">Go to Sales →</button>
  </div>
@@ -1821,7 +1832,13 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
 
 <section id="v-sales" class="view">
  <div class="head"><div><h1>Store Sales</h1><p>Bill available cages to stores and track payments</p><div class="page-mini-summary" id="salesPageMini"></div></div><button class="btn primary" onclick="openSale()">+ New Sale</button></div>
- <div class="card"><div class="tablewrap"><table class="simple-list"><thead><tr><th>Date</th><th>ID</th><th>Name</th></tr></thead><tbody id="saleRows"></tbody></table></div></div>
+ <div class="card">
+  <div class="toolbar">
+   <div class="field" style="max-width:220px"><label>Sales Date</label><input id="salesListDate" type="date" onchange="renderSales()"></div>
+   <button class="btn" type="button" onclick="document.getElementById('salesListDate').value=today();renderSales()">Today</button>
+  </div>
+  <div class="sub" id="salesListHint" style="margin:8px 0">Showing today's sales only. Select another date to search previous sales.</div>
+  <div class="tablewrap"><table class="simple-list"><thead><tr><th>Date</th><th>ID</th><th>Name</th></tr></thead><tbody id="saleRows"></tbody></table></div></div>
 </section>
 
 <section id="v-stores" class="view">
@@ -1838,7 +1855,7 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
 <section id="v-singke" class="view">
  <div class="head">
   <div><h1>Singke Reconciliation Ledger</h1><p>Lifting payable, Wangkhei adjustments, settlements and running balance</p></div>
-  <div class="action-group"><button class="btn" onclick="downloadSingkeLedgerPdf()">Save PDF</button><button class="btn" onclick="exportSingkeLedgerExcel()">Excel</button><button class="btn primary" onclick="openSettlement()">+ Record Settlement</button></div>
+  <div class="action-group"><button class="btn" onclick="downloadSingkeLedgerPdf()">Download MPF Ledger PDF</button><button class="btn" onclick="exportSingkeLedgerExcel()">Excel</button><button class="btn primary" onclick="openSettlement()">+ Record Settlement</button></div>
  </div>
  <div class="grid g4">
   <div class="card metric"><div class="lab">Previous Due</div><div class="val">₹<span id="sPrev">0.00</span></div><div class="mini" id="sPrevDate">Not set</div></div>
@@ -1869,7 +1886,7 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
  <div class="head"><div><h1>Ledgers</h1><p>Store sales/payment ledger and farmer lifting ledger statements</p></div></div>
 
  <div class="card">
-  <div class="split"><div><b>Store Ledger</b><div class="sub">Sales, payments and running balance by store</div></div><div class="action-group"><button class="btn ok" id="ledgerReminderBtn" onclick="sendLedgerReminder()">WhatsApp Reminder</button><button class="btn primary" onclick="downloadStoreLedgerPdf()">Store PDF</button><button class="btn" onclick="exportStoreLedgerExcel()">Excel</button></div></div>
+  <div class="split"><div><b>Store Ledger</b><div class="sub">Sales, payments and running balance by store</div></div><div class="action-group"><button class="btn ok" id="ledgerReminderBtn" onclick="sendLedgerReminder()">WhatsApp Reminder</button><button class="btn primary" onclick="downloadStoreLedgerPdf()">Download Store Ledger PDF</button><button class="btn" onclick="exportStoreLedgerExcel()">Excel</button></div></div>
   <div style="height:10px"></div>
   <div class="toolbar"><div class="field"><label>Store</label><select id="ledgerStore" onchange="renderLedger()"></select></div><div class="field"><label>Ledger Generated At</label><input id="ledgerGeneratedAt" disabled></div></div>
   <div style="height:10px"></div>
@@ -1878,7 +1895,7 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
 
  <div style="height:12px"></div>
  <div class="card">
-  <div class="split"><div><b>Farmer Ledger</b><div class="sub">Lifting payable, farmer payments and running outstanding balance. Different lifting dates/rates remain separate.</div></div><div class="action-group"><button class="btn primary" onclick="downloadFarmerLedgerPdf()">Farmer PDF</button><button class="btn" onclick="exportFarmerLedgerExcel()">Excel</button></div></div>
+  <div class="split"><div><b>Farmer Ledger</b><div class="sub">Lifting payable, farmer payments and running outstanding balance. Different lifting dates/rates remain separate.</div></div><div class="action-group"><button class="btn primary" onclick="downloadFarmerLedgerPdf()">Download Farmer Ledger PDF</button><button class="btn" onclick="exportFarmerLedgerExcel()">Excel</button></div></div>
   <div style="height:10px"></div>
   <div class="toolbar"><div class="field"><label>Farmer</label><select id="farmerLedgerFarmer" onchange="renderFarmerLedger()"></select></div><div class="field"><label>Amount Rule</label><input value="1–49 → 00, 50–99 → 50" disabled></div></div>
   <div class="sub" style="margin-top:8px">Farmer ledger amount is rounded DOWN to the lower ₹50 step for statement display only. Example: ₹58,049 → ₹58,000 and ₹58,099 → ₹58,050.</div>
@@ -1921,11 +1938,11 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
     <option value="inventory">Unsold Cage / Stock Statement</option>
    </select></div>
    <button class="btn primary" onclick="renderDateRangeReport()">Preview</button>
-   <button class="btn" onclick="downloadDateRangeReportPdf()">PDF Statement</button>
+   <button class="btn" onclick="downloadDateRangeReportPdf()">Download Statement PDF</button>
    <button class="btn" onclick="exportDateRangeReportExcel()">Excel</button>
    <button class="btn" onclick="exportDateRangeReportCSV()">CSV</button>
   </div>
-  <div class="sub" style="margin-top:10px">Excel exports contain full accounting rows for checking. PDF statements use bordered tables and repeated table headers.</div>
+  <div class="sub" style="margin-top:10px">Excel downloads use formatted .xls workbooks with automatic report-based filenames. PDF/CSV downloads also use relevant automatic filenames.</div>
  </div>
 
  <div style="height:12px"></div>
@@ -3447,10 +3464,17 @@ async function saveSettlement(){
 }
 async function savePreviousDue(){requireAdmin();let v={amount:Number(document.getElementById("prevDueAmt").value)||0,asOf:document.getElementById("prevDueDate").value,remarks:document.getElementById("prevDueRemarks").value.trim(),updatedAt:iso()};await setSetting("singke_previous_due",v);audit("singke","PREVIOUS_DUE","singke_previous_due");toast("Previous due saved.");refreshAll()}
 
+let farmerPage=1;
+function changeFarmerPage(delta){farmerPage=Math.max(1,farmerPage+delta);renderFarmers()}
 async function renderFarmers(){
  let q=(document.getElementById("farmerSearch")?.value||"").toLowerCase(),a=(await txAll("farmers")).filter(f=>!q||[f.id,f.name,f.phone].some(x=>String(x).toLowerCase().includes(q))).sort((a,b)=>String(b.createdAt||"").localeCompare(String(a.createdAt||"")));
- document.getElementById("farmerRows").innerHTML=a.length?a.map(f=>`<tr><td class="mono">${esc(f.id)}</td><td><b>${esc(f.name)}</b></td><td>${esc(f.phone)}</td><td>${esc((f.updatedAt||f.createdAt||"").slice(0,16).replace("T"," "))}</td><td><button class="btn" onclick='openFarmer(${JSON.stringify(f).replaceAll("'","&#39;")})'>Edit</button>${S.role==="admin"?` <button class="btn danger" onclick="deleteFarmer('${f.id}')">Delete</button>`:""}</td></tr>`).join(""):`<tr><td colspan="5" class="empty">No farmers</td></tr>`;
+ const totalPages=Math.max(1,Math.ceil(a.length/FARMER_PAGE_SIZE));if(farmerPage>totalPages)farmerPage=totalPages;
+ const pageRows=a.slice((farmerPage-1)*FARMER_PAGE_SIZE,farmerPage*FARMER_PAGE_SIZE);
+ document.getElementById("farmerRows").innerHTML=pageRows.length?pageRows.map(f=>`<tr><td class="mono">${esc(f.id)}</td><td><b>${esc(f.name)}</b></td><td>${esc(f.phone)}</td><td>${esc((f.updatedAt||f.createdAt||"").slice(0,16).replace("T"," "))}</td><td><button class="btn" onclick='openFarmer(${JSON.stringify(f).replaceAll("'","&#39;")})'>Edit</button>${S.role==="admin"?` <button class="btn danger" onclick="deleteFarmer('${f.id}')">Delete</button>`:""}</td></tr>`).join(""):`<tr><td colspan="5" class="empty">No farmers</td></tr>`;
+ const info=document.getElementById("farmerPageInfo");if(info)info.textContent=`Page ${farmerPage} of ${totalPages} • ${a.length} farmer${a.length===1?"":"s"} • Max 5 per page`;
+ const prev=document.getElementById("farmerPrevBtn"),next=document.getElementById("farmerNextBtn");if(prev)prev.disabled=farmerPage<=1;if(next)next.disabled=farmerPage>=totalPages;
 }
+
 function pdfEsc(s){return String(s??"").replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)").replace(/[^\x20-\x7E]/g,"?")}
 function buildSimplePdf(lines,title="PSM Broiler Distributor"){
   const pageW=595,pageH=842,left=44,top=750,lineH=14,maxLines=46;
@@ -3591,19 +3615,43 @@ function buildAccountingTablePdf({title,subtitle="",headers=[],rows=[],summary=[
  return new Blob([Uint8Array.from(out,ch=>ch.charCodeAt(0)&255)],{type:"application/pdf"});
 }
 
+function safeDownloadLabel(v){
+ return String(v||"PSM_Download")
+   .replace(/[\\/:*?"<>|]+/g," ")
+   .replace(/[^\w\s().&-]+/g," ")
+   .replace(/\s+/g," ")
+   .trim()
+   .replace(/\s+/g,"_")
+   .replace(/_+/g,"_")
+   .slice(0,120)||"PSM_Download";
+}
+function relevantFileName(label,ext){
+ const e=String(ext||"").replace(/^\./,"");
+ const base=safeDownloadLabel(String(label||"").replace(new RegExp("\\\\."+e+"$","i"),""));
+ return `${base}.${e}`;
+}
+function triggerAutomaticDownload(blob,fileName){
+ const name=String(fileName||"PSM_Download").trim()||"PSM_Download";
+ if(typeof navigator.msSaveOrOpenBlob==="function"){navigator.msSaveOrOpenBlob(blob,name);return}
+ const url=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=url;a.download=name;a.rel="noopener";a.style.display="none";
+ document.body.appendChild(a);
+ a.click();
+ setTimeout(()=>{try{a.remove()}catch(e){};URL.revokeObjectURL(url)},1500);
+}
 function downloadBlob(blob,fileName){
- const name=String(fileName||"PSM_Download").trim()||"PSM_Download",url=URL.createObjectURL(blob),a=document.createElement("a");
- a.href=url;a.download=name;a.rel="noopener";a.style.display="none";document.body.appendChild(a);
- requestAnimationFrame(()=>{a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(url)},30000)});
+ const raw=String(fileName||"PSM_Download").trim()||"PSM_Download";
+ const dot=raw.lastIndexOf("."),ext=dot>0?raw.slice(dot+1):"",base=dot>0?raw.slice(0,dot):raw;
+ const name=ext?relevantFileName(base,ext):safeDownloadLabel(base);
+ triggerAutomaticDownload(blob,name);
 }
-
-
 async function downloadPdfBlob(blob,fileName){
- const raw=String(fileName||"PSM-Invoice").trim(),base=raw.replace(/\.pdf$/i,"").replace(/[\\/:*?"<>|]+/g,"-").replace(/\s+/g,"_");
- const name=(base||"PSM-Invoice")+".pdf",pdfBlob=blob.type==="application/pdf"?blob:new Blob([blob],{type:"application/pdf"});
- const url=URL.createObjectURL(pdfBlob),a=document.createElement("a");a.href=url;a.download=name;a.rel="noopener";a.style.display="none";document.body.appendChild(a);
- requestAnimationFrame(()=>{a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(url)},30000)});
+ const raw=String(fileName||"PSM_Statement").trim();
+ const name=relevantFileName(raw.replace(/\.pdf$/i,""),"pdf");
+ const pdfBlob=blob.type==="application/pdf"?blob:new Blob([blob],{type:"application/pdf"});
+ triggerAutomaticDownload(pdfBlob,name);
 }
+
 function buildStyledInvoicePdf(kind,data){
   const W=595,H=842;
   const escp=s=>String(s??"").replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)").replace(/[^\x20-\x7E]/g,"?");
@@ -3792,11 +3840,9 @@ function professionalFarmerPdfLines(data){
 }
 async function downloadFarmerInvoicePdf(liftingId){
  try{
-   const data=await getFarmerInvoiceData(liftingId);
-   const invoiceId=String(data.lifting.invoiceNumber||data.lifting.id||liftingId);
    const x=await createFarmerInvoicePdf(liftingId);
-   await downloadPdfBlob(x.blob,invoiceId);
-   audit("invoice","DOWNLOAD_FARMER_PDF",liftingId,invoiceId+".pdf");
+   await downloadPdfBlob(x.blob,x.fileName);
+   audit("invoice","DOWNLOAD_FARMER_PDF",liftingId,x.fileName);
  }catch(e){toast("PDF error: "+e.message)}
 }
 
@@ -3878,11 +3924,9 @@ async function makeStoreInvoicePdf(saleId){
 }
 async function downloadStoreInvoicePdf(saleId){
  try{
-   const s=await txGet("sales",saleId);if(!s)throw new Error("Sale not found.");
-   const invoiceId=String(s.invoiceNumber||s.id||saleId);
    const x=await makeStoreInvoicePdf(saleId);
-   await downloadPdfBlob(x.blob,invoiceId);
-   audit("invoice","DOWNLOAD_STORE_PDF",saleId,invoiceId+".pdf");
+   await downloadPdfBlob(x.blob,x.fileName);
+   audit("invoice","DOWNLOAD_STORE_PDF",saleId,x.fileName);
  }catch(e){toast("PDF error: "+e.message)}
 }
 
@@ -3920,12 +3964,92 @@ async function buildDailyOperationalSummaryPdf(dateValue=today()){
 async function downloadDailyOperationalSummaryPdf(){try{const x=await buildDailyOperationalSummaryPdf(today());downloadPdfBlob(x.blob,x.fileName);audit("reports","DAILY_SUMMARY_PDF",today())}catch(e){toast(e.message)}}
 
 
-function downloadExcelXml(title,headers,rows,fileName,summary=[]){
- const all=[[title],[],headers,...rows,[],["ACCOUNTING CHECK SUMMARY"],...summary];
- const xmlRows=all.map(row=>`<Row>${row.map(v=>`<Cell><Data ss:Type="${typeof v==="number"?"Number":"String"}">${xmlEsc(v)}</Data></Cell>`).join("")}</Row>`).join("");
- const xml=`<?xml version="1.0"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="${xmlEsc(title).slice(0,31)}"><Table>${xmlRows}</Table></Worksheet></Workbook>`;
- downloadBlob(new Blob([xml],{type:"application/vnd.ms-excel"}),fileName);
+function excelColumnStyle(header){
+ const h=String(header||"").toLowerCase();
+ if(/amount|debit|credit|balance|outstanding|paid|payment|sales|payable|profit|cost|due|adjustment|settlement|rate/.test(h))return "Money";
+ if(/kg|weight|avg/.test(h))return "Decimal";
+ if(/cages|birds|count|rows/.test(h))return "Integer";
+ return "Text";
 }
+function buildExcel2003Xml(title,headers,rows,summary=[],subtitle=""){
+ const hs=(headers||[]).map(x=>String(x??""));
+ const data=Array.isArray(rows)?rows:[];
+ const colCount=Math.max(1,hs.length);
+ const allForWidth=[hs,...data.slice(0,200)];
+ const widths=hs.map((h,i)=>{
+   let max=String(h).length;
+   for(const row of allForWidth.slice(1))max=Math.max(max,String(row?.[i]??"").length);
+   return Math.max(65,Math.min(220,Math.round((max+2)*7.2)));
+ });
+ const cell=(v,style="Text")=>{
+   const isNum=typeof v==="number"&&Number.isFinite(v);
+   const type=isNum?"Number":"String";
+   const val=isNum?String(v):xmlEsc(v);
+   const sid=isNum?style:"Text";
+   return `<Cell ss:StyleID="${sid}"><Data ss:Type="${type}">${val}</Data></Cell>`;
+ };
+ const body=data.map(row=>`<Row ss:AutoFitHeight="1">${hs.map((h,i)=>cell(row?.[i],excelColumnStyle(h))).join("")}</Row>`).join("");
+ const summaryRows=(summary||[]).map((x,i)=>{
+   const label=Array.isArray(x)?x[0]:"",value=Array.isArray(x)?x[1]:"";
+   return `<Row><Cell ss:StyleID="${i===0?"SummaryLabel":"Text"}"><Data ss:Type="String">${xmlEsc(label)}</Data></Cell>${cell(value,excelColumnStyle(label))}</Row>`;
+ }).join("");
+ const cols=widths.map(w=>`<Column ss:AutoFitWidth="0" ss:Width="${w}"/>`).join("");
+ const merge=colCount>1?` ss:MergeAcross="${colCount-1}"`:"";
+ const lastDataRow=5+Math.max(1,data.length);
+ const autoFilter=data.length?`<AutoFilter x:Range="R5C1:R${lastDataRow}C${colCount}" xmlns="urn:schemas-microsoft-com:office:excel"/>`:"";
+ return `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+  <Author>PSM Broiler Distributor</Author>
+  <Company>PSM Broiler Distributor</Company>
+  <Created>${new Date().toISOString()}</Created>
+ </DocumentProperties>
+ <ExcelWorkbook xmlns="urn:schemas-microsoft-com:office:excel">
+  <WindowHeight>12300</WindowHeight><WindowWidth>24000</WindowWidth><ProtectStructure>False</ProtectStructure><ProtectWindows>False</ProtectWindows>
+ </ExcelWorkbook>
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10"/><Borders/><Interior/><NumberFormat/><Protection/></Style>
+  <Style ss:ID="Title"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="16" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#166534" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="Subtitle"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1" ss:Color="#166534"/><Interior ss:Color="#DCFCE7" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="Header"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Calibri" ss:Size="10" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#16803D" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="Text"><Alignment ss:Vertical="Center" ss:WrapText="1"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB"/></Borders></Style>
+  <Style ss:ID="Money"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><NumberFormat ss:Format="#,##0.00"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB"/></Borders></Style>
+  <Style ss:ID="Decimal"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><NumberFormat ss:Format="0.00"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB"/></Borders></Style>
+  <Style ss:ID="Integer"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><NumberFormat ss:Format="0"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D1D5DB"/></Borders></Style>
+  <Style ss:ID="SummaryLabel"><Font ss:Bold="1" ss:Color="#166534"/><Interior ss:Color="#F0FDF4" ss:Pattern="Solid"/></Style>
+ </Styles>
+ <Worksheet ss:Name="${xmlEsc(String(title||"Accounting").slice(0,31))}">
+  <Table ss:DefaultRowHeight="18">
+   ${cols}
+   <Row ss:Height="28"><Cell ss:StyleID="Title"${merge}><Data ss:Type="String">PSM BROILER DISTRIBUTOR</Data></Cell></Row>
+   <Row ss:Height="24"><Cell ss:StyleID="Subtitle"${merge}><Data ss:Type="String">${xmlEsc(title)}</Data></Cell></Row>
+   <Row><Cell ss:StyleID="Text"${merge}><Data ss:Type="String">${xmlEsc(subtitle||("Generated: "+new Date().toLocaleString("en-IN")))}</Data></Cell></Row>
+   <Row/>
+   <Row ss:Height="24">${hs.map(h=>`<Cell ss:StyleID="Header"><Data ss:Type="String">${xmlEsc(h)}</Data></Cell>`).join("")}</Row>
+   ${body}
+   <Row/>
+   <Row><Cell ss:StyleID="SummaryLabel"${merge}><Data ss:Type="String">ACCOUNTING CHECK SUMMARY</Data></Cell></Row>
+   ${summaryRows}
+  </Table>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+   <FreezePanes/><FrozenNoSplit/><SplitHorizontal>5</SplitHorizontal><TopRowBottomPane>5</TopRowBottomPane><ActivePane>2</ActivePane>
+   <ProtectObjects>False</ProtectObjects><ProtectScenarios>False</ProtectScenarios>
+  </WorksheetOptions>
+  ${autoFilter}
+ </Worksheet>
+</Workbook>`;
+}
+function downloadExcelXml(title,headers,rows,fileName,summary=[],subtitle=""){
+ const xml=buildExcel2003Xml(title,headers,rows,summary,subtitle);
+ const name=relevantFileName(String(fileName||title||"PSM_Accounting").replace(/\.xls$/i,""),"xls");
+ downloadBlob(new Blob(["\ufeff"+xml],{type:"application/vnd.ms-excel;charset=utf-8"}),name);
+}
+
 async function exportStoreLedgerExcel(){
  const storeId=document.getElementById("ledgerStore")?.value;if(!storeId)return toast("Select a store.");
  const st=await txGet("stores",storeId),wang=!!(st?.isWangkhei||String(st?.name||"").toLowerCase().includes("wangkhei"));
@@ -4078,7 +4202,7 @@ async function showLiftingCompletion(lid){
  <div class="confirm-item"><div class="k">Rate</div><div class="v">₹${fmt(l.liftingRate)}/kg</div></div>
  <div class="confirm-item"><div class="k">Net Payable</div><div class="v">₹${fmt(rr.rounded)}</div></div></div>
  <div style="height:12px"></div><div class="tablewrap"><table><thead><tr><th>#</th><th>Cage</th><th>Weight kg</th><th>Birds</th><th>Avg. Wt.</th></tr></thead><tbody>${c.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.cageNumber)}</td><td>${fmt(x.weight)}</td><td>${x.birdCount||0}</td><td>${fmt((Number(x.birdCount)||0)?Number(x.weight)/Number(x.birdCount):0)} kg</td></tr>`).join("")}</tbody></table></div>`;
- const ib=document.getElementById("completeInvoiceBtn"),wb=document.getElementById("completeWhatsAppBtn"),mb=document.getElementById("completeMpfWhatsAppBtn");if(ib)ib.onclick=()=>previewFarmerInvoice(lid);if(wb)wb.onclick=()=>shareFarmerLiftingPdf(lid);if(mb)mb.onclick=()=>shareLiftingToMpf(lid);
+ const ib=document.getElementById("completeInvoiceBtn"),wb=document.getElementById("completeWhatsAppBtn"),mb=document.getElementById("completeMpfWhatsAppBtn"),pb=document.getElementById("completePdfBtn");if(ib)ib.onclick=()=>previewFarmerInvoice(lid);if(wb)wb.onclick=()=>shareFarmerLiftingPdf(lid);if(mb)mb.onclick=()=>shareLiftingToMpf(lid);if(pb)pb.onclick=()=>downloadFarmerInvoicePdf(lid);
 }
 function printLiftingCompletion(){window.print()}
 
@@ -4132,7 +4256,7 @@ async function previewFarmerInvoice(liftingId){
       </div>
     </div>
     <div class="invoice-preview-template">Template: <b>${esc(invoiceTemplateLabel())}</b></div><div style="height:12px"></div><div class="action-group invoice-actions">
-      <button class="btn primary" onclick="printInvoiceView()">Print / Save PDF</button><button class="btn ok" onclick="shareFarmerLiftingPdf('${liftingId}')">WhatsApp</button><button class="btn" onclick="shareLiftingToMpf('${liftingId}')" title="WhatsApp 8880674264">To MPF (WhatsApp)</button><button class="btn" onclick="sendFarmerInvoiceSms('${liftingId}')">SMS</button>
+      <button class="btn primary" onclick="downloadFarmerInvoicePdf('${liftingId}')">Download Farmer Invoice PDF</button><button class="btn ok" onclick="shareFarmerLiftingPdf('${liftingId}')">WhatsApp</button><button class="btn" onclick="shareLiftingToMpf('${liftingId}')" title="WhatsApp 8880674264">To MPF (WhatsApp)</button><button class="btn" onclick="sendFarmerInvoiceSms('${liftingId}')">SMS</button>
     </div>`);
     audit("invoice","PREVIEW",liftingId);
   }catch(e){toast(e.message)}
@@ -4315,10 +4439,17 @@ Total Birds: ${totalBirds}`;
  }catch(e){toast("MPF WhatsApp share error: "+e.message)}
 }
 
+let farmerCombinedPage=1;
+const FARMER_PAGE_SIZE=5;
+function changeFarmerCombinedPage(delta){farmerCombinedPage=Math.max(1,farmerCombinedPage+delta);renderFarmersCombined()}
 async function renderFarmersCombined(){
  let q=(document.getElementById("farmerSearchCombined")?.value||"").toLowerCase(),a=(await txAll("farmers")).filter(f=>!q||[f.id,f.name,f.phone].some(x=>String(x).toLowerCase().includes(q))).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+ const totalPages=Math.max(1,Math.ceil(a.length/FARMER_PAGE_SIZE));if(farmerCombinedPage>totalPages)farmerCombinedPage=totalPages;
+ const pageRows=a.slice((farmerCombinedPage-1)*FARMER_PAGE_SIZE,farmerCombinedPage*FARMER_PAGE_SIZE);
  const el=document.getElementById("farmerRowsCombined");if(!el)return;
- el.innerHTML=a.length?a.map(f=>`<tr onclick="openFarmerDetails('${f.id}')" tabindex="0" onkeydown="if(event.key==='Enter')openFarmerDetails('${f.id}')"><td>${esc(simpleDate(f.createdAt))}</td><td class="mono">${esc(f.id)}</td><td>${esc(f.name)}</td></tr>`).join(""):`<tr><td colspan="3" class="empty">No farmers</td></tr>`;
+ el.innerHTML=pageRows.length?pageRows.map(f=>`<tr onclick="openFarmerDetails('${f.id}')" tabindex="0" onkeydown="if(event.key==='Enter')openFarmerDetails('${f.id}')"><td>${esc(simpleDate(f.createdAt))}</td><td class="mono">${esc(f.id)}</td><td>${esc(f.name)}</td></tr>`).join(""):`<tr><td colspan="3" class="empty">No farmers</td></tr>`;
+ const info=document.getElementById("farmerCombinedPageInfo");if(info)info.textContent=`Page ${farmerCombinedPage} of ${totalPages} • ${a.length} farmer${a.length===1?"":"s"} • Max 5 per page`;
+ const prev=document.getElementById("farmerCombinedPrevBtn"),next=document.getElementById("farmerCombinedNextBtn");if(prev)prev.disabled=farmerCombinedPage<=1;if(next)next.disabled=farmerCombinedPage>=totalPages;
 }
 
 async function openLiftingRateEditor(liftingId){
@@ -4374,19 +4505,24 @@ async function saveLiftingRateOnly(liftingId){
 }
 
 async function renderLiftings(){
+ const dateEl=document.getElementById("liftingListDate");if(dateEl&&!dateEl.value)dateEl.value=today();
+ const selectedDate=dateEl?.value||today();
  const q=(document.getElementById("liftingSearch")?.value||"").trim().toLowerCase();
- let a=(await txAll("liftings")).sort((a,b)=>String(b.liftingDate||"").localeCompare(String(a.liftingDate||"")));
+ let a=(await txAll("liftings")).filter(l=>String(l.liftingDate||"")===selectedDate).sort((a,b)=>String(b.createdAt||b.updatedAt||"").localeCompare(String(a.createdAt||a.updatedAt||"")));
  const farmers=await txAll("farmers"),fm=new Map(farmers.map(f=>[f.id,f]));
  if(q)a=a.filter(l=>{
    const f=fm.get(l.farmerId);
-   return [l.liftingDate,l.invoiceNumber,l.id,l.farmerId,l.farmerName,f?.name,f?.phone].some(v=>String(v||"").toLowerCase().includes(q));
+   return [l.invoiceNumber,l.id,l.farmerId,l.farmerName,f?.name,f?.phone].some(v=>String(v||"").toLowerCase().includes(q));
  });
- document.getElementById("liftingRows").innerHTML=a.length?a.map(l=>`<tr tabindex="0" onkeydown="if(event.key==='Enter')openLiftingDetails('${l.id}')"><td onclick="openLiftingDetails('${l.id}')">${esc(l.liftingDate)}</td><td class="mono" onclick="openLiftingDetails('${l.id}')">${esc(l.invoiceNumber||l.id)}</td><td onclick="openLiftingDetails('${l.id}')">${esc(fm.get(l.farmerId)?.name||l.farmerName||"")}</td><td><b>₹${fmt(l.liftingRate??l.ratePerKg)}</b>/kg</td><td><button class="btn" type="button" onclick="event.stopPropagation();openLiftingRateEditor('${l.id}')">Edit Rate</button></td></tr>`).join(""):`<tr><td colspan="5" class="empty">No matching liftings</td></tr>`;
- const all=await txAll("liftings");
- document.getElementById("liftQuickCount").textContent=all.length;
- document.getElementById("liftQuickCages").textContent=all.reduce((s,l)=>s+(Number(l.totalCages)||0),0);
- document.getElementById("liftQuickWeight").textContent=fmt(all.reduce((s,l)=>s+(Number(l.totalWeight)||0),0));
+ const rows=document.getElementById("liftingRows");
+ if(rows)rows.innerHTML=a.length?a.map(l=>`<tr tabindex="0" onkeydown="if(event.key==='Enter')openLiftingDetails('${l.id}')"><td onclick="openLiftingDetails('${l.id}')">${esc(l.liftingDate)}</td><td class="mono" onclick="openLiftingDetails('${l.id}')">${esc(l.invoiceNumber||l.id)}</td><td onclick="openLiftingDetails('${l.id}')">${esc(fm.get(l.farmerId)?.name||l.farmerName||"")}</td><td><b>₹${fmt(l.liftingRate??l.ratePerKg)}</b>/kg</td><td><button class="btn" type="button" onclick="event.stopPropagation();openLiftingRateEditor('${l.id}')">Edit Rate</button></td></tr>`).join(""):`<tr><td colspan="5" class="empty">No liftings for ${esc(selectedDate)}</td></tr>`;
+ const hint=document.getElementById("liftingListHint");if(hint)hint.textContent=`Showing ${selectedDate===today()?"today's":selectedDate} liftings only • ${a.length} record${a.length===1?"":"s"}`;
+ const todays=(await txAll("liftings")).filter(l=>String(l.liftingDate||"")===today());
+ document.getElementById("liftQuickCount").textContent=todays.length;
+ document.getElementById("liftQuickCages").textContent=todays.reduce((s,l)=>s+(Number(l.totalCages)||0),0);
+ document.getElementById("liftQuickWeight").textContent=fmt(todays.reduce((s,l)=>s+(Number(l.totalWeight)||0),0));
 }
+
 function openLiftingActions(id){
  openModal(`<h3>Lifting Actions</h3><div class="action-group">
  <button class="btn" onclick="closeModal();openLiftingRateEditor('${id}')">Edit Rate</button>
@@ -4397,13 +4533,18 @@ function openLiftingActions(id){
  </div>`);
 }
 async function renderSales(){
- let a=(await txAll("sales")).sort((a,b)=>String(b.saleDate||"").localeCompare(String(a.saleDate||"")));
+ const dateEl=document.getElementById("salesListDate");if(dateEl&&!dateEl.value)dateEl.value=today();
+ const selectedDate=dateEl?.value||today();
+ let a=(await txAll("sales")).filter(s=>String(s.saleDate||"")===selectedDate).sort((a,b)=>String(b.createdAt||b.updatedAt||"").localeCompare(String(a.createdAt||a.updatedAt||"")));
  let stores=new Map((await txAll("stores")).map(s=>[s.id,s]));
- document.getElementById("saleRows").innerHTML=a.length?a.map(s=>{
+ const rows=document.getElementById("saleRows");
+ if(rows)rows.innerHTML=a.length?a.map(s=>{
    let st=stores.get(s.storeId);
    return `<tr onclick="openSaleDetails('${s.id}')" tabindex="0" onkeydown="if(event.key==='Enter')openSaleDetails('${s.id}')"><td>${esc(s.saleDate)}</td><td class="mono">${esc(s.invoiceNumber||s.id)}</td><td>${esc(s.storeName||st?.name||"")}</td></tr>`
- }).join(""):`<tr><td colspan="3" class="empty">No sales</td></tr>`;
+ }).join(""):`<tr><td colspan="3" class="empty">No sales for ${esc(selectedDate)}</td></tr>`;
+ const hint=document.getElementById("salesListHint");if(hint)hint.textContent=`Showing ${selectedDate===today()?"today's":selectedDate} sales only • ${a.length} record${a.length===1?"":"s"}`;
 }
+
 function openSaleActions(id){
  openModal(`<h3>Sales Actions</h3><div class="action-group">
  <button class="btn" onclick="closeModal();editSale('${id}')">Edit</button>
@@ -4505,7 +4646,7 @@ async function previewStoreInvoice(saleId){
    </div>
  </div>
  <div class="invoice-preview-template">Template: <b>${esc(invoiceTemplateLabel())}</b></div><div style="height:12px"></div><div class="action-group invoice-actions">
-  <button class="btn primary" onclick="printInvoiceView()">Print / Save PDF</button><button class="btn ok" onclick="shareStoreInvoiceWhatsApp('${saleId}')">WhatsApp</button><button class="btn" onclick="sendStoreInvoiceSms('${saleId}')">SMS</button>
+  <button class="btn primary" onclick="downloadStoreInvoicePdf('${saleId}')">Download Store Invoice PDF</button><button class="btn ok" onclick="shareStoreInvoiceWhatsApp('${saleId}')">WhatsApp</button><button class="btn" onclick="sendStoreInvoiceSms('${saleId}')">SMS</button>
  </div>`);
  audit("invoice","STORE_PREVIEW",saleId)
 }
@@ -5117,7 +5258,7 @@ function openReportListDetails(i){
  openGenericDetails(r.title,String(row[1]??""),obj);
 }
 function csvCell(v){const s=String(v??"");return /[",\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s}
-async function exportDateRangeReportCSV(){const r=await getDateRangeReportData(),txt=[r.headers,...r.rows].map(row=>row.map(csvCell).join(",")).join("\r\n");downloadBlob(new Blob(["\ufeff"+txt],{type:"text/csv;charset=utf-8"}),`PSM_${r.type}_${r.from||"all"}_${r.to||today()}.csv`)}
+async function exportDateRangeReportCSV(){const r=await getDateRangeReportData(),txt=[r.headers,...r.rows].map(row=>row.map(csvCell).join(",")).join("\r\n"),name=`PSM_${r.title}_${r.from||"Beginning"}_to_${r.to||"Latest"}.csv`;downloadBlob(new Blob(["\ufeff"+txt],{type:"text/csv;charset=utf-8"}),name)}
 function xmlEsc(v){return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
 
 async function downloadDateRangeReportPdf(){
@@ -5125,31 +5266,16 @@ async function downloadDateRangeReportPdf(){
    const r=await getDateRangeReportData();
    const subtitle=`Period: ${r.from||"Beginning"} to ${r.to||"Latest"} | Generated: ${new Date().toLocaleString("en-IN")}`;
    const blob=buildAccountingTablePdf({title:r.title,subtitle,headers:r.headers,rows:r.rows,summary:r.summary});
-   await downloadPdfBlob(blob,`PSM_${r.type}_${r.from||"all"}_${r.to||today()}`);
+   await downloadPdfBlob(blob,`PSM_${r.title}_${r.from||"Beginning"}_to_${r.to||"Latest"}.pdf`);
    audit("reports","ACCOUNTING_PDF",r.type,`${r.from||"all"} to ${r.to||today()}`);
  }catch(e){toast("PDF statement error: "+e.message)}
 }
 
 async function exportDateRangeReportExcel(){
  const r=await getDateRangeReportData();
- const titleRows=[
-   ["PSM BROILER DISTRIBUTOR"],
-   [r.title],
-   [`Period: ${r.from||"Beginning"} to ${r.to||"Latest"}`],
-   [`Generated: ${new Date().toLocaleString("en-IN")}`],
-   []
- ];
- const totalRows=[[],["ACCOUNTING CHECK SUMMARY"],...((r.summary||[]).map(x=>[x[0],x[1]]))];
- const all=[...titleRows,r.headers,...r.rows,...totalRows];
- const rows=all.map(row=>`<Row>${row.map(v=>`<Cell><Data ss:Type="${typeof v==="number"?"Number":"String"}">${xmlEsc(v)}</Data></Cell>`).join("")}</Row>`).join("");
- const xml=`<?xml version="1.0"?>
- <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
-  <Styles>
-   <Style ss:ID="Default"><Alignment ss:Vertical="Center"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
-  </Styles>
-  <Worksheet ss:Name="${xmlEsc(r.title).slice(0,31)}"><Table>${rows}</Table></Worksheet>
- </Workbook>`;
- downloadBlob(new Blob([xml],{type:"application/vnd.ms-excel"}),`PSM_Accounting_${r.type}_${r.from||"all"}_${r.to||today()}.xls`);
+ const period=`Period: ${r.from||"Beginning"} to ${r.to||"Latest"} | Generated: ${new Date().toLocaleString("en-IN")}`;
+ const label=`PSM_${r.title}_${r.from||"Beginning"}_to_${r.to||"Latest"}`;
+ downloadExcelXml(r.title,r.headers,r.rows,label+".xls",r.summary,period);
  audit("reports","ACCOUNTING_EXCEL",r.type,`${r.from||"all"} to ${r.to||today()}`);
 }
 
@@ -5158,7 +5284,7 @@ function renderAudit(){
  document.getElementById("auditRows").innerHTML=a.length?a.map((x,i)=>`<tr onclick="openAuditListDetails(${i})"><td>${esc(simpleDate(x.time))}</td><td class="mono">${esc(x.record||("A"+(i+1)))}</td><td>${esc((x.module||"")+" · "+(x.action||""))}</td></tr>`).join(""):`<tr><td colspan="3" class="empty">No audit events</td></tr>`;
 }
 function openAuditListDetails(i){const x=window._auditViewRows?.[i];if(!x)return;openGenericDetails("Audit Event",x.record||"",{date:x.time,id:x.record||"",name:(x.module||"")+" · "+(x.action||""),role:x.role,module:x.module,action:x.action,note:x.note||"—"})}
-function exportAudit(){let blob=new Blob([localStorage.getItem("mpf_audit")||"[]"],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="MPF_LiftDesk_Audit.json";a.click()}
+function exportAudit(){const blob=new Blob([localStorage.getItem("mpf_audit")||"[]"],{type:"application/json"});downloadBlob(blob,`PSM_Audit_Log_${today()}.json`)}
 async function closeToday(){let t=today(),lift=(await txAll("liftings")).filter(x=>x.liftingDate===t),sales=(await txAll("sales")).filter(x=>x.saleDate===t),pays=(await txAll("payments")).filter(x=>x.paymentDate===t),sets=(await txAll("singke_settlements")).filter(x=>x.date===t),r={date:t,liftings:lift.length,cages:lift.reduce((a,x)=>a+(Number(x.totalCages)||0),0),kg:money2(lift.reduce((a,x)=>a+(Number(x.totalWeight)||0),0)),liftingPayable:money2(lift.reduce((a,x)=>a+(Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0),0)),sales:money2(sales.reduce((a,x)=>a+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0)),payments:money2(pays.reduce((a,x)=>a+(Number(x.amount)||0),0)),singkeSettlements:money2(sets.reduce((a,x)=>a+(Number(x.amount)||0),0)),closedAt:iso()};let a=JSON.parse(localStorage.getItem("mpf_closings")||"[]"),i=a.findIndex(x=>x.date===t);if(i>=0)a[i]=r;else a.unshift(r);localStorage.setItem("mpf_closings",JSON.stringify(a));audit("closing","CLOSE",t);toast("Daily closing saved with net invoice values.");renderClosings()}
 function renderClosings(){
  let a=JSON.parse(localStorage.getItem("mpf_closings")||"[]"),last=a[0];
@@ -5169,7 +5295,7 @@ function renderClosings(){
 function openClosingListDetails(i){const x=window._closingViewRows?.[i];if(!x)return;openGenericDetails("Daily Closing","CLOSE-"+x.date,{date:x.date,id:"CLOSE-"+x.date,name:"Daily Closing",liftings:x.liftings,cages:x.cages,kg:fmt(x.kg),liftingPayable:"Rs. "+fmt(x.liftingPayable),sales:"Rs. "+fmt(x.sales),payments:"Rs. "+fmt(x.payments),mpfSettlements:"Rs. "+fmt(x.singkeSettlements),closedAt:x.closedAt})}
 
 async function exportData(){let o={};for(let t of TABLES)o[t]=await txAll(t);return o}
-async function exportBackup(){let payload={format:"PSM_BROILER_DISTRIBUTOR_BACKUP",version:2,createdAt:iso(),data:await exportData(),local:{audit:JSON.parse(localStorage.getItem("mpf_audit")||"[]"),closings:JSON.parse(localStorage.getItem("mpf_closings")||"[]")}},blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`PSM_Broiler_Distributor_Backup_${today()}.json`;a.click();audit("backup","EXPORT","full")}
+async function exportBackup(){let payload={format:"PSM_BROILER_DISTRIBUTOR_BACKUP",version:2,createdAt:iso(),data:await exportData(),local:{audit:JSON.parse(localStorage.getItem("mpf_audit")||"[]"),closings:JSON.parse(localStorage.getItem("mpf_closings")||"[]")}},blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});downloadBlob(blob,`PSM_Broiler_Distributor_Full_Backup_${today()}.json`);audit("backup","EXPORT","full")}
 async function restoreBackup(file){requireAdmin();if(!file)return;let p=JSON.parse(await file.text()),data=p.data||p;if(!data.farmers)throw new Error("Invalid backup.");if(!confirm("Merge backup into current database?"))return;for(let t of TABLES)for(let r of (data[t]||[]))await txPut(t,r);if(p.local?.audit)localStorage.setItem("mpf_audit",JSON.stringify(p.local.audit));if(p.local?.closings)localStorage.setItem("mpf_closings",JSON.stringify(p.local.closings));audit("backup","RESTORE","full",file.name);toast("Backup restored.");refreshAll()}
 
 const DEFAULT_CLOUD={url:"https://tkbjsvrhysfadcczluzj.supabase.co",key:"sb_publishable_l_Tt8s_Cb-gOr1x_4wsyLA_1_RRrvxJ"};
