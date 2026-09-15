@@ -2195,7 +2195,7 @@ function saleLiftingCost(sale,liftMap){
  if(details.length){
    return money2(details.reduce((sum,c)=>{
      const lifting=liftMap.get(String(c.liftingId||sale?.liftingId||""));
-     const rate=Number(lifting?.liftingRate??lifting?.ratePerKg)||0;
+     const rate=Number(c.liftingRateAtSale??lifting?.liftingRate??lifting?.ratePerKg)||0;
      return sum+(Number(c.weight)||0)*rate;
    },0));
  }
@@ -2238,7 +2238,7 @@ function updateSyncHealth(){
  const hl=document.getElementById("syncLastHome");if(hl)hl.textContent=formatLocalDateTime(last);
  const hd=document.getElementById("syncHomeDetail");if(hd)hd.textContent=!online?"Offline mode. Changes remain safely on this device and will sync automatically later.":total?`${total} change(s) waiting to reach Supabase.${err?` Last error: ${err}`:""}`:err?`Supabase sync needs attention: ${err}`:"Local records and cloud are up to date.";
  const s=document.getElementById("autoBackupStatus");if(s)s.textContent=!online?"Offline":total?`${total} pending`:err?"Sync error":"Cloud synced";
- const al=document.getElementById("autoBackupLast");if(al)al.textContent=formatLocalDateTime(last);
+ /* autoBackupLast is managed by updateAutoBackupStatus(); cloud sync must not overwrite it. */
  const d=document.getElementById("syncDetail");if(d)d.textContent=!online?"Offline. Local work is safe and will retry when online.":`${saves} pending upload(s), ${dels} delete retry/retries.${err?` Last cloud error: ${err}`:" Background two-way cloud synchronization is active."}`;
 }
 
@@ -2406,7 +2406,7 @@ async function openSaleDetails(sid){
   ["Date",s.saleDate],["ID",s.invoiceNumber||s.id],["Store",st?.name||s.storeName],["Store ID",s.storeId],
   ["Cages",details.map(x=>x.cageNumber||x.cageId).join(", ")],["No. of Cages",details.length],["Birds",s.birdsCount||0],["Weight",fmt(s.weight??s.netWeight)+" kg"],
   ["Rate","Rs. "+fmt(s.salesRate??s.ratePerKg)+" / kg"],["Invoice Amount","Rs. "+fmt(ps.invoice)],
-  ["Payment Method",s.paymentMethod||"—"],["Paid at Sale","Rs. "+fmt(ps.paidAtSale)],["Later Store Payments","Rs. "+fmt(ps.later)],["Total Received","Rs. "+fmt(ps.totalPaid)],["Sale Balance","Rs. "+fmt(ps.due)],
+  ["Payment Method",s.paymentMethod||"—"],["Paid at Sale","Rs. "+fmt(ps.paidAtSale)],["Payment Received Later","Rs. "+fmt(ps.later)],["Total Paid for This Invoice","Rs. "+fmt(ps.totalPaid)],["This Invoice Due","Rs. "+fmt(ps.due)],
   ["Store Outstanding",wang?"N/A":"Rs. "+fmt((await storeSummary(s.storeId)).outstanding)],["Payment",s.paymentMethod||"—"],["Remarks",s.remarks||"—"]
  ],`<button class="btn" onclick="closeModal();editSale('${s.id}')">Edit</button><button class="btn primary" onclick="closeModal();previewStoreInvoice('${s.id}')">Invoice</button><button class="btn" onclick="shareStoreInvoiceWhatsApp('${s.id}')">WhatsApp</button><button class="btn" onclick="sendStoreInvoiceSms('${s.id}')">SMS</button>${S.role==="admin"?`<button class="btn danger" onclick="closeModal();deleteSale('${s.id}')">Delete</button>`:""}`);
 }
@@ -3182,14 +3182,18 @@ async function editTodayStorePayment(paymentId){
  await editStorePayment(paymentId);
 }
 async function deleteTodayStorePayment(paymentId){
- requireAdmin();
- const p=await txGet("payments",paymentId);if(!p)return toast("Payment not found.");
- if(!confirm(`Delete store payment ${p.receiptNumber||p.id} of ₹${fmt(p.amount)}? This will add the amount back to the store/sales outstanding.`))return;
- await txDelete("payments",paymentId);queueCloud("payments","DELETE",{id:paymentId});
- audit("payments","DELETE",paymentId,`₹${fmt(p.amount)} from today's payment list`);
- await refreshAll();
- await renderTodayStorePayments();
- toast("Store payment deleted. Outstanding recalculated.");
+ try{
+  requireAdmin();
+  const p=await txGet("payments",paymentId);if(!p)return toast("Payment not found.");
+  if(!confirm(`Delete store payment ${p.receiptNumber||p.id} of ₹${fmt(p.amount)}? This will add the amount back to the store/sales outstanding.`))return;
+  await txDel("payments",paymentId);
+  if(await txGet("payments",paymentId))throw new Error("Local payment deletion could not be verified.");
+  queueCloud("payments","DELETE",paymentId);
+  audit("payments","DELETE",paymentId,`₹${fmt(p.amount)} from today's payment list`);
+  await refreshAll();
+  await renderTodayStorePayments();
+  toast("Store payment deleted. Store outstanding and invoice balances recalculated.");
+ }catch(e){console.error("Delete store payment:",e);toast(e?.message||"Unable to delete store payment.");}
 }
 async function updatePaymentStoreDue(){
  const storeId=document.getElementById("pStore")?.value,el=document.getElementById("pCurrentDue");
@@ -3247,38 +3251,82 @@ async function showPaymentCompletion(paymentId){
 
 
 async function buildStorePaymentAllocationMap(storeId){
+ const store=await txGet("stores",storeId);
+ const openingDue=money2(Math.max(0,Number(store?.openingDue)||0));
  const sales=(await txAll("sales")).filter(x=>String(x.storeId)===String(storeId))
    .sort((a,b)=>String(a.saleDate||"").localeCompare(String(b.saleDate||""))||String(a.createdAt||a.id||"").localeCompare(String(b.createdAt||b.id||"")));
  const pays=(await txAll("payments")).filter(x=>String(x.storeId)===String(storeId))
    .sort((a,b)=>String(a.paymentDate||"").localeCompare(String(b.paymentDate||""))||String(a.createdAt||a.id||"").localeCompare(String(b.createdAt||b.id||"")));
- const map=new Map(),saleDue=new Map();
+
+ const map=new Map(),saleDue=new Map(),saleLaterPaid=new Map();
  for(const s of sales){
    const invoice=money2(Number(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)||0);
-   saleDue.set(String(s.id),money2(Math.max(0,invoice-(Number(s.paidAmount)||0))));
+   const paidAtSale=money2(Math.max(0,Number(s.paidAmount)||0));
+   saleDue.set(String(s.id),money2(Math.max(0,invoice-paidAtSale)));
+   saleLaterPaid.set(String(s.id),0);
  }
- let advance=0;
- for(const p of pays){
-   let remaining=money2(Number(p.amount)||0);
-   for(const s of sales){
-     if(remaining<=0)break;
-     const sid=String(s.id),due=money2(saleDue.get(sid)||0);
-     if(due<=0)continue;
-     const applied=money2(Math.min(due,remaining));
-     if(applied>0){
-       if(!map.has(String(p.id)))map.set(String(p.id),[]);
-       map.get(String(p.id)).push({saleId:s.id,invoiceNumber:s.invoiceNumber||s.id,saleDate:s.saleDate||"",invoiceAmount:money2(Number(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)||0),amount:applied});
-       saleDue.set(sid,money2(due-applied));remaining=money2(remaining-applied);
+
+ let openingRemaining=openingDue;
+ let advanceLots=[];
+
+ function applyMoneyToSale(s,amount,paymentId=null){
+   let remaining=money2(amount),sid=String(s.id),due=money2(saleDue.get(sid)||0);
+   if(due<=0||remaining<=0)return remaining;
+   const applied=money2(Math.min(due,remaining));
+   saleDue.set(sid,money2(due-applied));
+   saleLaterPaid.set(sid,money2((saleLaterPaid.get(sid)||0)+applied));
+   if(paymentId){
+     if(!map.has(String(paymentId)))map.set(String(paymentId),[]);
+     map.get(String(paymentId)).push({
+       saleId:s.id,invoiceNumber:s.invoiceNumber||s.id,saleDate:s.saleDate||"",
+       invoiceAmount:money2(Number(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)||0),amount:applied
+     });
+   }
+   return money2(remaining-applied);
+ }
+
+ const dates=[...new Set([...sales.map(s=>String(s.saleDate||"")), ...pays.map(p=>String(p.paymentDate||""))])].filter(Boolean).sort();
+ for(const day of dates){
+   const daySales=sales.filter(s=>String(s.saleDate||"")===day);
+
+   // Advance is real money already received. Apply oldest advance lots to newly existing invoices.
+   for(const s of daySales){
+     for(let i=0;i<advanceLots.length && (saleDue.get(String(s.id))||0)>0;i++){
+       const lot=advanceLots[i];if(lot.amount<=0)continue;
+       const before=lot.amount;
+       lot.amount=applyMoneyToSale(s,lot.amount,lot.paymentId);
+       if(before===lot.amount)continue;
      }
    }
-   if(remaining>0)advance=money2(advance+remaining);
+   advanceLots=advanceLots.filter(x=>x.amount>0.009);
+
+   const dayPays=pays.filter(p=>String(p.paymentDate||"")===day);
+   for(const p of dayPays){
+     let remaining=money2(Math.max(0,Number(p.amount)||0));
+     if(openingRemaining>0){
+       const applied=money2(Math.min(openingRemaining,remaining));
+       openingRemaining=money2(openingRemaining-applied);
+       remaining=money2(remaining-applied);
+     }
+     for(const s of sales){
+       if(remaining<=0)break;
+       if(String(s.saleDate||"")>day)break;
+       remaining=applyMoneyToSale(s,remaining,p.id);
+     }
+     if(remaining>0)advanceLots.push({paymentId:p.id,paymentDate:day,amount:remaining});
+   }
  }
- return {map,saleDue,advance};
+ const advance=money2(advanceLots.reduce((a,x)=>a+(Number(x.amount)||0),0));
+ return {map,saleDue,saleLaterPaid,advance,advanceLots,openingRemaining};
 }
 async function allocateStorePaymentToSales(storeId,paymentDate,amount){
- // Include the new payment amount against the current unpaid invoices.
- const base=await buildStorePaymentAllocationMap(storeId);
- let remaining=money2(amount),allocations=[];
- const sales=(await txAll("sales")).filter(x=>String(x.storeId)===String(storeId))
+ const store=await txGet("stores",storeId),base=await buildStorePaymentAllocationMap(storeId);
+ let remaining=money2(Math.max(0,Number(amount)||0)),allocations=[];
+ // A newly entered payment first clears any still-unpaid opening balance.
+ const openingApplied=money2(Math.min(base.openingRemaining||0,remaining));
+ remaining=money2(remaining-openingApplied);
+
+ const sales=(await txAll("sales")).filter(x=>String(x.storeId)===String(storeId)&&String(x.saleDate||"")<=String(paymentDate||""))
    .sort((a,b)=>String(a.saleDate||"").localeCompare(String(b.saleDate||""))||String(a.createdAt||a.id||"").localeCompare(String(b.createdAt||b.id||"")));
  for(const sale of sales){
    if(remaining<=0)break;
@@ -3288,19 +3336,19 @@ async function allocateStorePaymentToSales(storeId,paymentDate,amount){
    allocations.push({saleId:sale.id,invoiceNumber:sale.invoiceNumber||sale.id,saleDate:sale.saleDate||"",invoiceAmount:money2(Number(sale.netAmount??sale.invoiceNetAmount??sale.saleAmount??sale.totalAmount)||0),amount:applied});
    remaining=money2(remaining-applied);
  }
- return {allocations,unallocated:remaining};
+ return {allocations,openingApplied,unallocated:remaining};
 }
 async function salePaymentStatus(sale){
  const invoice=money2(Number(sale.netAmount??sale.invoiceNetAmount??sale.saleAmount??sale.totalAmount)||0);
- const paidAtSale=money2(Number(sale.paidAmount)||0);
+ const paidAtSale=money2(Math.max(0,Number(sale.paidAmount)||0));
  const allocation=await buildStorePaymentAllocationMap(sale.storeId);
- const remaining=money2(allocation.saleDue.get(String(sale.id))??Math.max(0,invoice-paidAtSale));
- const later=money2(Math.max(0,invoice-paidAtSale-remaining));
- return {invoice,paidAtSale,later,totalPaid:money2(paidAtSale+later),due:remaining};
+ const later=money2(Math.max(0,allocation.saleLaterPaid.get(String(sale.id))||0));
+ const due=money2(Math.max(0,allocation.saleDue.get(String(sale.id))??Math.max(0,invoice-paidAtSale)));
+ return {invoice,paidAtSale,later,totalPaid:money2(paidAtSale+later),due};
 }
 
 async function savePayment(){
- const date=document.getElementById("pDate").value,storeId=document.getElementById("pStore").value,amount=Number(document.getElementById("pAmt").value)||0;
+ const date=document.getElementById("pDate").value,storeId=document.getElementById("pStore").value,amount=money2(document.getElementById("pAmt").value);
  if(!date||!storeId||amount<=0)return toast("Valid store, date and amount required.");
  const s=await txGet("stores",storeId);if(!s)return toast("Store not found.");
  const before=await storeSummary(storeId);
@@ -3358,12 +3406,16 @@ async function saveEditedStorePayment(paymentId){
  setTimeout(()=>openPayment(updated.storeId),120);
 }
 async function deleteStorePayment(paymentId){
- requireAdmin();
- const p=await txGet("payments",paymentId);if(!p)return toast("Payment not found.");
- if(!confirm(`Delete duplicate payment ${p.receiptNumber||p.id} of ₹${fmt(p.amount)}? This will add the amount back to store/sales outstanding.`))return;
- await txDelete("payments",paymentId);queueCloud("payments","DELETE",{id:paymentId});
- audit("payments","DELETE_DUPLICATE",paymentId,`₹${fmt(p.amount)}`);
- closeModal();await refreshAll();toast("Duplicate store payment deleted. Outstanding recalculated.");
+ try{
+  requireAdmin();
+  const p=await txGet("payments",paymentId);if(!p)return toast("Payment not found.");
+  if(!confirm(`Delete store payment ${p.receiptNumber||p.id} of ₹${fmt(p.amount)}? This will add the amount back to the store/sales outstanding.`))return;
+  await txDel("payments",paymentId);
+  if(await txGet("payments",paymentId))throw new Error("Local payment deletion could not be verified.");
+  queueCloud("payments","DELETE",paymentId);
+  audit("payments","DELETE",paymentId,`₹${fmt(p.amount)}`);
+  closeModal();await refreshAll();toast("Store payment deleted. Store outstanding and invoice balances recalculated.");
+ }catch(e){console.error("Delete store payment:",e);toast(e?.message||"Unable to delete store payment.");}
 }
 
 async function openSale(){
@@ -3385,11 +3437,13 @@ async function openSale(){
    <div class="sub" style="margin-top:5px">Billed Weight is filled from selected cages automatically, but you can edit it before saving the sale.</div>
   </div>
   <div class="grid g2" style="margin-top:10px">
-   <div class="field"><label>Billed Weight kg (Editable)</label><input id="saWeight" type="number" step="0.01" min="0" inputmode="decimal" value="0.00" oninput="updateSaleAmountPreview()"></div>
+   <div class="field"><label>Actual Weight kg</label><input id="saActualWeight" disabled value="0.00"><div class="sub">Physical total from selected cage(s).</div></div>
+   <div class="field"><label>Billed Weight kg (Editable)</label><input id="saWeight" type="number" step="0.01" min="0" inputmode="decimal" value="0.00" oninput="updateSaleAmountPreview()"><div class="sub">Used to calculate this sales invoice.</div></div>
    <div class="field"><label>Total Birds</label><input id="saBirds" disabled value="0"></div>
    <div class="field sale-total-amount-field"><label>Sales Total Amount (Net) ₹</label><input id="saTotalAmount" disabled value="₹0.00"></div>
-   <div class="field"><label>Paid Amount ₹</label><input id="saPaid" type="number" step="0.01" min="0" value="0"></div>
-   <div class="field"><label>Payment Method</label><select id="saMode" onchange="handleSalePaymentModeChange()"><option>Cash</option><option>UPI</option><option>Credit</option><option>Bank</option></select></div>
+   <div class="field"><label>Payment Status</label><select id="saMode" onchange="handleSalePaymentModeChange()"><option value="Credit">Credit</option><option value="Paid">Paid at Invoice</option></select></div>
+   <div class="field" id="saPaidField" style="display:none"><label>Paid Amount at Invoice ₹</label><input id="saPaid" type="number" step="0.01" min="0.01" value="" placeholder="Enter amount received"><div class="sub">Enter only the amount the store gives you now.</div></div>
+   <div class="field"><label>Payment Mode</label><select id="saPaidMode" disabled><option>Cash</option><option>UPI</option><option>Bank</option><option>Cheque</option></select><div class="sub" id="saPaidModeHint">Not required for Credit.</div></div>
    <div class="field"><label>Remarks</label><input id="saRem"></div>
   </div>
   <div style="height:12px"></div><button class="btn primary" onclick="saveSale()">Save Sale</button>`);
@@ -3421,8 +3475,9 @@ async function openSaleCageSelectionPage(){
    storeId:document.getElementById("saStore")?.value||"",
    rate:document.getElementById("saRate")?.value||"",
    weight:document.getElementById("saWeight")?.value||"",
-   paid:document.getElementById("saPaid")?.value||"0",
-   mode:document.getElementById("saMode")?.value||"Cash",
+   paid:document.getElementById("saPaid")?.value||"",
+   mode:document.getElementById("saMode")?.value||"Credit",
+   paidMode:document.getElementById("saPaidMode")?.value||"Cash",
    remarks:document.getElementById("saRem")?.value||""
  };
  closeModal();
@@ -3502,22 +3557,24 @@ async function updateMultiCageSaleSummary(){
  const {cages}=await getAvailableSaleCagesForDate(date);
  const chosen=cages.filter(c=>ids.has(String(c.id)));
  const weight=chosen.reduce((a,c)=>a+(Number(c.weight)||0),0),birds=chosen.reduce((a,c)=>a+(Number(c.birdCount)||0),0);
- const w=document.getElementById("saWeight"),b=document.getElementById("saBirds"),s=document.getElementById("saSelectedSummary");
- if(w)w.value=fmt(weight);if(b)b.value=birds;
+ const w=document.getElementById("saWeight"),aw=document.getElementById("saActualWeight"),b=document.getElementById("saBirds"),s=document.getElementById("saSelectedSummary");
+ if(aw)aw.value=fmt(weight);
+ if(w)w.value=fmt(weight);
+ if(b)b.value=birds;
  if(s)s.innerHTML=chosen.length?`<b>${chosen.length} cage${chosen.length===1?"":"s"} selected</b> · ${fmt(weight)} kg · ${birds} birds<br>${chosen.map(c=>`Cage ${esc(c.cageNumber||c.id)}`).join(", ")}`:"No cages selected.";
  updateSaleAmountPreview();
 }
 function handleSalePaymentModeChange(){
- const mode=document.getElementById("saMode")?.value||"Cash",paid=document.getElementById("saPaid");
- if(!paid)return;
- if(String(mode).toLowerCase()==="credit"){
-   paid.value="0";
-   paid.disabled=true;
-   paid.title="Credit sale: no payment is received at the time of sale.";
- }else{
-   paid.disabled=false;
-   paid.title="Enter the amount actually received at the time of sale.";
+ const status=document.getElementById("saMode")?.value||"Credit";
+ const paid=document.getElementById("saPaid"),field=document.getElementById("saPaidField"),paidMode=document.getElementById("saPaidMode"),hint=document.getElementById("saPaidModeHint");
+ const isCredit=String(status).toLowerCase()==="credit";
+ if(field)field.style.display=isCredit?"none":"";
+ if(paid){
+   if(isCredit){paid.value="";paid.disabled=true;paid.required=false}
+   else{paid.disabled=false;paid.required=true}
  }
+ if(paidMode)paidMode.disabled=isCredit;
+ if(hint)hint.textContent=isCredit?"Not required for Credit.":"How the amount was received at invoice time.";
 }
 function updateSaleAmountPreview(){
  const weight=Number(document.getElementById("saWeight")?.value)||0;
@@ -3534,7 +3591,7 @@ async function updateSaleStoreOutstanding(){
   const f=await storeSummary(storeId);el.value=`₹${fmt(f.outstanding)}`;
 }
 async function storeSummary(storeId){
-  let s=await txGet("stores",storeId),sales=(await txAll("sales")).filter(x=>x.storeId===storeId),pays=(await txAll("payments")).filter(x=>x.storeId===storeId),opening=money2(s?.openingDue);
+  let s=await txGet("stores",storeId),sales=(await txAll("sales")).filter(x=>String(x.storeId)===String(storeId)),pays=(await txAll("payments")).filter(x=>String(x.storeId)===String(storeId)),opening=money2(s?.openingDue);
   const totalSales=money2(sales.reduce((a,x)=>a+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0));
   const salePaid=money2(sales.reduce((a,x)=>a+(Number(x.paidAmount)||0),0));
   const direct=money2(pays.reduce((a,x)=>a+(Number(x.amount)||0),0));
@@ -3542,8 +3599,10 @@ async function storeSummary(storeId){
   return {opening,totalSales,totalPaid,outstanding:money2(opening+totalSales-totalPaid)}
 }
 async function saveSale(){
- const storeId=document.getElementById("saStore").value,date=document.getElementById("saDate").value,rate=Number(document.getElementById("saRate").value),paymentMethod=document.getElementById("saMode").value;
- const paid=String(paymentMethod||"").toLowerCase()==="credit"?0:(Number(document.getElementById("saPaid").value)||0);
+ const storeId=document.getElementById("saStore").value,date=document.getElementById("saDate").value,rate=Number(document.getElementById("saRate").value),salePaymentStatus=document.getElementById("saMode").value||"Credit";
+ const isCredit=String(salePaymentStatus).toLowerCase()==="credit";
+ const paymentMethod=isCredit?"Credit":(document.getElementById("saPaidMode")?.value||"Cash");
+ const paid=isCredit?0:(Number(document.getElementById("saPaid").value)||0);
  let cageIds=selectedSaleCageIds();
  if(!date||!storeId||rate<=0)return toast("Date, store and sales rate are required.");
  if(!cageIds.length)return toast("Select at least one cage.");
@@ -3563,20 +3622,21 @@ async function saveSale(){
  const weight=Number(document.getElementById("saWeight")?.value)||0;
  if(weight<=0)return toast("Enter a valid billed weight.");
  const exactAmount=Math.round(weight*rate*100)/100,rr=invoiceRound(exactAmount),netAmount=rr.rounded;
+ if(!isCredit&&paid<=0)return toast("Enter the amount received at the time of invoice.");
  if(paid>netAmount)return toast("Paid Amount cannot be more than the Sales Total Amount.");
  const inv=await nextSequentialNumber("sale",date),sid=inv;
  if((await txAll("sales")).some(x=>x.id!==sid&&x.invoiceNumber===inv))return toast("Invoice number conflict detected. Please retry.");
  const farmerIds=[...new Set(current.map(c=>String(c.farmerId||"")).filter(Boolean))],liftingIds=[...new Set(current.map(c=>String(c.liftingId||"")).filter(Boolean))];
- const farmers=await txAll("farmers"),farmerMap=new Map(farmers.map(f=>[String(f.id),f.name]));
+ const farmers=await txAll("farmers"),farmerMap=new Map(farmers.map(f=>[String(f.id),f.name])),allSaleLiftMap=new Map((await txAll("liftings")).map(l=>[String(l.id),l]));
  const farmerName=farmerIds.length===1?(farmerMap.get(farmerIds[0])||""):farmerIds.length>1?"Multiple Farmers":"";
- const cageDetails=current.map(c=>({cageId:c.id,cageNumber:c.cageNumber||"",weight:Number(c.weight)||0,birdCount:Number(c.birdCount)||0,farmerId:c.farmerId||"",liftingId:c.liftingId||""}));
+ const cageDetails=current.map(c=>{const li=allSaleLiftMap.get(String(c.liftingId||""));return {cageId:c.id,cageNumber:c.cageNumber||"",weight:Number(c.weight)||0,birdCount:Number(c.birdCount)||0,farmerId:c.farmerId||"",liftingId:c.liftingId||"",liftingRateAtSale:Number(li?.liftingRate??li?.ratePerKg)||0}});
  const r={id:sid,invoiceNumber:inv,storeId,storeName:store.name,storePhone:store.phone||"",saleDate:date,
    liftingId:liftingIds[0]||null,liftingIds,farmerId:farmerIds[0]||null,farmerIds,farmerName,
    cageId:current[0].id,cageIds:current.map(c=>c.id),cageNumber:current.map(c=>c.cageNumber||c.id).join(", "),cageNumbers:current.map(c=>c.cageNumber||c.id),cageDetails,
    birdsCount:birds,totalBirds:birds,originalCageWeight:cageWeight,netWeight:weight,weight,totalWeight:weight,salesRate:rate,ratePerKg:rate,
    saleAmount:exactAmount,totalAmount:exactAmount,roundOff:rr.roundOff,netAmount,invoiceNetAmount:netAmount,paidAmount:paid,
    previousDue:money2(fin.outstanding),outstanding:money2(fin.outstanding+netAmount-paid),
-   paymentMethod,remarks:document.getElementById("saRem").value.trim(),isWangkheiSale:!!store.isWangkhei,
+   paymentMethod,salePaymentStatus:isCredit?"Credit":"Paid",remarks:document.getElementById("saRem").value.trim(),isWangkheiSale:!!store.isWangkhei,
    createdAt:iso(),updatedAt:iso()};
  try{
    await new Promise((resolve,reject)=>{
@@ -3606,13 +3666,12 @@ function clearSingkeFilter(){
 }
 
 async function buildSingkeLedgerPdf(){
-  const s=await singkeSummary(),stores=await txAll("stores");
-  const wm=new Set(stores.filter(st=>st.isWangkhei||String(st.name||"").toLowerCase().includes("wangkhei")).map(st=>st.id));
+  const s=await singkeAccountingData();
   let ev=[
-    ...(await txAll("liftings")).map(x=>({date:x.liftingDate||"",type:"Lifting Payable",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,debit:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,credit:0})),
-    ...(await txAll("sales")).filter(x=>x.isWangkheiSale||wm.has(x.storeId)).map(x=>({date:x.saleDate||"",type:"Wangkhei Adjustment",ref:x.invoiceNumber||x.id,kg:Number(x.netWeight??x.weight??x.totalWeight)||0,debit:0,credit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0})),
-    ...(await txAll("singke_settlements")).map(x=>({date:x.date||"",type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,debit:0,credit:Number(x.amount)||0})),
-    ...(await getFarmerPayments()).map(x=>({date:x.paymentDate||"",type:"Farmer Payment",ref:x.farmerName||x.id,kg:0,debit:0,credit:Number(x.amount)||0}))
+    ...s.liftUsed.map(x=>({date:x.liftingDate||"",type:"Lifting Payable",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,debit:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,credit:0})),
+    ...s.wangSales.map(x=>({date:x.saleDate||"",type:"Wangkhei Adjustment",ref:x.invoiceNumber||x.id,kg:Number(x.netWeight??x.weight??x.totalWeight)||0,debit:0,credit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0})),
+    ...s.setsUsed.map(x=>({date:x.date||x.paymentDate||"",type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,debit:0,credit:Number(x.amount)||0})),
+    ...s.farmerUsed.map(x=>({date:x.paymentDate||"",type:"Farmer Payment",ref:x.farmerName||x.id,kg:0,debit:0,credit:Number(x.amount)||0}))
   ].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
   const from=document.getElementById("singkeFrom")?.value||"",to=document.getElementById("singkeTo")?.value||"";
   let bal=Number(s.p?.amount)||0;
@@ -4725,7 +4784,10 @@ async function renderSales(){
    const built=[];
    for(const s of a){
      let st=stores.get(s.storeId),ps=await salePaymentStatus(s);
-     built.push(`<tr onclick="openSaleDetails('${s.id}')" tabindex="0" onkeydown="if(event.key==='Enter')openSaleDetails('${s.id}')"><td>${esc(s.saleDate)}</td><td class="mono">${esc(s.invoiceNumber||s.id)}</td><td>${esc(s.storeName||st?.name||"")}<div class="sub">₹${fmt(ps.invoice)} • Paid ₹${fmt(ps.totalPaid)} • Due ₹${fmt(ps.due)}</div></td></tr>`);
+     const invoiceStatus=String(s.salePaymentStatus||s.paymentMethod||"").toLowerCase()==="credit"
+       ?`<span class="badge">CREDIT</span> • Due ₹${fmt(ps.due)}`
+       :`<span class="badge">PAID ₹${fmt(ps.paidAtSale)}</span>${ps.due>0?` • Due ₹${fmt(ps.due)}`:" • Fully paid"}`;
+     built.push(`<tr onclick="openSaleDetails('${s.id}')" tabindex="0" onkeydown="if(event.key==='Enter')openSaleDetails('${s.id}')"><td>${esc(s.saleDate)}</td><td class="mono">${esc(s.invoiceNumber||s.id)}</td><td>${esc(s.storeName||st?.name||"")}<div class="sub">Invoice ₹${fmt(ps.invoice)} • ${invoiceStatus}</div></td></tr>`);
    }
    rows.innerHTML=built.length?built.join(""):`<tr><td colspan="3" class="empty">No sales for ${esc(selectedDate)}</td></tr>`;
  }
@@ -4830,11 +4892,11 @@ async function previewStoreInvoice(saleId){
       ${wang?"":`<div class="psm-total-row"><span>Previous Due</span><b>₹${fmt(s.previousDue)}</b></div>`}
       <div class="psm-total-row"><span>Exact Invoice Amount</span><b>₹${fmt(s.saleAmount??s.totalAmount)}</b></div>
       ${(()=>{const rr=invoiceRound(s.saleAmount??s.totalAmount);return `<div class="psm-total-row"><span>Round Off</span><b>${rr.roundOff>=0?"+":""}₹${fmt(rr.roundOff)}</b></div><div class="psm-total-row"><span>Net Invoice Amount</span><b>₹${fmt(rr.rounded)}</b></div>`})()}
-      <div class="psm-total-row"><span>Payment Method</span><b>${esc(s.paymentMethod||"—")}</b></div>
-      <div class="psm-total-row"><span>Paid at Sale</span><b>₹${fmt(ps.paidAtSale)}</b></div>
-      ${ps.later>0?`<div class="psm-total-row"><span>Later Store Payments</span><b>₹${fmt(ps.later)}</b></div>`:""}
-      ${ps.totalPaid>0?`<div class="psm-total-row"><span>Total Received</span><b>₹${fmt(ps.totalPaid)}</b></div>`:""}
-      ${wang?`<div class="psm-total-row final"><span>Settlement</span><span>MPF A/C</span></div>`:`<div class="psm-total-row final"><span>Invoice Balance</span><span>₹${fmt(ps.due)}</span></div>`}
+      <div class="psm-total-row"><span>Payment Status</span><b>${String(s.salePaymentStatus||s.paymentMethod||"").toLowerCase()==="credit"?"CREDIT":"PAID AT INVOICE"}</b></div>
+      ${String(s.salePaymentStatus||s.paymentMethod||"").toLowerCase()==="credit"?"":`<div class="psm-total-row"><span>Paid at Invoice (${esc(s.paymentMethod||"")})</span><b>₹${fmt(ps.paidAtSale)}</b></div>`}
+      ${ps.later>0?`<div class="psm-total-row"><span>Payment Received Later</span><b>₹${fmt(ps.later)}</b></div>`:""}
+      ${ps.totalPaid>0?`<div class="psm-total-row"><span>Total Paid for This Invoice</span><b>₹${fmt(ps.totalPaid)}</b></div>`:""}
+      ${wang?`<div class="psm-total-row final"><span>Settlement</span><span>MPF A/C</span></div>`:`<div class="psm-total-row final"><span>This Invoice Due</span><span>₹${fmt(ps.due)}</span></div>`}
     </div>
     <div class="psm-thanks"><b>Thank you for your business!</b><span>Reliable broiler supply from PSM Broiler Distributor.</span></div>
     <div class="psm-footer">
@@ -4937,18 +4999,25 @@ async function fundsSummary(){
 }
 async function cashInHandSummary(){return fundsSummary()}
 
-async function singkeSummary(){
+async function singkeAccountingData(){
  const p=await setting("singke_previous_due",{amount:0});
  const lift=await txAll("liftings"),sales=await txAll("sales"),stores=await txAll("stores"),sets=await txAll("singke_settlements"),farmerPayments=await getFarmerPayments();
- const wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>s.id));
- const wangSales=sales.filter(s=>s.isWangkheiSale||wm.has(s.storeId));
- const liftingPayable=money2(lift.reduce((a,l)=>a+(Number(l.netAmount??l.payableAmount??l.liftingAmount??l.totalAmount)||0),0));
+ const wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>String(s.id)));
+ const cutoff=String(p?.asOf||"");
+ const afterOpening=d=>!cutoff||!d||String(d)>cutoff;
+ const liftUsed=lift.filter(x=>afterOpening(x.liftingDate));
+ const wangSales=sales.filter(s=>(s.isWangkheiSale||wm.has(String(s.storeId)))&&afterOpening(s.saleDate));
+ const setsUsed=sets.filter(s=>afterOpening(s.date||s.paymentDate));
+ const farmerUsed=farmerPayments.filter(s=>afterOpening(s.paymentDate));
+ const liftingPayable=money2(liftUsed.reduce((a,l)=>a+(Number(l.netAmount??l.payableAmount??l.liftingAmount??l.totalAmount)||0),0));
  const wang=money2(wangSales.reduce((a,s)=>a+(Number(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)||0),0));
  const wangKg=money2(wangSales.reduce((a,s)=>a+(Number(s.netWeight??s.weight??s.totalWeight)||0),0));
- const sett=money2(sets.reduce((a,s)=>a+(Number(s.amount)||0),0));
- const farmerPaid=money2(farmerPayments.reduce((a,s)=>a+(Number(s.amount)||0),0));
- return {p,liftingPayable,wang,wangKg,sett,farmerPaid,remain:money2((Number(p?.amount)||0)+liftingPayable-wang-sett-farmerPaid)};
+ const sett=money2(setsUsed.reduce((a,s)=>a+(Number(s.amount)||0),0));
+ const farmerPaid=money2(farmerUsed.reduce((a,s)=>a+(Number(s.amount)||0),0));
+ const remain=money2((Number(p?.amount)||0)+liftingPayable-wang-sett-farmerPaid);
+ return {p,cutoff,liftUsed,wangSales,setsUsed,farmerUsed,liftingPayable,wang,wangKg,sett,farmerPaid,remain};
 }
+async function singkeSummary(){return singkeAccountingData()}
 
 async function renderSingke(){
   const s=await singkeSummary();
@@ -4963,13 +5032,12 @@ async function renderSingke(){
   document.getElementById("sRemain").textContent=fmt(s.remain);
   const dash=document.getElementById("dashSingke");if(dash)dash.textContent=fmt(s.remain);
 
-  const stores=await txAll("stores");
-  const wm=new Set(stores.filter(st=>st.isWangkhei||String(st.name||"").toLowerCase().includes("wangkhei")).map(st=>st.id));
+  const acc=await singkeAccountingData();
   let ev=[
-    ...(await txAll("liftings")).map(x=>({date:x.liftingDate||"",type:"Lifting Payable",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,debit:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,credit:0})),
-    ...(await txAll("sales")).filter(x=>x.isWangkheiSale||wm.has(x.storeId)).map(x=>({date:x.saleDate||"",type:"Wangkhei Adjustment",ref:x.invoiceNumber||x.id,kg:Number(x.netWeight??x.weight??x.totalWeight)||0,debit:0,credit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0})),
-    ...(await txAll("singke_settlements")).map(x=>({date:x.date||"",type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,debit:0,credit:Number(x.amount)||0})),
-    ...(await getFarmerPayments()).map(x=>({date:x.paymentDate||"",type:"Farmer Payment",ref:x.farmerName||x.id,kg:0,debit:0,credit:Number(x.amount)||0}))
+    ...acc.liftUsed.map(x=>({date:x.liftingDate||"",type:"Lifting Payable",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,debit:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,credit:0})),
+    ...acc.wangSales.map(x=>({date:x.saleDate||"",type:"Wangkhei Adjustment",ref:x.invoiceNumber||x.id,kg:Number(x.netWeight??x.weight??x.totalWeight)||0,debit:0,credit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0})),
+    ...acc.setsUsed.map(x=>({date:x.date||x.paymentDate||"",type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,debit:0,credit:Number(x.amount)||0})),
+    ...acc.farmerUsed.map(x=>({date:x.paymentDate||"",type:"Farmer Payment",ref:x.farmerName||x.id,kg:0,debit:0,credit:Number(x.amount)||0}))
   ].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
   const from=document.getElementById("singkeFrom")?.value||"",to=document.getElementById("singkeTo")?.value||"";
   let bal=Number(s.p?.amount)||0;if(from){for(const e of ev){if(e.date&&e.date<from)bal+=e.debit-e.credit}}
@@ -5281,6 +5349,36 @@ async function reconcileCageInventoryState({sync=true}={}){
  return {cages,sales,sold,unsold,changed,missing};
 }
 
+async function accountingIntegrityCheck(){
+ const issues=[];
+ const stores=await txAll("stores"),sales=await txAll("sales"),payments=await txAll("payments"),liftings=await txAll("liftings"),cages=await txAll("cages"),farmerPayments=await getFarmerPayments();
+ const storeIds=new Set(stores.map(x=>String(x.id))),liftIds=new Set(liftings.map(x=>String(x.id)));
+ const receiptSeen=new Set(),invoiceSeen=new Set();
+ for(const s of sales){
+   const net=money2(Number(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)||0),paid=money2(Number(s.paidAmount)||0);
+   if(net<0)issues.push(`Sale ${s.invoiceNumber||s.id}: negative invoice amount`);
+   if(paid<-.009||paid>net+.009)issues.push(`Sale ${s.invoiceNumber||s.id}: paid amount is outside invoice amount`);
+   if(String(s.salePaymentStatus||s.paymentMethod||"").toLowerCase()==="credit"&&Math.abs(paid)>.009)issues.push(`Sale ${s.invoiceNumber||s.id}: Credit sale has a paid-at-invoice amount`);
+   if(!storeIds.has(String(s.storeId)))issues.push(`Sale ${s.invoiceNumber||s.id}: store record is missing`);
+   const inv=String(s.invoiceNumber||"");if(inv){if(invoiceSeen.has(inv))issues.push(`Duplicate sales invoice number: ${inv}`);invoiceSeen.add(inv)}
+ }
+ for(const p of payments){
+   if(!storeIds.has(String(p.storeId)))issues.push(`Store payment ${p.receiptNumber||p.id}: store record is missing`);
+   if((Number(p.amount)||0)<=0)issues.push(`Store payment ${p.receiptNumber||p.id}: invalid amount`);
+   const rec=String(p.receiptNumber||"");if(rec){if(receiptSeen.has(rec))issues.push(`Duplicate store payment receipt: ${rec}`);receiptSeen.add(rec)}
+ }
+ for(const c of cages){if(!liftIds.has(String(c.liftingId)))issues.push(`Cage ${c.cageNumber||c.id}: lifting record is missing`)}
+ for(const p of farmerPayments){if((Number(p.amount)||0)<=0)issues.push(`Farmer payment ${p.id}: invalid amount`)}
+
+ // Reconcile every store using the independent accounting equation.
+ for(const st of stores){
+   const ss=sales.filter(x=>String(x.storeId)===String(st.id)),pp=payments.filter(x=>String(x.storeId)===String(st.id));
+   const expected=money2((Number(st.openingDue)||0)+ss.reduce((a,x)=>a+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0)-(Number(x.paidAmount)||0),0)-pp.reduce((a,x)=>a+(Number(x.amount)||0),0));
+   const actual=money2((await storeSummary(st.id)).outstanding);
+   if(Math.abs(expected-actual)>.009)issues.push(`Store ${st.name||st.id}: outstanding reconciliation mismatch ₹${fmt(expected)} vs ₹${fmt(actual)}`);
+ }
+ return issues;
+}
 async function renderDashboard(){
  const inventory=await reconcileCageInventoryState({sync:false});
  let r=dashboardRange(),allLift=await txAll("liftings"),l=allLift.filter(x=>inRange(x.liftingDate,r)),allSales=await txAll("sales"),sales=allSales.filter(x=>inRange(x.saleDate,r)),cages=await txAll("cages"),stores=await txAll("stores");
@@ -5300,6 +5398,8 @@ async function renderDashboard(){
  let gp=money2(salesAmt-cost);document.getElementById("mGrossProfit").textContent=fmt(gp);document.getElementById("mGrossProfitSub").textContent=`${periodLabel}: net sales − physical cage lifting cost`;
  const cashSummary=await fundsSummary(),cashEl=document.getElementById("mCashInHand"),accountEl=document.getElementById("mAccountBalance");if(cashEl)cashEl.textContent=fmt(cashSummary.cashInHand);if(accountEl)accountEl.textContent=fmt(cashSummary.accountBalance);
  let att=[];
+ const accountingIssues=await accountingIntegrityCheck();
+ if(accountingIssues.length)att.push(`Accounting integrity: ${accountingIssues.length} issue(s) found — ${accountingIssues.slice(0,3).join("; ")}`);
  if(inventory.missing.length){
    const totalMissing=inventory.missing.reduce((a,x)=>a+x.missing,0);
    att.push(`${totalMissing} cage detail record(s) are missing from lifting data. Open the affected lifting(s) to review.`);
@@ -5330,7 +5430,7 @@ async function getDateRangeReportData(){
  const sales=await txAll("sales"),payments=await txAll("payments"),sets=await txAll("singke_settlements"),cages=await txAll("cages"),farmerPayments=await getFarmerPayments();
  let headers=[],rows=[],title="",summary=[];
 
- const periodSales=sales.filter(x=>ok(x.saleDate)),periodLift=liftings.filter(x=>ok(x.liftingDate)),periodPayments=payments.filter(x=>ok(x.paymentDate)),periodFarmerPayments=farmerPayments.filter(x=>ok(x.paymentDate)),periodSets=sets.filter(x=>ok(x.date));
+ const periodSales=sales.filter(x=>ok(x.saleDate)),periodLift=liftings.filter(x=>ok(x.liftingDate)),periodPayments=payments.filter(x=>ok(x.paymentDate)),periodFarmerPayments=farmerPayments.filter(x=>ok(x.paymentDate)),periodSets=sets.filter(x=>ok(x.date||x.paymentDate));
  const netSales=money2(periodSales.reduce((s,x)=>s+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0));
  const liftingPayable=money2(periodLift.reduce((s,x)=>s+(Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0),0));
  const paymentsReceived=money2(periodPayments.reduce((s,x)=>s+(Number(x.amount)||0),0)+periodSales.reduce((s,x)=>s+(Number(x.paidAmount)||0),0));
@@ -5340,10 +5440,11 @@ async function getDateRangeReportData(){
  if(type==="summary"){
    title="Accounting Summary";
    headers=["Particular","Amount / Value","Notes"];
-   let outstanding=0;
+   let outstanding=0,storeCredit=0;
    for(const st of stores){
      if(st.archived||st.isWangkhei||String(st.name||"").toLowerCase().includes("wangkhei"))continue;
-     outstanding+=Number((await storeSummary(st.id)).outstanding)||0;
+     const bal=Number((await storeSummary(st.id)).outstanding)||0;
+     if(bal>=0)outstanding+=bal;else storeCredit+=Math.abs(bal);
    }
    const sg=await singkeSummary();
    const wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>s.id));
@@ -5359,7 +5460,8 @@ async function getDateRangeReportData(){
      ["Wangkhei Adjustments",wang,"Selected period"],
      ["MPF / Singke Settlements",settlements,"Selected period"],
      ["Payments Made Directly to Farmers",money2(periodFarmerPayments.reduce((a,x)=>a+(Number(x.amount)||0),0)),"Deducted from Due to Singke"],
-     ["Current Regular Store Outstanding",money2(outstanding),"As of current database"],
+     ["Current Regular Store Outstanding",money2(outstanding),"Positive dues only; store credits are not netted off"],
+     ["Current Store Advance / Credit",money2(storeCredit),"Overpayments / advances held for stores"],
      ["Current MPF / Singke Remaining Due",money2(sg.remain),"After direct farmer payments"],
      ["Current Cash in Hand",money2((await fundsSummary()).cashInHand),"Direct cash receipts minus cash payouts"],
      ["Current Account Balance",money2((await fundsSummary()).accountBalance),"UPI / bank receipts minus UPI / bank payouts"]
@@ -5586,7 +5688,7 @@ async function runDailyAutoBackup(options={}){
    // Store directly in IndexedDB only. Do not queue the large backup snapshot to Supabase.
    await txPut("settings",record);
    const all=await listDailyAutoBackups();
-   for(const old of all.slice(AUTO_BACKUP_KEEP))await txDelete("settings",old.key);
+   for(const old of all.slice(AUTO_BACKUP_KEEP))await txDel("settings",old.key);
    localStorage.setItem(AUTO_BACKUP_LAST_KEY,day);
    audit("backup","AUTO_DAILY",day,`Kept ${Math.min(all.length,AUTO_BACKUP_KEEP)} daily snapshot(s)`);
    await updateAutoBackupStatus();
