@@ -2406,7 +2406,7 @@ async function openSaleDetails(sid){
   ["Date",s.saleDate],["ID",s.invoiceNumber||s.id],["Store",st?.name||s.storeName],["Store ID",s.storeId],
   ["Cages",details.map(x=>x.cageNumber||x.cageId).join(", ")],["No. of Cages",details.length],["Birds",s.birdsCount||0],["Weight",fmt(s.weight??s.netWeight)+" kg"],
   ["Rate","Rs. "+fmt(s.salesRate??s.ratePerKg)+" / kg"],["Invoice Amount","Rs. "+fmt(ps.invoice)],
-  ["Paid at Sale","Rs. "+fmt(ps.paidAtSale)],["Payment Entries","Rs. "+fmt(ps.later)],["Total Paid","Rs. "+fmt(ps.totalPaid)],["Sale Balance","Rs. "+fmt(ps.due)],
+  ["Payment Method",s.paymentMethod||"—"],["Paid at Sale","Rs. "+fmt(ps.paidAtSale)],["Later Store Payments","Rs. "+fmt(ps.later)],["Total Received","Rs. "+fmt(ps.totalPaid)],["Sale Balance","Rs. "+fmt(ps.due)],
   ["Store Outstanding",wang?"N/A":"Rs. "+fmt((await storeSummary(s.storeId)).outstanding)],["Payment",s.paymentMethod||"—"],["Remarks",s.remarks||"—"]
  ],`<button class="btn" onclick="closeModal();editSale('${s.id}')">Edit</button><button class="btn primary" onclick="closeModal();previewStoreInvoice('${s.id}')">Invoice</button><button class="btn" onclick="shareStoreInvoiceWhatsApp('${s.id}')">WhatsApp</button><button class="btn" onclick="sendStoreInvoiceSms('${s.id}')">SMS</button>${S.role==="admin"?`<button class="btn danger" onclick="closeModal();deleteSale('${s.id}')">Delete</button>`:""}`);
 }
@@ -3149,8 +3149,47 @@ async function openPayment(preselectStoreId=""){
   <div class="field"><label>Remarks</label><input id="pRem"></div>
  </div>
  <div class="sub" style="margin-top:10px">The payment will automatically reduce the store outstanding and be applied to the oldest unpaid sales first.</div>
- <div style="height:12px"></div><button class="btn primary" onclick="savePayment()">Save Payment</button>`);
+ <div style="height:12px"></div><button class="btn primary" onclick="savePayment()">Save Payment</button>
+ <div style="height:18px"></div>
+ <div class="card" style="padding:0;overflow:hidden">
+  <div style="padding:12px 14px;border-bottom:1px solid var(--line)"><b>Today's Store Payments</b><div class="sub" id="todayStorePaymentsSummary">Loading…</div></div>
+  <div class="table-wrap"><table><thead><tr><th>Time / Receipt</th><th>Store</th><th>Amount</th><th>Mode</th><th>Action</th></tr></thead><tbody id="todayStorePaymentsRows"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody></table></div>
+ </div>`);
  await updatePaymentStoreDue();
+ await renderTodayStorePayments();
+}
+async function renderTodayStorePayments(){
+ const host=document.getElementById("todayStorePaymentsRows"),sum=document.getElementById("todayStorePaymentsSummary");
+ if(!host)return;
+ const day=today(),stores=new Map((await txAll("stores")).map(s=>[String(s.id),s]));
+ const rows=(await txAll("payments")).filter(p=>String(p.paymentDate||"")===day)
+   .sort((a,b)=>String(b.createdAt||b.updatedAt||b.id||"").localeCompare(String(a.createdAt||a.updatedAt||a.id||"")));
+ const total=money2(rows.reduce((a,p)=>a+(Number(p.amount)||0),0));
+ if(sum)sum.textContent=`${rows.length} payment${rows.length===1?"":"s"} • Total ₹${fmt(total)}`;
+ host.innerHTML=rows.length?rows.map(p=>{
+   const st=stores.get(String(p.storeId)),tm=p.createdAt?new Date(p.createdAt).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}):"";
+   return `<tr>
+    <td><b>${esc(tm||p.paymentDate||"")}</b><div class="sub mono">${esc(p.receiptNumber||p.id)}</div></td>
+    <td>${esc(st?.name||p.storeName||p.storeId||"—")}</td>
+    <td><b>₹${fmt(p.amount)}</b></td>
+    <td>${esc(p.paymentMode||"—")}</td>
+    <td><button class="btn" onclick="editTodayStorePayment('${p.id}')">Edit</button>${S.role==="admin"?` <button class="btn danger" onclick="deleteTodayStorePayment('${p.id}')">Delete</button>`:""}</td>
+   </tr>`;
+ }).join(""):`<tr><td colspan="5" class="empty">No store payments recorded today.</td></tr>`;
+}
+async function editTodayStorePayment(paymentId){
+ closeModal();
+ await editStorePayment(paymentId);
+}
+async function deleteTodayStorePayment(paymentId){
+ requireAdmin();
+ const p=await txGet("payments",paymentId);if(!p)return toast("Payment not found.");
+ if(!confirm(`Delete store payment ${p.receiptNumber||p.id} of ₹${fmt(p.amount)}? This will add the amount back to the store/sales outstanding.`))return;
+ await txDelete("payments",paymentId);queueCloud("payments","DELETE",{id:paymentId});
+ audit("payments","DELETE",paymentId,`₹${fmt(p.amount)} from today's payment list`);
+ await refreshAll();
+ await renderTodayStorePayments();
+ toast("Store payment deleted. Outstanding recalculated.");
 }
 async function updatePaymentStoreDue(){
  const storeId=document.getElementById("pStore")?.value,el=document.getElementById("pCurrentDue");
@@ -3201,6 +3240,8 @@ async function showPaymentCompletion(paymentId){
  </div>
  <div style="height:12px"></div>
  <button class="btn ok" onclick="shareStorePaymentWhatsApp('${paymentId}')">Share on WhatsApp</button>
+ <button class="btn primary" onclick="closeModal();editStorePayment('${paymentId}')">Edit Payment</button>
+ <button class="btn" onclick="closeModal();openPayment('${pmt.storeId}')">Today's Payments</button>
  <button class="btn" onclick="closeModal()">Done</button>`);
 }
 
@@ -3276,6 +3317,55 @@ async function savePayment(){
  clearCurrentFormDraft();closeModal();await refreshAll();await showPaymentCompletion(r.id);
 }
 
+async function editStorePayment(paymentId){
+ const p=await txGet("payments",paymentId);if(!p)return toast("Payment not found.");
+ const stores=(await txAll("stores")).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+ openModal(`<h3>Edit Store Payment</h3>
+ <div class="grid g2">
+  <div class="field"><label>Receipt</label><input value="${esc(p.receiptNumber||p.id)}" disabled></div>
+  <div class="field"><label>Store</label><select id="epStore">${stores.map(s=>`<option value="${s.id}" ${String(s.id)===String(p.storeId)?"selected":""}>${esc(s.name)}</option>`).join("")}</select></div>
+  <div class="field"><label>Date</label><input id="epDate" type="date" value="${esc(p.paymentDate||today())}"></div>
+  <div class="field"><label>Amount Received ₹</label><input id="epAmt" type="number" step="0.01" min="0.01" value="${Number(p.amount)||0}"></div>
+  <div class="field"><label>Mode</label><select id="epMode">${["Cash","UPI","Bank","Cheque"].map(x=>`<option ${String(p.paymentMode||"")===x?"selected":""}>${x}</option>`).join("")}</select></div>
+  <div class="field"><label>Reference</label><input id="epRef" value="${esc(p.referenceNumber||"")}"></div>
+  <div class="field" style="grid-column:1/-1"><label>Remarks</label><input id="epRem" value="${esc(p.remarks||"")}"></div>
+ </div>
+ <div class="sub" style="margin-top:10px">Saving will recalculate the store outstanding and sales-payment allocation automatically. It will not create another payment entry.</div>
+ <div style="height:12px"></div>
+ <button class="btn primary" onclick="saveEditedStorePayment('${paymentId}')">Save Changes</button>
+ <button class="btn" onclick="closeModal()">Cancel</button>
+ ${S.role==="admin"?`<button class="btn danger" onclick="deleteStorePayment('${paymentId}')">Delete Duplicate Payment</button>`:""}`);
+}
+async function saveEditedStorePayment(paymentId){
+ const old=await txGet("payments",paymentId);if(!old)return toast("Payment not found.");
+ const storeId=document.getElementById("epStore")?.value,date=document.getElementById("epDate")?.value,amount=Number(document.getElementById("epAmt")?.value)||0;
+ if(!storeId||!date||amount<=0)return toast("Valid store, date and amount required.");
+ const st=await txGet("stores",storeId);if(!st)return toast("Store not found.");
+ // Calculate due without this payment so the edited record is not counted twice.
+ const allPays=await txAll("payments"),otherPays=allPays.filter(x=>String(x.id)!==String(paymentId)&&String(x.storeId)===String(storeId));
+ const sales=(await txAll("sales")).filter(x=>String(x.storeId)===String(storeId));
+ const opening=money2(st.openingDue),totalSales=money2(sales.reduce((a,x)=>a+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0));
+ const salePaid=money2(sales.reduce((a,x)=>a+(Number(x.paidAmount)||0),0)),otherDirect=money2(otherPays.reduce((a,x)=>a+(Number(x.amount)||0),0));
+ const previousDue=money2(opening+totalSales-salePaid-otherDirect),remainingDue=money2(previousDue-amount);
+ const updated={...old,storeId,storeName:st.name||"",storePhone:st.phone||"",paymentDate:date,amount:money2(amount),
+   paymentMode:document.getElementById("epMode")?.value||old.paymentMode,referenceNumber:document.getElementById("epRef")?.value.trim()||"",
+   remarks:document.getElementById("epRem")?.value.trim()||"",previousDue,remainingDue,
+   saleAllocations:[],unallocatedAmount:0,updatedAt:iso()};
+ await txPut("payments",updated);queueCloud("payments","UPSERT",updated);
+ // Rebuild display allocation dynamically from all payment records.
+ audit("payments","EDIT",paymentId,`${old.amount} -> ${updated.amount}`);
+ clearCurrentFormDraft();closeModal();await refreshAll();toast("Store payment updated. Sales due and outstanding recalculated.");
+ setTimeout(()=>openPayment(updated.storeId),120);
+}
+async function deleteStorePayment(paymentId){
+ requireAdmin();
+ const p=await txGet("payments",paymentId);if(!p)return toast("Payment not found.");
+ if(!confirm(`Delete duplicate payment ${p.receiptNumber||p.id} of ₹${fmt(p.amount)}? This will add the amount back to store/sales outstanding.`))return;
+ await txDelete("payments",paymentId);queueCloud("payments","DELETE",{id:paymentId});
+ audit("payments","DELETE_DUPLICATE",paymentId,`₹${fmt(p.amount)}`);
+ closeModal();await refreshAll();toast("Duplicate store payment deleted. Outstanding recalculated.");
+}
+
 async function openSale(){
  await reconcileCageInventoryState({sync:true});
  const stores=(await txAll("stores")).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
@@ -3298,13 +3388,14 @@ async function openSale(){
    <div class="field"><label>Billed Weight kg (Editable)</label><input id="saWeight" type="number" step="0.01" min="0" inputmode="decimal" value="0.00" oninput="updateSaleAmountPreview()"></div>
    <div class="field"><label>Total Birds</label><input id="saBirds" disabled value="0"></div>
    <div class="field sale-total-amount-field"><label>Sales Total Amount (Net) ₹</label><input id="saTotalAmount" disabled value="₹0.00"></div>
-   <div class="field"><label>Paid Amount ₹</label><input id="saPaid" type="number" step="0.01" value="0"></div>
-   <div class="field"><label>Payment Method</label><select id="saMode"><option>Cash</option><option>UPI</option><option>Credit</option><option>Bank</option></select></div>
+   <div class="field"><label>Paid Amount ₹</label><input id="saPaid" type="number" step="0.01" min="0" value="0"></div>
+   <div class="field"><label>Payment Method</label><select id="saMode" onchange="handleSalePaymentModeChange()"><option>Cash</option><option>UPI</option><option>Credit</option><option>Bank</option></select></div>
    <div class="field"><label>Remarks</label><input id="saRem"></div>
   </div>
   <div style="height:12px"></div><button class="btn primary" onclick="saveSale()">Save Sale</button>`);
  await updateSaleStoreOutstanding();
  await updateMultiCageSaleSummary();
+ handleSalePaymentModeChange();
 }
 async function handleSaleDateChange(){
  window._saleSelectedCageIds=[];
@@ -3416,6 +3507,18 @@ async function updateMultiCageSaleSummary(){
  if(s)s.innerHTML=chosen.length?`<b>${chosen.length} cage${chosen.length===1?"":"s"} selected</b> · ${fmt(weight)} kg · ${birds} birds<br>${chosen.map(c=>`Cage ${esc(c.cageNumber||c.id)}`).join(", ")}`:"No cages selected.";
  updateSaleAmountPreview();
 }
+function handleSalePaymentModeChange(){
+ const mode=document.getElementById("saMode")?.value||"Cash",paid=document.getElementById("saPaid");
+ if(!paid)return;
+ if(String(mode).toLowerCase()==="credit"){
+   paid.value="0";
+   paid.disabled=true;
+   paid.title="Credit sale: no payment is received at the time of sale.";
+ }else{
+   paid.disabled=false;
+   paid.title="Enter the amount actually received at the time of sale.";
+ }
+}
 function updateSaleAmountPreview(){
  const weight=Number(document.getElementById("saWeight")?.value)||0;
  const rate=Number(document.getElementById("saRate")?.value)||0;
@@ -3439,7 +3542,8 @@ async function storeSummary(storeId){
   return {opening,totalSales,totalPaid,outstanding:money2(opening+totalSales-totalPaid)}
 }
 async function saveSale(){
- const storeId=document.getElementById("saStore").value,date=document.getElementById("saDate").value,rate=Number(document.getElementById("saRate").value),paid=Number(document.getElementById("saPaid").value)||0;
+ const storeId=document.getElementById("saStore").value,date=document.getElementById("saDate").value,rate=Number(document.getElementById("saRate").value),paymentMethod=document.getElementById("saMode").value;
+ const paid=String(paymentMethod||"").toLowerCase()==="credit"?0:(Number(document.getElementById("saPaid").value)||0);
  let cageIds=selectedSaleCageIds();
  if(!date||!storeId||rate<=0)return toast("Date, store and sales rate are required.");
  if(!cageIds.length)return toast("Select at least one cage.");
@@ -3459,6 +3563,7 @@ async function saveSale(){
  const weight=Number(document.getElementById("saWeight")?.value)||0;
  if(weight<=0)return toast("Enter a valid billed weight.");
  const exactAmount=Math.round(weight*rate*100)/100,rr=invoiceRound(exactAmount),netAmount=rr.rounded;
+ if(paid>netAmount)return toast("Paid Amount cannot be more than the Sales Total Amount.");
  const inv=await nextSequentialNumber("sale",date),sid=inv;
  if((await txAll("sales")).some(x=>x.id!==sid&&x.invoiceNumber===inv))return toast("Invoice number conflict detected. Please retry.");
  const farmerIds=[...new Set(current.map(c=>String(c.farmerId||"")).filter(Boolean))],liftingIds=[...new Set(current.map(c=>String(c.liftingId||"")).filter(Boolean))];
@@ -3471,7 +3576,7 @@ async function saveSale(){
    birdsCount:birds,totalBirds:birds,originalCageWeight:cageWeight,netWeight:weight,weight,totalWeight:weight,salesRate:rate,ratePerKg:rate,
    saleAmount:exactAmount,totalAmount:exactAmount,roundOff:rr.roundOff,netAmount,invoiceNetAmount:netAmount,paidAmount:paid,
    previousDue:money2(fin.outstanding),outstanding:money2(fin.outstanding+netAmount-paid),
-   paymentMethod:document.getElementById("saMode").value,remarks:document.getElementById("saRem").value.trim(),isWangkheiSale:!!store.isWangkhei,
+   paymentMethod,remarks:document.getElementById("saRem").value.trim(),isWangkheiSale:!!store.isWangkhei,
    createdAt:iso(),updatedAt:iso()};
  try{
    await new Promise((resolve,reject)=>{
@@ -4450,8 +4555,11 @@ Weight: ${fmt(s.weight??s.netWeight)} kg
 Rate: Rs. ${fmt(s.salesRate??s.ratePerKg)} / kg
 Invoice Amount: Rs. ${fmt(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)}
 Previous Due: ${wang?"N/A":"Rs. "+fmt(s.previousDue)}
-Paid: Rs. ${fmt(s.paidAmount)}
-Total Outstanding: ${wang?"N/A":"Rs. "+fmt(s.outstanding)}`;
+Payment Method: ${s.paymentMethod||"-"}
+Paid at Sale: Rs. ${fmt(ps.paidAtSale)}
+Later Store Payments: Rs. ${fmt(ps.later)}
+Total Received: Rs. ${fmt(ps.totalPaid)}
+Invoice Balance: ${wang?"N/A":"Rs. "+fmt(ps.due)}`;
    if(openSmsComposer(st?.phone,msg))audit("invoice","STORE_SMS",saleId,st?.phone||"");
  }catch(e){toast("SMS error: "+e.message)}
 }
@@ -4640,18 +4748,28 @@ async function editSale(id){
  <div class="field"><label>Store</label><input value="${esc(store?.name||s.storeName||"")}" disabled></div>
  <div class="field"><label>Total Weight kg</label><input id="esaWeight" type="number" step="0.01" value="${s.weight??s.netWeight??0}" ${multi?"disabled":""}></div>
  <div class="field"><label>Sales Rate ₹/kg</label><input id="esaRate" type="number" step="0.01" value="${s.salesRate??s.ratePerKg??0}"></div>
- <div class="field"><label>Paid Amount ₹</label><input id="esaPaid" type="number" step="0.01" value="${s.paidAmount??0}"></div>
+ <div class="field"><label>Payment Method</label><select id="esaMode" onchange="handleEditSalePaymentModeChange()">${["Cash","UPI","Credit","Bank"].map(x=>`<option ${String(s.paymentMethod||"Cash")===x?"selected":""}>${x}</option>`).join("")}</select></div>
+ <div class="field"><label>Paid at Sale ₹</label><input id="esaPaid" type="number" step="0.01" min="0" value="${String(s.paymentMethod||"").toLowerCase()==="credit"?0:(s.paidAmount??0)}"></div>
  <div class="field"><label>Remarks</label><input id="esaRem" value="${esc(s.remarks||"")}"></div></div>
  ${multi?`<div class="sub" style="margin-top:8px">This sale contains ${s.cageIds.length} cages. Total weight is calculated from the selected cage records and cannot be edited here.</div>`:""}
  <div style="height:12px"></div><button class="btn primary" onclick="saveEditedSale('${id}')">Update Sale</button>`);
+ handleEditSalePaymentModeChange();
+}
+function handleEditSalePaymentModeChange(){
+ const mode=document.getElementById("esaMode")?.value||"Cash",paid=document.getElementById("esaPaid");
+ if(!paid)return;
+ if(String(mode).toLowerCase()==="credit"){paid.value="0";paid.disabled=true;paid.title="Credit sale: no payment was received at sale."}
+ else{paid.disabled=false;paid.title="Amount actually received at the time of sale."}
 }
 async function saveEditedSale(id){
   let s=await txGet("sales",id);if(!s)return;
-  const weight=Number(document.getElementById("esaWeight").value),rate=Number(document.getElementById("esaRate").value),paid=Number(document.getElementById("esaPaid").value)||0;
+  const weight=Number(document.getElementById("esaWeight").value),rate=Number(document.getElementById("esaRate").value),paymentMethod=document.getElementById("esaMode")?.value||s.paymentMethod||"Cash";
+  const paid=String(paymentMethod).toLowerCase()==="credit"?0:(Number(document.getElementById("esaPaid").value)||0);
   if(weight<=0||rate<=0)return toast("Weight and rate required.");
   const exactAmount=Math.round(weight*rate*100)/100,rr=invoiceRound(exactAmount),netAmount=rr.rounded;
+  if(paid>netAmount)return toast("Paid Amount cannot be more than the Sales Total Amount.");
   s.saleDate=document.getElementById("esaDate").value||s.saleDate;
-  s.weight=weight;s.netWeight=weight;s.salesRate=rate;s.ratePerKg=rate;s.saleAmount=exactAmount;s.totalAmount=exactAmount;s.roundOff=rr.roundOff;s.netAmount=netAmount;s.invoiceNetAmount=netAmount;s.paidAmount=paid;
+  s.weight=weight;s.netWeight=weight;s.salesRate=rate;s.ratePerKg=rate;s.saleAmount=exactAmount;s.totalAmount=exactAmount;s.roundOff=rr.roundOff;s.netAmount=netAmount;s.invoiceNetAmount=netAmount;s.paidAmount=paid;s.paymentMethod=paymentMethod;
   s.outstanding=money2((Number(s.previousDue)||0)+netAmount-paid);
   s.remarks=document.getElementById("esaRem").value.trim();s.updatedAt=iso();
   await txPut("sales",s);queueCloud("sales","UPSERT",s);audit("sales","UPDATE",id);clearCurrentFormDraft();closeModal();refreshAll();
@@ -4670,7 +4788,7 @@ async function deleteSale(id){
 
 async function previewStoreInvoice(saleId){
  const s=await txGet("sales",saleId);if(!s)return toast("Sale not found.");
- const st=await txGet("stores",s.storeId),farmer=s.farmerId?await txGet("farmers",s.farmerId):null;
+ const st=await txGet("stores",s.storeId),farmer=s.farmerId?await txGet("farmers",s.farmerId):null,ps=await salePaymentStatus(s);
  const wang=!!(st?.isWangkhei||s.isWangkheiSale);
  const saleCages=Array.isArray(s.cageDetails)&&s.cageDetails.length?s.cageDetails:[{cageNumber:s.cageNumber||s.cageId||"",weight:Number(s.weight??s.netWeight)||0,birdCount:Number(s.birdsCount)||0}];
  const physicalWeight=money2(saleCages.reduce((sum,c)=>sum+(Number(c.weight)||0),0));
@@ -4712,8 +4830,11 @@ async function previewStoreInvoice(saleId){
       ${wang?"":`<div class="psm-total-row"><span>Previous Due</span><b>₹${fmt(s.previousDue)}</b></div>`}
       <div class="psm-total-row"><span>Exact Invoice Amount</span><b>₹${fmt(s.saleAmount??s.totalAmount)}</b></div>
       ${(()=>{const rr=invoiceRound(s.saleAmount??s.totalAmount);return `<div class="psm-total-row"><span>Round Off</span><b>${rr.roundOff>=0?"+":""}₹${fmt(rr.roundOff)}</b></div><div class="psm-total-row"><span>Net Invoice Amount</span><b>₹${fmt(rr.rounded)}</b></div>`})()}
-      <div class="psm-total-row"><span>Paid Amount</span><b>₹${fmt(s.paidAmount)}</b></div>
-      ${wang?`<div class="psm-total-row final"><span>Settlement</span><span>MPF A/C</span></div>`:`<div class="psm-total-row final"><span>Outstanding</span><span>₹${fmt(s.outstanding)}</span></div>`}
+      <div class="psm-total-row"><span>Payment Method</span><b>${esc(s.paymentMethod||"—")}</b></div>
+      <div class="psm-total-row"><span>Paid at Sale</span><b>₹${fmt(ps.paidAtSale)}</b></div>
+      ${ps.later>0?`<div class="psm-total-row"><span>Later Store Payments</span><b>₹${fmt(ps.later)}</b></div>`:""}
+      ${ps.totalPaid>0?`<div class="psm-total-row"><span>Total Received</span><b>₹${fmt(ps.totalPaid)}</b></div>`:""}
+      ${wang?`<div class="psm-total-row final"><span>Settlement</span><span>MPF A/C</span></div>`:`<div class="psm-total-row final"><span>Invoice Balance</span><span>₹${fmt(ps.due)}</span></div>`}
     </div>
     <div class="psm-thanks"><b>Thank you for your business!</b><span>Reliable broiler supply from PSM Broiler Distributor.</span></div>
     <div class="psm-footer">
@@ -4732,7 +4853,7 @@ async function previewStoreInvoice(saleId){
 async function shareStoreInvoiceWhatsApp(saleId){
  try{
   const s=await txGet("sales",saleId);if(!s)throw new Error("Sale not found.");
-  const st=await txGet("stores",s.storeId),wang=!!(st?.isWangkhei||s.isWangkheiSale);
+  const st=await txGet("stores",s.storeId),wang=!!(st?.isWangkhei||s.isWangkheiSale),ps=await salePaymentStatus(s);
   const msg=`PSM Store Sales Invoice
 Invoice: ${s.invoiceNumber||s.id}
 Store: ${st?.name||s.storeName||""}
@@ -4994,7 +5115,7 @@ async function renderLedger(){
  for(const x of (await txAll("sales")).filter(x=>x.storeId===idd)){
    saleRows.push({date:x.saleDate,type:"Sale",farmer:await saleFarmerDisplayName(x,farmerMap),kg:Number(x.weight??x.netWeight)||0,rate:Number(x.salesRate??x.ratePerKg)||0,debit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,credit:Number(x.paidAmount)||0,sortRef:x.invoiceNumber||x.id});
  }
- const pays=(await txAll("payments")).filter(x=>x.storeId===idd).map(x=>({date:x.paymentDate,type:"Payment",farmer:"—",kg:"—",rate:"—",debit:0,credit:Number(x.amount)||0,sortRef:x.receiptNumber||x.referenceNumber||x.id}));
+ const pays=(await txAll("payments")).filter(x=>x.storeId===idd).map(x=>({date:x.paymentDate,type:"Payment",farmer:"—",kg:"—",rate:"—",debit:0,credit:Number(x.amount)||0,sortRef:x.receiptNumber||x.referenceNumber||x.id,paymentId:x.id}));
  const ev=[...saleRows,...pays].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.sortRef).localeCompare(String(b.sortRef)));
  let bal=wang?0:(Number(s?.openingDue)||0),rows=[];window._ledgerViewRows=[];
  if(!wang){const d={date:s?.createdAt?simpleDate(s.createdAt):"",type:"Opening Due",farmer:"—",kg:"—",rate:"—",debit:Number(s.openingDue)||0,credit:0,balance:bal};window._ledgerViewRows.push(d);rows.push(`<tr onclick="openLedgerListDetails(0)"><td>${esc(d.date)}</td><td>Opening Due</td><td>—</td><td>—</td><td>—</td><td>${fmt(d.debit)}</td><td>—</td><td>${fmt(d.balance)}</td></tr>`)}
@@ -5002,7 +5123,15 @@ async function renderLedger(){
  const host=document.getElementById("ledgerRows");if(host)host.innerHTML=rows.join("")||`<tr><td colspan="8" class="empty">No ledger entries</td></tr>`;
  await renderFarmerLedger();
 }
-function openLedgerListDetails(i){const e=window._ledgerViewRows?.[i];if(!e)return;openGenericDetails(e.type,"",{date:e.date,name:e.type,farmer:e.farmer||"—",totalKg:typeof e.kg==="number"?fmt(e.kg)+" kg":"—",rate:typeof e.rate==="number"?"Rs. "+fmt(e.rate)+" / kg":"—",debit:e.debit?"Rs. "+fmt(e.debit):"—",credit:e.credit?"Rs. "+fmt(e.credit):"—",balance:typeof e.balance==="number"?"Rs. "+fmt(e.balance):"N/A"})}
+function openLedgerListDetails(i){
+ const e=window._ledgerViewRows?.[i];if(!e)return;
+ if(e.type==="Payment"&&e.paymentId){
+   openDetailsModal("Store Payment",e.sortRef||e.paymentId,[["Date",e.date],["Amount","Rs. "+fmt(e.credit)],["Balance",typeof e.balance==="number"?"Rs. "+fmt(e.balance):"N/A"]],
+    `<button class="btn primary" onclick="closeModal();editStorePayment('${e.paymentId}')">Edit Payment</button>${S.role==="admin"?`<button class="btn danger" onclick="deleteStorePayment('${e.paymentId}')">Delete Duplicate</button>`:""}`);
+   return;
+ }
+ openGenericDetails(e.type,"",{date:e.date,name:e.type,farmer:e.farmer||"—",totalKg:typeof e.kg==="number"?fmt(e.kg)+" kg":"—",rate:typeof e.rate==="number"?"Rs. "+fmt(e.rate)+" / kg":"—",debit:e.debit?"Rs. "+fmt(e.debit):"—",credit:e.credit?"Rs. "+fmt(e.credit):"—",balance:typeof e.balance==="number"?"Rs. "+fmt(e.balance):"N/A"})
+}
 async function sendLedgerReminder(){let idd=document.getElementById("ledgerStore").value;if(idd)sendOutstandingReminder(idd)}
 function printStoreLedgerPdf(){
  const old=document.title,sel=document.getElementById("ledgerStore"),name=sel?.selectedOptions?.[0]?.text||"Store";
