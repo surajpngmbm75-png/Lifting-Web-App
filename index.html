@@ -1690,7 +1690,8 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
   <div class="card metric"><div class="lab">Store Outstanding</div><div class="val">₹<span id="mDue">0.00</span></div><div class="mini">All stores</div></div>
   <div class="card metric"><div class="lab">Unsold Cages</div><div class="val" id="mUnsold">0</div><div class="mini" id="mUnsoldSub">Calculated from actual cage + sale records</div></div>
   <div class="card metric"><div class="lab">Gross Profit</div><div class="val">₹<span id="mGrossProfit">0.00</span></div><div class="mini" id="mGrossProfitSub">Sales minus lifting cost</div></div>
-  <div class="card metric"><div class="lab">Cash in Hand</div><div class="val">₹<span id="mCashInHand">0.00</span></div><div class="mini">Cash received − cash paid</div></div>
+  <div class="card metric"><div class="lab">Cash in Hand</div><div class="val">₹<span id="mCashInHand">0.00</span></div><div class="mini">Direct cash received − cash paid</div></div>
+  <div class="card metric"><div class="lab">Account</div><div class="val">₹<span id="mAccountBalance">0.00</span></div><div class="mini">UPI / bank received − UPI / bank paid</div></div>
  </div>
  <div style="height:12px"></div>
  <div class="grid g2">
@@ -1863,10 +1864,13 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
   <div class="card metric"><div class="lab">Wangkhei Adjustments</div><div class="val">₹<span id="sWang">0.00</span></div><div class="mini"><span id="sWangKg">0.00</span> kg total</div></div>
   <div class="card metric"><div class="lab">Other Settlements</div><div class="val">₹<span id="sSet">0.00</span></div><div class="mini">Cash / bank payouts</div></div>
   <div class="card metric"><div class="lab">Paid Directly to Farmers</div><div class="val">₹<span id="sFarmerPaid">0.00</span></div><div class="mini">Deducted from Due to Singke</div></div>
-  <div class="card metric"><div class="lab">Cash in Hand</div><div class="val">₹<span id="sCashHand">0.00</span></div><div class="mini">Cash receipts − cash payouts</div></div>
+  <div class="card metric"><div class="lab">Cash in Hand</div><div class="val">₹<span id="sCashHand">0.00</span></div><div class="mini">Direct cash received − cash paid</div></div>
+  <div class="card metric"><div class="lab">Account</div><div class="val">₹<span id="sAccountBalance">0.00</span></div><div class="mini">UPI / bank received − UPI / bank paid</div></div>
  </div>
  <div style="height:12px"></div>
  <div class="hero"><div class="sub">Remaining Due to Singke</div><div class="val">₹<span id="sRemain">0.00</span></div><div class="sub">Previous Due + Lifting Payable − Wangkhei Adjustments − Other Settlements − Payments Made Directly to Farmers</div></div>
+ <div style="height:12px"></div>
+ <div class="card"><b>Money Accounts</b><div class="sub" style="margin-top:6px"><b>Cash in Hand</b> records only direct Cash receipts and Cash payments. <b>Account</b> records UPI / Bank receipts and UPI / Bank payments. Credit sales do not increase either balance until payment is actually received.</div></div>
  <div style="height:12px"></div>
  <div class="card">
   <div class="toolbar" style="justify-content:space-between;align-items:end">
@@ -1983,7 +1987,18 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
    <button id="installPsmAppBtn" class="btn primary" type="button" onclick="installPsmApp()">Install App</button>
    <p class="sub" style="margin-top:8px">Installation works when this PWA package is hosted over HTTPS. Opening only the HTML file from Downloads will still work, but it cannot install as a full PWA.</p>
   </div>
-  <div class="card"><b>Backup & Restore</b><p class="sub">Use backup before bulk changes or moving devices.</p><button class="btn" onclick="exportBackup()">Export Full Backup</button> <button class="btn" onclick="document.getElementById('restoreFile').click()">Restore Backup</button><input id="restoreFile" type="file" accept=".json" hidden onchange="restoreBackup(this.files[0])"></div>
+  <div class="card"><b>Backup & Restore</b>
+ <p class="sub">Automatic backup runs once per day while the app is opened. The latest 7 daily snapshots are kept locally. Cloud sync continues separately.</p>
+ <div class="grid g2" style="margin:10px 0">
+  <div class="metric"><div class="lab">Last Auto Backup</div><div class="val" id="autoBackupLast" style="font-size:18px">Not yet</div></div>
+  <div class="metric"><div class="lab">Daily Backups Kept</div><div class="val" id="autoBackupCount" style="font-size:18px">0 / 7</div></div>
+ </div>
+ <button class="btn primary" onclick="runDailyAutoBackup({force:true,download:true})">Backup Now</button>
+ <button class="btn" onclick="downloadLatestAutoBackup()">Download Latest Backup</button>
+ <button class="btn" onclick="exportBackup()">Export Full Backup</button>
+ <button class="btn" onclick="document.getElementById('restoreFile').click()">Restore Backup</button>
+ <input id="restoreFile" type="file" accept=".json" hidden onchange="restoreBackup(this.files[0])">
+</div>
   <div class="card"><b>Invoice Template</b>
    <p class="sub">Tap a preview to choose the invoice design. The selected template is used for invoice previews and PDF generation.</p>
    <div class="field" style="margin-top:8px"><label>Template Design</label>
@@ -2222,7 +2237,7 @@ function updateSyncHealth(){
  const hp=document.getElementById("syncPendingHome");if(hp)hp.textContent=total;
  const hl=document.getElementById("syncLastHome");if(hl)hl.textContent=formatLocalDateTime(last);
  const hd=document.getElementById("syncHomeDetail");if(hd)hd.textContent=!online?"Offline mode. Changes remain safely on this device and will sync automatically later.":total?`${total} change(s) waiting to reach Supabase.${err?` Last error: ${err}`:""}`:err?`Supabase sync needs attention: ${err}`:"Local records and cloud are up to date.";
- const s=document.getElementById("autoBackupStatus");if(s)s.textContent=!online?"Offline":total?`${total} pending`:err?"Sync error":"All saved";
+ const s=document.getElementById("autoBackupStatus");if(s)s.textContent=!online?"Offline":total?`${total} pending`:err?"Sync error":"Cloud synced";
  const al=document.getElementById("autoBackupLast");if(al)al.textContent=formatLocalDateTime(last);
  const d=document.getElementById("syncDetail");if(d)d.textContent=!online?"Offline. Local work is safe and will retry when online.":`${saves} pending upload(s), ${dels} delete retry/retries.${err?` Last cloud error: ${err}`:" Background two-way cloud synchronization is active."}`;
 }
@@ -2385,15 +2400,17 @@ async function openLiftingDetails(lid){
 }
 async function openSaleDetails(sid){
  const s=await txGet("sales",sid);if(!s)return toast("Sale not found.");
- const st=await txGet("stores",s.storeId),wang=!!(st?.isWangkhei||s.isWangkheiSale);
+ const st=await txGet("stores",s.storeId),wang=!!(st?.isWangkhei||s.isWangkheiSale),ps=await salePaymentStatus(s);
  const details=Array.isArray(s.cageDetails)&&s.cageDetails.length?s.cageDetails:[{cageNumber:s.cageNumber||s.cageId||"",weight:Number(s.weight??s.netWeight)||0,birdCount:Number(s.birdsCount)||0}];
  openDetailsModal(st?.name||s.storeName||"Sale",`Invoice ${s.invoiceNumber||s.id}`,[
   ["Date",s.saleDate],["ID",s.invoiceNumber||s.id],["Store",st?.name||s.storeName],["Store ID",s.storeId],
   ["Cages",details.map(x=>x.cageNumber||x.cageId).join(", ")],["No. of Cages",details.length],["Birds",s.birdsCount||0],["Weight",fmt(s.weight??s.netWeight)+" kg"],
-  ["Rate","Rs. "+fmt(s.salesRate??s.ratePerKg)+" / kg"],["Invoice Amount","Rs. "+fmt(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)],
-  ["Previous Due",wang?"N/A":"Rs. "+fmt(s.previousDue)],["Paid","Rs. "+fmt(s.paidAmount)],["Outstanding",wang?"N/A":"Rs. "+fmt(s.outstanding)],["Payment",s.paymentMethod||"—"],["Remarks",s.remarks||"—"]
+  ["Rate","Rs. "+fmt(s.salesRate??s.ratePerKg)+" / kg"],["Invoice Amount","Rs. "+fmt(ps.invoice)],
+  ["Paid at Sale","Rs. "+fmt(ps.paidAtSale)],["Payment Entries","Rs. "+fmt(ps.later)],["Total Paid","Rs. "+fmt(ps.totalPaid)],["Sale Balance","Rs. "+fmt(ps.due)],
+  ["Store Outstanding",wang?"N/A":"Rs. "+fmt((await storeSummary(s.storeId)).outstanding)],["Payment",s.paymentMethod||"—"],["Remarks",s.remarks||"—"]
  ],`<button class="btn" onclick="closeModal();editSale('${s.id}')">Edit</button><button class="btn primary" onclick="closeModal();previewStoreInvoice('${s.id}')">Invoice</button><button class="btn" onclick="shareStoreInvoiceWhatsApp('${s.id}')">WhatsApp</button><button class="btn" onclick="sendStoreInvoiceSms('${s.id}')">SMS</button>${S.role==="admin"?`<button class="btn danger" onclick="closeModal();deleteSale('${s.id}')">Delete</button>`:""}`);
 }
+
 function openGenericDetails(title,sub,obj){
  const entries=Object.entries(obj||{}).map(([k,v])=>[k.replace(/([A-Z])/g," $1").replace(/^./,c=>c.toUpperCase()),v]);
  openDetailsModal(title,sub,entries);
@@ -3125,12 +3142,13 @@ async function openPayment(preselectStoreId=""){
   <div class="field"><label>Store</label><select id="pStore" onchange="updatePaymentStoreDue()">${stores.map(s=>`<option value="${s.id}" ${String(s.id)===String(preselectStoreId)?"selected":""}>${esc(s.name)}</option>`).join("")}</select></div>
   <div class="field"><label>Current Due ₹</label><input id="pCurrentDue" disabled value="Loading…"></div>
   <div class="field"><label>Date</label><input id="pDate" type="date" value="${today()}"></div>
-  <div class="field"><label>Amount ₹</label><input id="pAmt" type="number" step="0.01" min="0" oninput="updatePaymentRemainingPreview()"></div>
+  <div class="field"><label>Amount Received ₹</label><input id="pAmt" type="number" step="0.01" min="0" oninput="updatePaymentRemainingPreview()"></div>
   <div class="field"><label>Mode</label><select id="pMode"><option>Cash</option><option>UPI</option><option>Bank</option><option>Cheque</option></select></div>
-  <div class="field"><label>Remaining Due ₹</label><input id="pRemainingDue" disabled value="0.00"></div>
+  <div class="field"><label>Sales Due After Payment ₹</label><input id="pRemainingDue" disabled value="0.00"></div>
   <div class="field"><label>Reference</label><input id="pRef"></div>
   <div class="field"><label>Remarks</label><input id="pRem"></div>
  </div>
+ <div class="sub" style="margin-top:10px">The payment will automatically reduce the store outstanding and be applied to the oldest unpaid sales first.</div>
  <div style="height:12px"></div><button class="btn primary" onclick="savePayment()">Save Payment</button>`);
  await updatePaymentStoreDue();
 }
@@ -3179,10 +3197,65 @@ async function showPaymentCompletion(paymentId){
   <div>Paid Amount: <b>₹${fmt(pmt.amount)}</b></div>
   <div>Mode: <b>${esc(pmt.paymentMode||"-")}</b></div>
   <div>Remaining Due: <b>₹${fmt(pmt.remainingDue)}</b></div>
+  <div style="margin-top:8px"><b>Sales adjusted:</b> ${Array.isArray(pmt.saleAllocations)&&pmt.saleAllocations.length?pmt.saleAllocations.map(a=>`${esc(a.invoiceNumber||a.saleId)} ₹${fmt(a.amount)}`).join(", "):"No specific invoice allocation"}</div>
  </div>
  <div style="height:12px"></div>
  <button class="btn ok" onclick="shareStorePaymentWhatsApp('${paymentId}')">Share on WhatsApp</button>
  <button class="btn" onclick="closeModal()">Done</button>`);
+}
+
+
+async function buildStorePaymentAllocationMap(storeId){
+ const sales=(await txAll("sales")).filter(x=>String(x.storeId)===String(storeId))
+   .sort((a,b)=>String(a.saleDate||"").localeCompare(String(b.saleDate||""))||String(a.createdAt||a.id||"").localeCompare(String(b.createdAt||b.id||"")));
+ const pays=(await txAll("payments")).filter(x=>String(x.storeId)===String(storeId))
+   .sort((a,b)=>String(a.paymentDate||"").localeCompare(String(b.paymentDate||""))||String(a.createdAt||a.id||"").localeCompare(String(b.createdAt||b.id||"")));
+ const map=new Map(),saleDue=new Map();
+ for(const s of sales){
+   const invoice=money2(Number(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)||0);
+   saleDue.set(String(s.id),money2(Math.max(0,invoice-(Number(s.paidAmount)||0))));
+ }
+ let advance=0;
+ for(const p of pays){
+   let remaining=money2(Number(p.amount)||0);
+   for(const s of sales){
+     if(remaining<=0)break;
+     const sid=String(s.id),due=money2(saleDue.get(sid)||0);
+     if(due<=0)continue;
+     const applied=money2(Math.min(due,remaining));
+     if(applied>0){
+       if(!map.has(String(p.id)))map.set(String(p.id),[]);
+       map.get(String(p.id)).push({saleId:s.id,invoiceNumber:s.invoiceNumber||s.id,saleDate:s.saleDate||"",invoiceAmount:money2(Number(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)||0),amount:applied});
+       saleDue.set(sid,money2(due-applied));remaining=money2(remaining-applied);
+     }
+   }
+   if(remaining>0)advance=money2(advance+remaining);
+ }
+ return {map,saleDue,advance};
+}
+async function allocateStorePaymentToSales(storeId,paymentDate,amount){
+ // Include the new payment amount against the current unpaid invoices.
+ const base=await buildStorePaymentAllocationMap(storeId);
+ let remaining=money2(amount),allocations=[];
+ const sales=(await txAll("sales")).filter(x=>String(x.storeId)===String(storeId))
+   .sort((a,b)=>String(a.saleDate||"").localeCompare(String(b.saleDate||""))||String(a.createdAt||a.id||"").localeCompare(String(b.createdAt||b.id||"")));
+ for(const sale of sales){
+   if(remaining<=0)break;
+   const due=money2(base.saleDue.get(String(sale.id))||0);
+   if(due<=0)continue;
+   const applied=money2(Math.min(due,remaining));
+   allocations.push({saleId:sale.id,invoiceNumber:sale.invoiceNumber||sale.id,saleDate:sale.saleDate||"",invoiceAmount:money2(Number(sale.netAmount??sale.invoiceNetAmount??sale.saleAmount??sale.totalAmount)||0),amount:applied});
+   remaining=money2(remaining-applied);
+ }
+ return {allocations,unallocated:remaining};
+}
+async function salePaymentStatus(sale){
+ const invoice=money2(Number(sale.netAmount??sale.invoiceNetAmount??sale.saleAmount??sale.totalAmount)||0);
+ const paidAtSale=money2(Number(sale.paidAmount)||0);
+ const allocation=await buildStorePaymentAllocationMap(sale.storeId);
+ const remaining=money2(allocation.saleDue.get(String(sale.id))??Math.max(0,invoice-paidAtSale));
+ const later=money2(Math.max(0,invoice-paidAtSale-remaining));
+ return {invoice,paidAtSale,later,totalPaid:money2(paidAtSale+later),due:remaining};
 }
 
 async function savePayment(){
@@ -3191,10 +3264,11 @@ async function savePayment(){
  const s=await txGet("stores",storeId);if(!s)return toast("Store not found.");
  const before=await storeSummary(storeId);
  const previousDue=money2(before.outstanding),remainingDue=money2(previousDue-amount);
+ const allocation=await allocateStorePaymentToSales(storeId,date,amount);
  const r={id:id("PAY"),receiptNumber:await nextSequentialNumber("payment",date),storeId,paymentDate:date,amount,
    paymentMode:document.getElementById("pMode").value,referenceNumber:document.getElementById("pRef").value.trim(),
    remarks:document.getElementById("pRem").value.trim(),storeName:s.name||"",storePhone:s.phone||"",
-   previousDue,remainingDue,createdAt:iso(),updatedAt:iso()};
+   previousDue,remainingDue,saleAllocations:allocation.allocations,unallocatedAmount:allocation.unallocated,createdAt:iso(),updatedAt:iso()};
  const payDup=(await txAll("payments")).find(x=>x.storeId===r.storeId&&x.paymentDate===r.paymentDate&&Math.abs(Number(x.amount)-r.amount)<0.01&&String(x.paymentMode||"")===String(r.paymentMode||"")&&String(x.referenceNumber||"")===String(r.referenceNumber||""));
  if(payDup&&!confirm(`Possible duplicate payment found (${payDup.receiptNumber||payDup.id}). Save another payment anyway?`))return;
  if((await txAll("payments")).some(x=>x.receiptNumber===r.receiptNumber))return toast("Receipt number conflict. Please retry.");
@@ -3441,8 +3515,8 @@ async function buildSingkeLedgerPdf(){
   const filtered=ev.filter(e=>(!from||e.date>=from)&&(!to||e.date<=to)),rows=[];
   for(const e of filtered){bal=money2(bal+e.debit-e.credit);rows.push([e.date,e.type,e.ref,e.kg,e.debit,e.credit,bal])}
   const period=from||to?`${from||"Beginning"} to ${to||"Latest"}`:"All Transactions";
-  const cash=await cashInHandSummary();
-  const summary=[["Previous Due",Number(s.p?.amount)||0],["Lifting Payable",s.liftingPayable],["Wangkhei Adjustments",s.wang],["Settlements",s.sett],["Farmer Payments",s.farmerPaid],["Current Remaining Due",s.remain],["Cash in Hand",cash.cashInHand]];
+  const cash=await fundsSummary();
+  const summary=[["Previous Due",Number(s.p?.amount)||0],["Lifting Payable",s.liftingPayable],["Wangkhei Adjustments",s.wang],["Settlements",s.sett],["Farmer Payments",s.farmerPaid],["Current Remaining Due",s.remain],["Cash in Hand",cash.cashInHand],["Account Balance",cash.accountBalance]];
   return {blob:buildAccountingTablePdf({title:"MPF / SINGKE RECONCILIATION LEDGER",subtitle:`Period: ${period} | Generated: ${new Date().toLocaleString("en-IN")}`,headers:["Date","Type","Reference","Kg","Debit","Credit","Running Due"],rows,summary}),fileName:`PSM_Singke_Reconciliation_${from||"All"}_${to||today()}.pdf`};
 }
 
@@ -3954,7 +4028,8 @@ async function buildDailyOperationalSummaryPdf(dateValue=today()){
    ["Wangkhei Adjustment",wangAmt],
    ["MPF / Singke Settlements",settlements],
    ["Payments Made Directly to Farmers",money2((await getFarmerPayments()).filter(x=>x.paymentDate===dateValue).reduce((a,x)=>a+(Number(x.amount)||0),0))],
-   ["Cash in Hand",money2((await cashInHandSummary()).cashInHand)],
+   ["Cash in Hand",money2((await fundsSummary()).cashInHand)],
+   ["Account Balance",money2((await fundsSummary()).accountBalance)],
    ["Current Store Outstanding",money2(outstanding)],
    ["Current MPF / Singke Balance",money2(sg.remain)]
  ];
@@ -4538,10 +4613,14 @@ async function renderSales(){
  let a=(await txAll("sales")).filter(s=>String(s.saleDate||"")===selectedDate).sort((a,b)=>String(b.createdAt||b.updatedAt||"").localeCompare(String(a.createdAt||a.updatedAt||"")));
  let stores=new Map((await txAll("stores")).map(s=>[s.id,s]));
  const rows=document.getElementById("saleRows");
- if(rows)rows.innerHTML=a.length?a.map(s=>{
-   let st=stores.get(s.storeId);
-   return `<tr onclick="openSaleDetails('${s.id}')" tabindex="0" onkeydown="if(event.key==='Enter')openSaleDetails('${s.id}')"><td>${esc(s.saleDate)}</td><td class="mono">${esc(s.invoiceNumber||s.id)}</td><td>${esc(s.storeName||st?.name||"")}</td></tr>`
- }).join(""):`<tr><td colspan="3" class="empty">No sales for ${esc(selectedDate)}</td></tr>`;
+ if(rows){
+   const built=[];
+   for(const s of a){
+     let st=stores.get(s.storeId),ps=await salePaymentStatus(s);
+     built.push(`<tr onclick="openSaleDetails('${s.id}')" tabindex="0" onkeydown="if(event.key==='Enter')openSaleDetails('${s.id}')"><td>${esc(s.saleDate)}</td><td class="mono">${esc(s.invoiceNumber||s.id)}</td><td>${esc(s.storeName||st?.name||"")}<div class="sub">₹${fmt(ps.invoice)} • Paid ₹${fmt(ps.totalPaid)} • Due ₹${fmt(ps.due)}</div></td></tr>`);
+   }
+   rows.innerHTML=built.length?built.join(""):`<tr><td colspan="3" class="empty">No sales for ${esc(selectedDate)}</td></tr>`;
+ }
  const hint=document.getElementById("salesListHint");if(hint)hint.textContent=`Showing ${selectedDate===today()?"today's":selectedDate} sales only • ${a.length} record${a.length===1?"":"s"}`;
 }
 
@@ -4713,15 +4792,30 @@ Kindly arrange payment at the earliest. Thank you.`;
  const ph=normalizeWhatsappPhone(st.phone);window.open(`https://wa.me/${ph}?text=${encodeURIComponent(msg)}`,"_blank");audit("stores","OUTSTANDING_REMINDER",storeId,`₹${fmt(f.outstanding)}`)
 }
 
-function isCashMode(mode){return String(mode||"").trim().toLowerCase()==="cash"}
-async function cashInHandSummary(){
+function normalizedPaymentMode(mode){return String(mode||"").trim().toLowerCase()}
+function isCashMode(mode){return normalizedPaymentMode(mode)==="cash"}
+function isAccountMode(mode){return ["upi","bank","bank transfer"].includes(normalizedPaymentMode(mode))}
+async function fundsSummary(){
  const sales=await txAll("sales"),payments=await txAll("payments"),sets=await txAll("singke_settlements"),farmerPayments=await getFarmerPayments();
  const saleCash=money2(sales.filter(x=>isCashMode(x.paymentMethod)).reduce((a,x)=>a+(Number(x.paidAmount)||0),0));
  const storeCash=money2(payments.filter(x=>isCashMode(x.paymentMode)).reduce((a,x)=>a+(Number(x.amount)||0),0));
  const farmerCash=money2(farmerPayments.filter(x=>isCashMode(x.paymentMode)).reduce((a,x)=>a+(Number(x.amount)||0),0));
  const singkeCash=money2(sets.filter(x=>isCashMode(x.paymentMethod)).reduce((a,x)=>a+(Number(x.amount)||0),0));
- return {saleCash,storeCash,farmerCash,singkeCash,cashInHand:money2(saleCash+storeCash-farmerCash-singkeCash)};
+
+ const saleAccount=money2(sales.filter(x=>isAccountMode(x.paymentMethod)).reduce((a,x)=>a+(Number(x.paidAmount)||0),0));
+ const storeAccount=money2(payments.filter(x=>isAccountMode(x.paymentMode)).reduce((a,x)=>a+(Number(x.amount)||0),0));
+ const farmerAccount=money2(farmerPayments.filter(x=>isAccountMode(x.paymentMode)).reduce((a,x)=>a+(Number(x.amount)||0),0));
+ const singkeAccount=money2(sets.filter(x=>isAccountMode(x.paymentMethod)).reduce((a,x)=>a+(Number(x.amount)||0),0));
+
+ return {
+  saleCash,storeCash,farmerCash,singkeCash,
+  saleAccount,storeAccount,farmerAccount,singkeAccount,
+  cashInHand:money2(saleCash+storeCash-farmerCash-singkeCash),
+  accountBalance:money2(saleAccount+storeAccount-farmerAccount-singkeAccount)
+ };
 }
+async function cashInHandSummary(){return fundsSummary()}
+
 async function singkeSummary(){
  const p=await setting("singke_previous_due",{amount:0});
  const lift=await txAll("liftings"),sales=await txAll("sales"),stores=await txAll("stores"),sets=await txAll("singke_settlements"),farmerPayments=await getFarmerPayments();
@@ -4744,7 +4838,7 @@ async function renderSingke(){
   const kgEl=document.getElementById("sWangKg");if(kgEl)kgEl.textContent=fmt(s.wangKg);
   document.getElementById("sSet").textContent=fmt(s.sett);
   const sfp=document.getElementById("sFarmerPaid");if(sfp)sfp.textContent=fmt(s.farmerPaid);
-  const cash=await cashInHandSummary(),sch=document.getElementById("sCashHand");if(sch)sch.textContent=fmt(cash.cashInHand);
+  const cash=await fundsSummary(),sch=document.getElementById("sCashHand"),sab=document.getElementById("sAccountBalance");if(sch)sch.textContent=fmt(cash.cashInHand);if(sab)sab.textContent=fmt(cash.accountBalance);
   document.getElementById("sRemain").textContent=fmt(s.remain);
   const dash=document.getElementById("dashSingke");if(dash)dash.textContent=fmt(s.remain);
 
@@ -5075,7 +5169,7 @@ async function renderDashboard(){
  let liftMap=new Map(allLift.map(x=>[String(x.id),x])),cageMap=new Map(cages.map(x=>[x.id,x]));
  let cost=money2(sales.reduce((sum,s)=>sum+saleLiftingCost(s,liftMap),0));
  let gp=money2(salesAmt-cost);document.getElementById("mGrossProfit").textContent=fmt(gp);document.getElementById("mGrossProfitSub").textContent=`${periodLabel}: net sales − physical cage lifting cost`;
- const cashSummary=await cashInHandSummary(),cashEl=document.getElementById("mCashInHand");if(cashEl)cashEl.textContent=fmt(cashSummary.cashInHand);
+ const cashSummary=await fundsSummary(),cashEl=document.getElementById("mCashInHand"),accountEl=document.getElementById("mAccountBalance");if(cashEl)cashEl.textContent=fmt(cashSummary.cashInHand);if(accountEl)accountEl.textContent=fmt(cashSummary.accountBalance);
  let att=[];
  if(inventory.missing.length){
    const totalMissing=inventory.missing.reduce((a,x)=>a+x.missing,0);
@@ -5138,7 +5232,8 @@ async function getDateRangeReportData(){
      ["Payments Made Directly to Farmers",money2(periodFarmerPayments.reduce((a,x)=>a+(Number(x.amount)||0),0)),"Deducted from Due to Singke"],
      ["Current Regular Store Outstanding",money2(outstanding),"As of current database"],
      ["Current MPF / Singke Remaining Due",money2(sg.remain),"After direct farmer payments"],
-     ["Current Cash in Hand",money2((await cashInHandSummary()).cashInHand),"Cash receipts minus cash payouts"]
+     ["Current Cash in Hand",money2((await fundsSummary()).cashInHand),"Direct cash receipts minus cash payouts"],
+     ["Current Account Balance",money2((await fundsSummary()).accountBalance),"UPI / bank receipts minus UPI / bank payouts"]
    ];
  }
  if(type==="farmer"){
@@ -5285,18 +5380,115 @@ function renderAudit(){
 }
 function openAuditListDetails(i){const x=window._auditViewRows?.[i];if(!x)return;openGenericDetails("Audit Event",x.record||"",{date:x.time,id:x.record||"",name:(x.module||"")+" · "+(x.action||""),role:x.role,module:x.module,action:x.action,note:x.note||"—"})}
 function exportAudit(){const blob=new Blob([localStorage.getItem("mpf_audit")||"[]"],{type:"application/json"});downloadBlob(blob,`PSM_Audit_Log_${today()}.json`)}
-async function closeToday(){let t=today(),lift=(await txAll("liftings")).filter(x=>x.liftingDate===t),sales=(await txAll("sales")).filter(x=>x.saleDate===t),pays=(await txAll("payments")).filter(x=>x.paymentDate===t),sets=(await txAll("singke_settlements")).filter(x=>x.date===t),r={date:t,liftings:lift.length,cages:lift.reduce((a,x)=>a+(Number(x.totalCages)||0),0),kg:money2(lift.reduce((a,x)=>a+(Number(x.totalWeight)||0),0)),liftingPayable:money2(lift.reduce((a,x)=>a+(Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0),0)),sales:money2(sales.reduce((a,x)=>a+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0)),payments:money2(pays.reduce((a,x)=>a+(Number(x.amount)||0),0)),singkeSettlements:money2(sets.reduce((a,x)=>a+(Number(x.amount)||0),0)),closedAt:iso()};let a=JSON.parse(localStorage.getItem("mpf_closings")||"[]"),i=a.findIndex(x=>x.date===t);if(i>=0)a[i]=r;else a.unshift(r);localStorage.setItem("mpf_closings",JSON.stringify(a));audit("closing","CLOSE",t);toast("Daily closing saved with net invoice values.");renderClosings()}
+async function closeToday(){
+ let t=today(),
+ lift=(await txAll("liftings")).filter(x=>x.liftingDate===t),
+ sales=(await txAll("sales")).filter(x=>x.saleDate===t),
+ pays=(await txAll("payments")).filter(x=>x.paymentDate===t),
+ farmerPays=(await getFarmerPayments()).filter(x=>x.paymentDate===t),
+ sets=(await txAll("singke_settlements")).filter(x=>(x.date||x.paymentDate)===t),
+ r={date:t,liftings:lift.length,cages:lift.reduce((a,x)=>a+(Number(x.totalCages)||0),0),
+ kg:money2(lift.reduce((a,x)=>a+(Number(x.totalWeight)||0),0)),
+ liftingPayable:money2(lift.reduce((a,x)=>a+(Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0),0)),
+ sales:money2(sales.reduce((a,x)=>a+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0)),
+ payments:money2(pays.reduce((a,x)=>a+(Number(x.amount)||0),0)),
+ farmerPayments:money2(farmerPays.reduce((a,x)=>a+(Number(x.amount)||0),0)),
+ singkeSettlements:money2(sets.reduce((a,x)=>a+(Number(x.amount)||0),0)),closedAt:iso()};
+ let a=JSON.parse(localStorage.getItem("mpf_closings")||"[]"),i=a.findIndex(x=>x.date===t);
+ if(i>=0)a[i]=r;else a.unshift(r);
+ localStorage.setItem("mpf_closings",JSON.stringify(a));
+ audit("closing","CLOSE",t);toast("Daily closing saved with net invoice values and farmer payments.");renderClosings()
+}
 function renderClosings(){
  let a=JSON.parse(localStorage.getItem("mpf_closings")||"[]"),last=a[0];
  document.getElementById("closingCards").innerHTML=last?`<div class="card metric"><div class="lab">Last Closing</div><div class="val">${last.date}</div><div class="mini">${last.liftings} liftings</div></div><div class="card metric"><div class="lab">Sales</div><div class="val">₹${fmt(last.sales)}</div><div class="mini">Day total</div></div><div class="card metric"><div class="lab">Lifting Payable</div><div class="val">₹${fmt(last.liftingPayable)}</div><div class="mini">${fmt(last.kg)} kg</div></div>`:"";
  window._closingViewRows=a;
  document.getElementById("closingRows").innerHTML=a.length?a.map((x,i)=>`<tr onclick="openClosingListDetails(${i})"><td>${esc(x.date)}</td><td class="mono">${esc("CLOSE-"+x.date)}</td><td>Daily Closing</td></tr>`).join(""):`<tr><td colspan="3" class="empty">No daily closing yet</td></tr>`;
 }
-function openClosingListDetails(i){const x=window._closingViewRows?.[i];if(!x)return;openGenericDetails("Daily Closing","CLOSE-"+x.date,{date:x.date,id:"CLOSE-"+x.date,name:"Daily Closing",liftings:x.liftings,cages:x.cages,kg:fmt(x.kg),liftingPayable:"Rs. "+fmt(x.liftingPayable),sales:"Rs. "+fmt(x.sales),payments:"Rs. "+fmt(x.payments),mpfSettlements:"Rs. "+fmt(x.singkeSettlements),closedAt:x.closedAt})}
+function openClosingListDetails(i){const x=window._closingViewRows?.[i];if(!x)return;openGenericDetails("Daily Closing","CLOSE-"+x.date,{date:x.date,id:"CLOSE-"+x.date,name:"Daily Closing",liftings:x.liftings,cages:x.cages,kg:fmt(x.kg),liftingPayable:"Rs. "+fmt(x.liftingPayable),sales:"Rs. "+fmt(x.sales),storePayments:"Rs. "+fmt(x.payments),farmerPayments:"Rs. "+fmt(x.farmerPayments||0),mpfSettlements:"Rs. "+fmt(x.singkeSettlements),closedAt:x.closedAt})}
 
-async function exportData(){let o={};for(let t of TABLES)o[t]=await txAll(t);return o}
-async function exportBackup(){let payload={format:"PSM_BROILER_DISTRIBUTOR_BACKUP",version:2,createdAt:iso(),data:await exportData(),local:{audit:JSON.parse(localStorage.getItem("mpf_audit")||"[]"),closings:JSON.parse(localStorage.getItem("mpf_closings")||"[]")}},blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});downloadBlob(blob,`PSM_Broiler_Distributor_Full_Backup_${today()}.json`);audit("backup","EXPORT","full")}
-async function restoreBackup(file){requireAdmin();if(!file)return;let p=JSON.parse(await file.text()),data=p.data||p;if(!data.farmers)throw new Error("Invalid backup.");if(!confirm("Merge backup into current database?"))return;for(let t of TABLES)for(let r of (data[t]||[]))await txPut(t,r);if(p.local?.audit)localStorage.setItem("mpf_audit",JSON.stringify(p.local.audit));if(p.local?.closings)localStorage.setItem("mpf_closings",JSON.stringify(p.local.closings));audit("backup","RESTORE","full",file.name);toast("Backup restored.");refreshAll()}
+async function exportData(options={}){
+ let o={};
+ for(let t of TABLES){
+   let rows=await txAll(t);
+   if(t==="settings"&&options.excludeAutoBackups!==false)rows=rows.filter(x=>!String(x.key||"").startsWith("auto_daily_backup:"));
+   o[t]=rows;
+ }
+ return o;
+}
+async function buildFullBackupPayload(){
+ return {
+  format:"PSM_BROILER_DISTRIBUTOR_BACKUP",
+  version:3,
+  createdAt:iso(),
+  data:await exportData({excludeAutoBackups:true}),
+  local:{
+   audit:JSON.parse(localStorage.getItem("mpf_audit")||"[]"),
+   closings:JSON.parse(localStorage.getItem("mpf_closings")||"[]")
+  }
+ };
+}
+async function exportBackup(){
+ const payload=await buildFullBackupPayload(),blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+ downloadBlob(blob,`PSM_Broiler_Distributor_Full_Backup_${today()}.json`);
+ audit("backup","EXPORT","full");
+}
+const AUTO_BACKUP_PREFIX="auto_daily_backup:";
+const AUTO_BACKUP_KEEP=7;
+const AUTO_BACKUP_LAST_KEY="psm_last_auto_backup_date_v1";
+async function listDailyAutoBackups(){
+ return (await txAll("settings"))
+   .filter(x=>String(x.key||"").startsWith(AUTO_BACKUP_PREFIX))
+   .sort((a,b)=>String(b.value?.createdAt||b.updatedAt||"").localeCompare(String(a.value?.createdAt||a.updatedAt||"")));
+}
+async function updateAutoBackupStatus(){
+ const all=await listDailyAutoBackups(),last=all[0]?.value;
+ const el=document.getElementById("autoBackupLast"),ct=document.getElementById("autoBackupCount");
+ if(el)el.textContent=last?.createdAt?new Date(last.createdAt).toLocaleString("en-IN"):"Not yet";
+ if(ct)ct.textContent=`${all.length} / ${AUTO_BACKUP_KEEP}`;
+}
+async function runDailyAutoBackup(options={}){
+ if(!db)return false;
+ const day=today(),force=!!options.force;
+ if(!force&&localStorage.getItem(AUTO_BACKUP_LAST_KEY)===day){await updateAutoBackupStatus();return true}
+ try{
+   const payload=await buildFullBackupPayload();
+   const record={key:AUTO_BACKUP_PREFIX+day,value:payload,updatedAt:iso()};
+   // Store directly in IndexedDB only. Do not queue the large backup snapshot to Supabase.
+   await txPut("settings",record);
+   const all=await listDailyAutoBackups();
+   for(const old of all.slice(AUTO_BACKUP_KEEP))await txDelete("settings",old.key);
+   localStorage.setItem(AUTO_BACKUP_LAST_KEY,day);
+   audit("backup","AUTO_DAILY",day,`Kept ${Math.min(all.length,AUTO_BACKUP_KEEP)} daily snapshot(s)`);
+   await updateAutoBackupStatus();
+   if(options.download){
+     downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}),`PSM_Auto_Backup_${day}.json`);
+     toast("Daily backup created and downloaded.");
+   }
+   return true;
+ }catch(e){
+   console.warn("Daily auto backup:",e);
+   if(options.force)toast("Backup error: "+(e?.message||e));
+   return false;
+ }
+}
+async function downloadLatestAutoBackup(){
+ const all=await listDailyAutoBackups();
+ if(!all.length)return toast("No automatic backup is available yet.");
+ const payload=all[0].value,day=String(all[0].key).slice(AUTO_BACKUP_PREFIX.length)||today();
+ downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}),`PSM_Auto_Backup_${day}.json`);
+ audit("backup","DOWNLOAD_AUTO",day);
+}
+async function restoreBackup(file){
+ requireAdmin();if(!file)return;
+ let p=JSON.parse(await file.text()),data=p.data||p;
+ if(!data.farmers)throw new Error("Invalid backup.");
+ if(!confirm("Merge backup into current database?"))return;
+ for(let t of TABLES)for(let r of (data[t]||[]))await txPut(t,r);
+ if(p.local?.audit)localStorage.setItem("mpf_audit",JSON.stringify(p.local.audit));
+ if(p.local?.closings)localStorage.setItem("mpf_closings",JSON.stringify(p.local.closings));
+ audit("backup","RESTORE","full",file.name);toast("Backup restored.");refreshAll();
+}
 
 const DEFAULT_CLOUD={url:"https://tkbjsvrhysfadcczluzj.supabase.co",key:"sb_publishable_l_Tt8s_Cb-gOr1x_4wsyLA_1_RRrvxJ"};
 const AUTH_STORAGE_KEY="psm_supabase_auth_session";
@@ -6045,6 +6237,8 @@ async function deleteAllRowsFromSupabaseTable(table){
  const roleSel=document.getElementById("roleSel");if(roleSel)roleSel.value=S.role;
  applyAppTheme();
  await refreshAll();
+ await runDailyAutoBackup();
+ await updateAutoBackupStatus();
 
  initAppBackNavigation();
  initRefreshProtection();
@@ -6077,8 +6271,8 @@ function restoreViewAfterExternalShare(){
  let v="";try{v=sessionStorage.getItem("psm_share_return_view")||""}catch(e){}
  if(v&&document.getElementById("v-"+v)&&PSM_CURRENT_VIEW!==v)renderAppView(v);
 }
-window.addEventListener("focus",()=>{restoreViewAfterExternalShare();backgroundBidirectionalSync()});
-document.addEventListener("visibilitychange",()=>{if(!document.hidden){restoreViewAfterExternalShare();backgroundBidirectionalSync()}});
+window.addEventListener("focus",()=>{restoreViewAfterExternalShare();backgroundBidirectionalSync();runDailyAutoBackup()});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden){restoreViewAfterExternalShare();backgroundBidirectionalSync();runDailyAutoBackup()}});
 
 window.addEventListener("online",()=>{updateAuthNetworkUI();retryPendingVerifiedDeletes();retryPendingSaves().then(()=>backgroundBidirectionalSync()).finally(updateSyncHealth)});
 window.addEventListener("offline",()=>{updateAuthNetworkUI();updateSyncHealth()});
