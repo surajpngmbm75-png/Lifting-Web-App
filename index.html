@@ -1697,7 +1697,8 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
  <div class="grid g2">
   <div class="card">
    <div class="split"><b>Needs Attention</b><span class="badge orange">LIVE</span></div>
-   <div id="attention" class="alerts"></div>
+   <button class="btn primary" style="margin-bottom:10px" onclick="openAccountingControlCenter()">Accounting & Automation Control</button>
+ <div id="attention" class="alerts"></div>
   </div>
   <div class="card">
    <div class="kicker">MPF A/C</div><div class="hero" style="margin-top:8px"><div class="sub">Remaining Due to MPF</div><div class="val">₹<span id="dashSingke">0.00</span></div><div class="sub">Previous Due + Lifting Payable − Wangkhei − Settlements − Farmer Payments</div></div>
@@ -3667,21 +3668,22 @@ function clearSingkeFilter(){
 
 async function buildSingkeLedgerPdf(){
   const s=await singkeAccountingData();
+  const farmerMap=new Map((await txAll("farmers")).map(f=>[String(f.id),f.name]));
   let ev=[
-    ...s.liftUsed.map(x=>({date:x.liftingDate||"",type:"Lifting Payable",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,debit:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,credit:0})),
-    ...s.wangSales.map(x=>({date:x.saleDate||"",type:"Wangkhei Adjustment",ref:x.invoiceNumber||x.id,kg:Number(x.netWeight??x.weight??x.totalWeight)||0,debit:0,credit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0})),
-    ...s.setsUsed.map(x=>({date:x.date||x.paymentDate||"",type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,debit:0,credit:Number(x.amount)||0})),
-    ...s.farmerUsed.map(x=>({date:x.paymentDate||"",type:"Farmer Payment",ref:x.farmerName||x.id,kg:0,debit:0,credit:Number(x.amount)||0}))
+    ...s.liftUsed.map(x=>({date:x.liftingDate||"",type:x.farmerName||farmerMap.get(String(x.farmerId))||"Farmer Lifting",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,debit:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,credit:0,remarks:x.remarks||""})),
+    ...s.wangSales.map(x=>({date:x.saleDate||"",type:"Wangkhei Adjustment",ref:x.invoiceNumber||x.id,kg:Number(x.netWeight??x.weight??x.totalWeight)||0,debit:0,credit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,remarks:x.remarks||""})),
+    ...s.setsUsed.map(x=>({date:x.date||x.paymentDate||"",type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,debit:0,credit:Number(x.amount)||0,remarks:x.remarks||""})),
+    ...s.farmerUsed.map(x=>({date:x.paymentDate||"",type:"Farmer Payment",ref:x.id||x._settingKey||"Payment",kg:0,debit:0,credit:Number(x.amount)||0,remarks:x.remarks||""}))
   ].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
   const from=document.getElementById("singkeFrom")?.value||"",to=document.getElementById("singkeTo")?.value||"";
   let bal=Number(s.p?.amount)||0;
   if(from){for(const e of ev){if(e.date&&e.date<from)bal=money2(bal+e.debit-e.credit)}}
   const filtered=ev.filter(e=>(!from||e.date>=from)&&(!to||e.date<=to)),rows=[];
-  for(const e of filtered){bal=money2(bal+e.debit-e.credit);rows.push([e.date,e.type,e.ref,e.kg,e.debit,e.credit,bal])}
+  for(const e of filtered){bal=money2(bal+e.debit-e.credit);rows.push([e.date,e.type,e.ref,e.kg,e.debit,e.credit,bal,e.remarks||""])}
   const period=from||to?`${from||"Beginning"} to ${to||"Latest"}`:"All Transactions";
   const cash=await fundsSummary();
   const summary=[["Previous Due",Number(s.p?.amount)||0],["Lifting Payable",s.liftingPayable],["Wangkhei Adjustments",s.wang],["Settlements",s.sett],["Farmer Payments",s.farmerPaid],["Current Remaining Due",s.remain],["Cash in Hand",cash.cashInHand],["Account Balance",cash.accountBalance]];
-  return {blob:buildAccountingTablePdf({title:"MPF / SINGKE RECONCILIATION LEDGER",subtitle:`Period: ${period} | Generated: ${new Date().toLocaleString("en-IN")}`,headers:["Date","Type","Reference","Kg","Debit","Credit","Running Due"],rows,summary}),fileName:`PSM_Singke_Reconciliation_${from||"All"}_${to||today()}.pdf`};
+  return {blob:buildAccountingTablePdf({title:"MPF / SINGKE RECONCILIATION LEDGER",subtitle:`Period: ${period} | Generated: ${new Date().toLocaleString("en-IN")}`,headers:["Date","Transaction","Reference","Kg","Debit","Credit","Running Due","Remarks"],rows,summary}),fileName:`PSM_Singke_Reconciliation_${from||"All"}_${to||today()}.pdf`};
 }
 
 async function downloadSingkeLedgerPdf(){
@@ -4808,33 +4810,38 @@ async function editSale(id){
  openModal(`<h3>Edit Sale</h3><div class="grid g2">
  <div class="field"><label>Date</label><input id="esaDate" type="date" value="${s.saleDate||today()}"></div>
  <div class="field"><label>Store</label><input value="${esc(store?.name||s.storeName||"")}" disabled></div>
- <div class="field"><label>Total Weight kg</label><input id="esaWeight" type="number" step="0.01" value="${s.weight??s.netWeight??0}" ${multi?"disabled":""}></div>
+ <div class="field"><label>Actual Weight kg</label><input value="${fmt(s.originalCageWeight??salePhysicalWeight(s))}" disabled></div>
+ <div class="field"><label>Billed Weight kg (Editable)</label><input id="esaWeight" type="number" step="0.01" value="${s.weight??s.netWeight??0}"></div>
  <div class="field"><label>Sales Rate ₹/kg</label><input id="esaRate" type="number" step="0.01" value="${s.salesRate??s.ratePerKg??0}"></div>
- <div class="field"><label>Payment Method</label><select id="esaMode" onchange="handleEditSalePaymentModeChange()">${["Cash","UPI","Credit","Bank"].map(x=>`<option ${String(s.paymentMethod||"Cash")===x?"selected":""}>${x}</option>`).join("")}</select></div>
- <div class="field"><label>Paid at Sale ₹</label><input id="esaPaid" type="number" step="0.01" min="0" value="${String(s.paymentMethod||"").toLowerCase()==="credit"?0:(s.paidAmount??0)}"></div>
+ <div class="field"><label>Payment Status</label><select id="esaMode" onchange="handleEditSalePaymentModeChange()"><option value="Credit" ${String(s.salePaymentStatus||s.paymentMethod||"").toLowerCase()==="credit"?"selected":""}>Credit</option><option value="Paid" ${String(s.salePaymentStatus||s.paymentMethod||"").toLowerCase()!=="credit"?"selected":""}>Paid at Invoice</option></select></div>
+ <div class="field" id="esaPaidField"><label>Paid Amount at Invoice ₹</label><input id="esaPaid" type="number" step="0.01" min="0.01" value="${String(s.salePaymentStatus||s.paymentMethod||"").toLowerCase()==="credit"?"":(s.paidAmount??0)}"></div>
+ <div class="field"><label>Payment Mode</label><select id="esaPaidMode">${["Cash","UPI","Bank","Cheque"].map(x=>`<option ${String(s.paymentMethod||"")===x?"selected":""}>${x}</option>`).join("")}</select></div>
  <div class="field"><label>Remarks</label><input id="esaRem" value="${esc(s.remarks||"")}"></div></div>
- ${multi?`<div class="sub" style="margin-top:8px">This sale contains ${s.cageIds.length} cages. Total weight is calculated from the selected cage records and cannot be edited here.</div>`:""}
+ ${multi?`<div class="sub" style="margin-top:8px">This sale contains ${s.cageIds.length} cages. Actual cage weight is fixed; Billed Weight remains editable.</div>`:""}
  <div style="height:12px"></div><button class="btn primary" onclick="saveEditedSale('${id}')">Update Sale</button>`);
  handleEditSalePaymentModeChange();
 }
 function handleEditSalePaymentModeChange(){
- const mode=document.getElementById("esaMode")?.value||"Cash",paid=document.getElementById("esaPaid");
- if(!paid)return;
- if(String(mode).toLowerCase()==="credit"){paid.value="0";paid.disabled=true;paid.title="Credit sale: no payment was received at sale."}
- else{paid.disabled=false;paid.title="Amount actually received at the time of sale."}
+ const status=document.getElementById("esaMode")?.value||"Credit",paid=document.getElementById("esaPaid"),field=document.getElementById("esaPaidField"),mode=document.getElementById("esaPaidMode");
+ const isCredit=String(status).toLowerCase()==="credit";
+ if(field)field.style.display=isCredit?"none":"";
+ if(paid){if(isCredit){paid.value="";paid.disabled=true}else paid.disabled=false}
+ if(mode)mode.disabled=isCredit;
 }
 async function saveEditedSale(id){
   let s=await txGet("sales",id);if(!s)return;
-  const weight=Number(document.getElementById("esaWeight").value),rate=Number(document.getElementById("esaRate").value),paymentMethod=document.getElementById("esaMode")?.value||s.paymentMethod||"Cash";
-  const paid=String(paymentMethod).toLowerCase()==="credit"?0:(Number(document.getElementById("esaPaid").value)||0);
+  const weight=Number(document.getElementById("esaWeight").value),rate=Number(document.getElementById("esaRate").value),status=document.getElementById("esaMode")?.value||"Credit";
+  const isCredit=String(status).toLowerCase()==="credit",paymentMethod=isCredit?"Credit":(document.getElementById("esaPaidMode")?.value||"Cash");
+  const paid=isCredit?0:money2(document.getElementById("esaPaid")?.value);
   if(weight<=0||rate<=0)return toast("Weight and rate required.");
   const exactAmount=Math.round(weight*rate*100)/100,rr=invoiceRound(exactAmount),netAmount=rr.rounded;
+  if(!isCredit&&paid<=0)return toast("Enter the amount received at invoice time.");
   if(paid>netAmount)return toast("Paid Amount cannot be more than the Sales Total Amount.");
   s.saleDate=document.getElementById("esaDate").value||s.saleDate;
-  s.weight=weight;s.netWeight=weight;s.salesRate=rate;s.ratePerKg=rate;s.saleAmount=exactAmount;s.totalAmount=exactAmount;s.roundOff=rr.roundOff;s.netAmount=netAmount;s.invoiceNetAmount=netAmount;s.paidAmount=paid;s.paymentMethod=paymentMethod;
+  s.weight=weight;s.netWeight=weight;s.totalWeight=weight;s.salesRate=rate;s.ratePerKg=rate;s.saleAmount=exactAmount;s.totalAmount=exactAmount;s.roundOff=rr.roundOff;s.netAmount=netAmount;s.invoiceNetAmount=netAmount;s.paidAmount=paid;s.paymentMethod=paymentMethod;s.salePaymentStatus=isCredit?"Credit":"Paid";
   s.outstanding=money2((Number(s.previousDue)||0)+netAmount-paid);
   s.remarks=document.getElementById("esaRem").value.trim();s.updatedAt=iso();
-  await txPut("sales",s);queueCloud("sales","UPSERT",s);audit("sales","UPDATE",id);clearCurrentFormDraft();closeModal();refreshAll();
+  await txPut("sales",s);queueCloud("sales","UPSERT",s);audit("sales","UPDATE",id);clearCurrentFormDraft();closeModal();await refreshAll();
 }
 async function deleteSale(id){
  requireAdmin();
@@ -5004,7 +5011,7 @@ async function singkeAccountingData(){
  const lift=await txAll("liftings"),sales=await txAll("sales"),stores=await txAll("stores"),sets=await txAll("singke_settlements"),farmerPayments=await getFarmerPayments();
  const wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>String(s.id)));
  const cutoff=String(p?.asOf||"");
- const afterOpening=d=>!cutoff||!d||String(d)>cutoff;
+ const afterOpening=d=>!cutoff?true:(!!d&&String(d)>cutoff);
  const liftUsed=lift.filter(x=>afterOpening(x.liftingDate));
  const wangSales=sales.filter(s=>(s.isWangkheiSale||wm.has(String(s.storeId)))&&afterOpening(s.saleDate));
  const setsUsed=sets.filter(s=>afterOpening(s.date||s.paymentDate));
@@ -5033,11 +5040,12 @@ async function renderSingke(){
   const dash=document.getElementById("dashSingke");if(dash)dash.textContent=fmt(s.remain);
 
   const acc=await singkeAccountingData();
+  const farmerMap=new Map((await txAll("farmers")).map(f=>[String(f.id),f.name]));
   let ev=[
-    ...acc.liftUsed.map(x=>({date:x.liftingDate||"",type:"Lifting Payable",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,debit:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,credit:0})),
-    ...acc.wangSales.map(x=>({date:x.saleDate||"",type:"Wangkhei Adjustment",ref:x.invoiceNumber||x.id,kg:Number(x.netWeight??x.weight??x.totalWeight)||0,debit:0,credit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0})),
-    ...acc.setsUsed.map(x=>({date:x.date||x.paymentDate||"",type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,debit:0,credit:Number(x.amount)||0})),
-    ...acc.farmerUsed.map(x=>({date:x.paymentDate||"",type:"Farmer Payment",ref:x.farmerName||x.id,kg:0,debit:0,credit:Number(x.amount)||0}))
+    ...acc.liftUsed.map(x=>({date:x.liftingDate||"",type:x.farmerName||farmerMap.get(String(x.farmerId))||"Farmer Lifting",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,debit:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,credit:0,remarks:x.remarks||""})),
+    ...acc.wangSales.map(x=>({date:x.saleDate||"",type:"Wangkhei Adjustment",ref:x.invoiceNumber||x.id,kg:Number(x.netWeight??x.weight??x.totalWeight)||0,debit:0,credit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,remarks:x.remarks||""})),
+    ...acc.setsUsed.map(x=>({date:x.date||x.paymentDate||"",type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,debit:0,credit:Number(x.amount)||0,remarks:x.remarks||""})),
+    ...acc.farmerUsed.map(x=>({date:x.paymentDate||"",type:"Farmer Payment",ref:x.id||x._settingKey||"Payment",kg:0,debit:0,credit:Number(x.amount)||0,remarks:x.remarks||""}))
   ].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
   const from=document.getElementById("singkeFrom")?.value||"",to=document.getElementById("singkeTo")?.value||"";
   let bal=Number(s.p?.amount)||0;if(from){for(const e of ev){if(e.date&&e.date<from)bal+=e.debit-e.credit}}
@@ -5047,7 +5055,7 @@ async function renderSingke(){
   filtered.forEach((e,i)=>{bal+=e.debit-e.credit;const d={...e,balance:bal};window._singkeViewRows.push(d);rows.push(`<tr onclick="openSingkeListDetails(${i})"><td>${esc(e.date)}</td><td class="mono">${esc(e.ref)}</td><td>${esc(e.type)}</td></tr>`)});
   document.getElementById("singkeRows").innerHTML=rows.join("")||`<tr><td colspan="3" class="empty">No reconciliation transactions for the selected period</td></tr>`;
 }
-function openSingkeListDetails(i){const e=window._singkeViewRows?.[i];if(!e)return;openGenericDetails(e.type,e.ref,{date:e.date,id:e.ref,name:e.type,totalKg:e.kg?fmt(e.kg)+" kg":"—",debit:e.debit?"Rs. "+fmt(e.debit):"—",credit:e.credit?"Rs. "+fmt(e.credit):"—",runningDue:"Rs. "+fmt(e.balance)})}
+function openSingkeListDetails(i){const e=window._singkeViewRows?.[i];if(!e)return;openGenericDetails(e.type,e.ref,{date:e.date,id:e.ref,name:e.type,totalKg:e.kg?fmt(e.kg)+" kg":"—",debit:e.debit?"Rs. "+fmt(e.debit):"—",credit:e.credit?"Rs. "+fmt(e.credit):"—",runningDue:"Rs. "+fmt(e.balance),remarks:e.remarks||"—"})}
 function farmerLedgerRound50(amount){
  const n=Math.max(0,Number(amount)||0);
  return Math.floor(n/50)*50;
@@ -5106,8 +5114,10 @@ async function saveFarmerPayment(farmerId){
  const f=await txGet("farmers",farmerId);if(!f)return toast("Farmer not found.");
  const date=document.getElementById("fpDate")?.value||"",amount=money2(document.getElementById("fpAmount")?.value),mode=document.getElementById("fpMode")?.value||"Cash",remarks=document.getElementById("fpRemarks")?.value?.trim()||"";
  if(!date||amount<=0)return toast("Enter a valid date and payment amount.");
- const before=await getFarmerLedgerData(farmerId),previousOutstanding=money2(before.balance);
- if(amount>previousOutstanding+.009&&!confirm(`Payment ₹${fmt(amount)} is higher than current farmer outstanding ₹${fmt(previousOutstanding)}. Save as an advance/credit balance?`))return;
+ const before=await getFarmerLedgerData(farmerId);
+ const priorRows=before.rows.filter(r=>String(r.date||"")<=String(date));
+ const previousOutstanding=money2(priorRows.length?priorRows[priorRows.length-1].balance:0);
+ if(amount>previousOutstanding+.009&&!confirm(`Payment ₹${fmt(amount)} is higher than farmer outstanding ₹${fmt(previousOutstanding)} as of ${date}. Save as an advance/credit balance?`))return;
  const idv=id("FP"),remainingOutstanding=money2(previousOutstanding-amount),now=iso();
  const p={id:idv,farmerId,farmerName:f.name||"",paymentDate:date,amount,paymentMode:mode,remarks,previousOutstanding,remainingOutstanding,createdAt:now,updatedAt:now};
  await setSetting(farmerPaymentSettingKey(idv),p);
@@ -5369,6 +5379,17 @@ async function accountingIntegrityCheck(){
  }
  for(const c of cages){if(!liftIds.has(String(c.liftingId)))issues.push(`Cage ${c.cageNumber||c.id}: lifting record is missing`)}
  for(const p of farmerPayments){if((Number(p.amount)||0)<=0)issues.push(`Farmer payment ${p.id}: invalid amount`)}
+ const singkeOpening=await setting("singke_previous_due",{amount:0}),singkeCutoff=String(singkeOpening?.asOf||"");
+ if(singkeCutoff){
+   for(const l of liftings)if(!l.liftingDate)issues.push(`Lifting ${l.invoiceNumber||l.id}: missing date; excluded from MPF/Singke cutoff accounting`);
+   for(const s of sales)if((s.isWangkheiSale||String((stores.find(st=>String(st.id)===String(s.storeId))?.name)||"").toLowerCase().includes("wangkhei"))&&!s.saleDate)issues.push(`Wangkhei sale ${s.invoiceNumber||s.id}: missing date; excluded from MPF/Singke cutoff accounting`);
+ }
+ for(const s of sales)if(!s.saleDate)issues.push(`Sale ${s.invoiceNumber||s.id}: missing sale date`);
+ for(const p of payments)if(!p.paymentDate)issues.push(`Store payment ${p.receiptNumber||p.id}: missing payment date`);
+ for(const c of cages){
+   if(c.isSold&&!c.saleId)issues.push(`Cage ${c.cageNumber||c.id}: marked sold but has no Sale ID`);
+   if(c.saleId&&!sales.some(s=>String(s.id)===String(c.saleId)))issues.push(`Cage ${c.cageNumber||c.id}: linked sale ${c.saleId} is missing`);
+ }
 
  // Reconcile every store using the independent accounting equation.
  for(const st of stores){
@@ -5379,6 +5400,112 @@ async function accountingIntegrityCheck(){
  }
  return issues;
 }
+const PSM_AUTOMATION_VERSION="2026.09.16-A1";
+
+async function getAccountingControlData(){
+ const [stores,sales,payments,liftings,cages,farmerPayments,sets]=await Promise.all([
+   txAll("stores"),txAll("sales"),txAll("payments"),txAll("liftings"),txAll("cages"),getFarmerPayments(),txAll("singke_settlements")
+ ]);
+ const regularStores=stores.filter(s=>!s.archived&&!s.isWangkhei&&!String(s.name||"").toLowerCase().includes("wangkhei"));
+ let storeReceivable=0,storeCredit=0,storeRows=[];
+ for(const st of regularStores){
+   const x=await storeSummary(st.id),bal=money2(x.outstanding);
+   if(bal>0)storeReceivable=money2(storeReceivable+bal);else if(bal<0)storeCredit=money2(storeCredit+Math.abs(bal));
+   storeRows.push({id:st.id,name:st.name||"",phone:st.phone||"",balance:bal});
+ }
+ const singke=await singkeAccountingData(),funds=await fundsSummary(),issues=await accountingIntegrityCheck();
+ const liftMap=new Map(liftings.map(x=>[String(x.id),x]));
+ const totalSales=money2(sales.reduce((a,x)=>a+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0));
+ const grossProfit=money2(totalSales-sales.reduce((a,x)=>a+saleLiftingCost(x,liftMap),0));
+ const unsold=cages.filter(c=>!c.isSold);
+ const ageDays=Math.max(1,Number(localStorage.getItem("psm_unsold_age_days")||2)),now=Date.now();
+ const agedUnsold=unsold.filter(c=>{const l=liftMap.get(String(c.liftingId)),d=Date.parse(l?.liftingDate||c.createdAt||"");return d&&((now-d)/86400000)>=ageDays});
+ return {stores,sales,payments,liftings,cages,farmerPayments,sets,storeRows,storeReceivable,storeCredit,singke,funds,issues,totalSales,grossProfit,unsold,agedUnsold,ageDays};
+}
+
+async function farmerPayableAutomation(){
+ const [farmers,liftings,pays]=await Promise.all([txAll("farmers"),txAll("liftings"),getFarmerPayments()]);
+ const rows=[];
+ for(const f of farmers){
+   const ls=liftings.filter(x=>String(x.farmerId)===String(f.id));
+   const grouped=new Map();
+   for(const l of ls){const date=String(l.liftingDate||""),rate=Number(l.liftingRate??l.ratePerKg)||0,key=`${date}|${rate}`;grouped.set(key,(grouped.get(key)||0)+(Number(l.totalWeight)||0))}
+   const payable=money2([...grouped.entries()].reduce((a,[key,kg])=>{const rate=Number(String(key).split("|").pop())||0;return a+farmerLedgerRound50(money2(kg*rate))},0));
+   const paid=money2(pays.filter(x=>String(x.farmerId)===String(f.id)).reduce((a,x)=>a+(Number(x.amount)||0),0));
+   const due=money2(payable-paid);
+   if(Math.abs(due)>.009)rows.push({farmerId:f.id,name:f.name||"",payable,paid,due});
+ }
+ return rows.sort((a,b)=>b.due-a.due);
+}
+
+async function openAccountingControlCenter(){
+ const d=await getAccountingControlData(),farmerRows=await farmerPayableAutomation();
+ const issueHtml=d.issues.length?d.issues.map(x=>`<div class="row" style="color:#991b1b">${esc(x)}</div>`).join(""):`<div class="row" style="background:#ecfdf5;color:#166534"><b>Accounting Check Passed</b><div class="sub">No reconciliation mismatch detected by the current automated checks.</div></div>`;
+ const dueStores=d.storeRows.filter(x=>x.balance>0);
+ openModal(`<h3>Accounting & Automation Control</h3>
+ <div class="grid g2">
+  <div class="card metric"><div class="lab">Store Receivable</div><div class="val">₹${fmt(d.storeReceivable)}</div><div class="mini">Positive dues only</div></div>
+  <div class="card metric"><div class="lab">Store Advance / Credit</div><div class="val">₹${fmt(d.storeCredit)}</div><div class="mini">Not netted against receivable</div></div>
+  <div class="card metric"><div class="lab">Cash in Hand</div><div class="val">₹${fmt(d.funds.cashInHand)}</div></div>
+  <div class="card metric"><div class="lab">Account</div><div class="val">₹${fmt(d.funds.accountBalance)}</div></div>
+  <div class="card metric"><div class="lab">MPF / Singke Due</div><div class="val">₹${fmt(d.singke.remain)}</div></div>
+  <div class="card metric"><div class="lab">Unsold Cages</div><div class="val">${d.unsold.length}</div><div class="mini">${d.agedUnsold.length} aged ${d.ageDays}+ days</div></div>
+ </div>
+ <div style="height:12px"></div><h4>Accounting Integrity</h4>${issueHtml}
+ <div style="height:12px"></div><h4>Store Due Reminders</h4>
+ ${dueStores.length?dueStores.map(x=>`<div class="row"><b>${esc(x.name)}</b> — ₹${fmt(x.balance)} ${x.phone?`<button class="btn" style="float:right" onclick="sendStoreDueReminder('${x.id}')">WhatsApp</button>`:""}</div>`).join(""):`<div class="empty">No store outstanding.</div>`}
+ <div style="height:12px"></div><h4>Farmer Payable Alerts</h4>
+ ${farmerRows.length?farmerRows.slice(0,20).map(x=>`<div class="row"><b>${esc(x.name)}</b> — ${x.due>0?`Payable ₹${fmt(x.due)}`:`Advance ₹${fmt(Math.abs(x.due))}`}</div>`).join(""):`<div class="empty">No farmer payable difference.</div>`}
+ <div style="height:12px"></div>
+ <button class="btn primary" onclick="runPreCloseAccountingCheck()">Run Pre-Close Check</button>
+ <button class="btn" onclick="downloadDailyManagementReport()">Daily Management Report</button>
+ <button class="btn" onclick="runDailyAutoBackup({force:true})">Backup Now</button>`);
+}
+
+async function sendStoreDueReminder(storeId){
+ const st=await txGet("stores",storeId);if(!st)return toast("Store not found.");
+ const s=await storeSummary(storeId),due=money2(s.outstanding);
+ if(due<=0)return toast("This store has no outstanding due.");
+ const phone=normalizeWhatsappPhone(st.phone||"");if(!phone)return toast("No WhatsApp phone number for this store.");
+ const msg=`PSM Broiler Distributor\nPayment Reminder\nStore: ${st.name||""}\nOutstanding Due: ₹${fmt(due)}\nAs of: ${today()}\n\nPlease review the outstanding amount. Thank you.`;
+ try{sessionStorage.setItem("psm_share_return_view",PSM_CURRENT_VIEW||"dashboard")}catch(e){}
+ window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,"_blank");
+}
+
+async function runPreCloseAccountingCheck(){
+ const d=await getAccountingControlData();
+ if(d.issues.length){toast(`Closing blocked: ${d.issues.length} accounting issue(s) found.`);return false}
+ toast("Accounting Check Passed. Daily closing can be saved.");
+ return true;
+}
+
+async function buildDailyManagementData(day=today()){
+ const [lift,sales,pays,farmerPays,sets,cages]=await Promise.all([
+  txAll("liftings"),txAll("sales"),txAll("payments"),getFarmerPayments(),txAll("singke_settlements"),txAll("cages")
+ ]);
+ const dl=lift.filter(x=>x.liftingDate===day),ds=sales.filter(x=>x.saleDate===day),dp=pays.filter(x=>x.paymentDate===day),df=farmerPays.filter(x=>x.paymentDate===day),dset=sets.filter(x=>(x.date||x.paymentDate)===day);
+ const funds=await fundsSummary(),singke=await singkeAccountingData();
+ const stores=await txAll("stores");let receivable=0,credit=0;
+ for(const st of stores){if(st.archived||st.isWangkhei||String(st.name||"").toLowerCase().includes("wangkhei"))continue;const b=Number((await storeSummary(st.id)).outstanding)||0;if(b>0)receivable+=b;else credit+=Math.abs(b)}
+ const lm=new Map(lift.map(x=>[String(x.id),x])),daySales=money2(ds.reduce((a,x)=>a+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0));
+ const dayCost=money2(ds.reduce((a,x)=>a+saleLiftingCost(x,lm),0));
+ return {day,liftings:dl.length,cages:dl.reduce((a,x)=>a+(Number(x.totalCages)||0),0),kg:money2(dl.reduce((a,x)=>a+(Number(x.totalWeight)||0),0)),liftingPayable:money2(dl.reduce((a,x)=>a+(Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0),0)),sales:daySales,grossProfit:money2(daySales-dayCost),storePayments:money2(dp.reduce((a,x)=>a+(Number(x.amount)||0),0)),farmerPayments:money2(df.reduce((a,x)=>a+(Number(x.amount)||0),0)),singkeSettlements:money2(dset.reduce((a,x)=>a+(Number(x.amount)||0),0)),cashInHand:funds.cashInHand,accountBalance:funds.accountBalance,storeReceivable:money2(receivable),storeCredit:money2(credit),singkeDue:singke.remain,unsoldCages:cages.filter(c=>!c.isSold).length};
+}
+
+async function downloadDailyManagementReport(){
+ const r=await buildDailyManagementData(today());
+ const lines=[
+  "PSM BROILER DISTRIBUTOR - DAILY MANAGEMENT REPORT",`Date: ${r.day}`,"",
+  `Liftings: ${r.liftings}`,`Cages Lifted: ${r.cages}`,`Lifting Weight: ${fmt(r.kg)} kg`,`Lifting Payable: ₹${fmt(r.liftingPayable)}`,"",
+  `Sales: ₹${fmt(r.sales)}`,`Gross Trading Profit: ₹${fmt(r.grossProfit)}`,`Store Payments Received: ₹${fmt(r.storePayments)}`,"",
+  `Farmer Payments: ₹${fmt(r.farmerPayments)}`,`MPF/Singke Settlements: ₹${fmt(r.singkeSettlements)}`,"",
+  `Cash in Hand: ₹${fmt(r.cashInHand)}`,`Account Balance: ₹${fmt(r.accountBalance)}`,`Store Receivable: ₹${fmt(r.storeReceivable)}`,`Store Advance/Credit: ₹${fmt(r.storeCredit)}`,`MPF/Singke Due: ₹${fmt(r.singkeDue)}`,`Unsold Cages: ${r.unsoldCages}`,"",
+  "Generated automatically by PSM Broiler Distributor."
+ ];
+ downloadBlob(new Blob([lines.join("\n")],{type:"text/plain;charset=utf-8"}),`PSM_Daily_Management_Report_${r.day}.txt`);
+ audit("report","DAILY_MANAGEMENT",r.day);
+}
+
 async function renderDashboard(){
  const inventory=await reconcileCageInventoryState({sync:false});
  let r=dashboardRange(),allLift=await txAll("liftings"),l=allLift.filter(x=>inRange(x.liftingDate,r)),allSales=await txAll("sales"),sales=allSales.filter(x=>inRange(x.saleDate,r)),cages=await txAll("cages"),stores=await txAll("stores");
@@ -5386,7 +5513,7 @@ async function renderDashboard(){
  document.getElementById("mLiftLabel").textContent=`${periodLabel} Liftings`;document.getElementById("mSalesLabel").textContent=`${periodLabel} Sales`;
  document.getElementById("mLift").textContent=l.length;document.getElementById("mLiftKg").textContent=fmt(l.reduce((a,x)=>a+(Number(x.totalWeight)||0),0))+" kg";
  let salesAmt=sales.reduce((a,x)=>a+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0);document.getElementById("mSales").textContent=fmt(salesAmt);
- let due=0;for(let s of stores){if(s.archived)continue;if(!(s.isWangkhei||String(s.name).toLowerCase().includes("wangkhei")))due+=(await storeSummary(s.id)).outstanding}document.getElementById("mDue").textContent=fmt(due);
+ let due=0,storeCredit=0;for(let s of stores){if(s.archived)continue;if(!(s.isWangkhei||String(s.name).toLowerCase().includes("wangkhei"))){const bal=Number((await storeSummary(s.id)).outstanding)||0;if(bal>0)due+=bal;else if(bal<0)storeCredit+=Math.abs(bal)}}document.getElementById("mDue").textContent=fmt(money2(due));
  let unsold=inventory.unsold;document.getElementById("mUnsold").textContent=unsold;
  const unsoldSub=document.getElementById("mUnsoldSub");
  if(unsoldSub){
@@ -5612,23 +5739,19 @@ function renderAudit(){
 function openAuditListDetails(i){const x=window._auditViewRows?.[i];if(!x)return;openGenericDetails("Audit Event",x.record||"",{date:x.time,id:x.record||"",name:(x.module||"")+" · "+(x.action||""),role:x.role,module:x.module,action:x.action,note:x.note||"—"})}
 function exportAudit(){const blob=new Blob([localStorage.getItem("mpf_audit")||"[]"],{type:"application/json"});downloadBlob(blob,`PSM_Audit_Log_${today()}.json`)}
 async function closeToday(){
- let t=today(),
- lift=(await txAll("liftings")).filter(x=>x.liftingDate===t),
- sales=(await txAll("sales")).filter(x=>x.saleDate===t),
- pays=(await txAll("payments")).filter(x=>x.paymentDate===t),
- farmerPays=(await getFarmerPayments()).filter(x=>x.paymentDate===t),
- sets=(await txAll("singke_settlements")).filter(x=>(x.date||x.paymentDate)===t),
- r={date:t,liftings:lift.length,cages:lift.reduce((a,x)=>a+(Number(x.totalCages)||0),0),
- kg:money2(lift.reduce((a,x)=>a+(Number(x.totalWeight)||0),0)),
- liftingPayable:money2(lift.reduce((a,x)=>a+(Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0),0)),
- sales:money2(sales.reduce((a,x)=>a+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0)),
- payments:money2(pays.reduce((a,x)=>a+(Number(x.amount)||0),0)),
- farmerPayments:money2(farmerPays.reduce((a,x)=>a+(Number(x.amount)||0),0)),
- singkeSettlements:money2(sets.reduce((a,x)=>a+(Number(x.amount)||0),0)),closedAt:iso()};
- let a=JSON.parse(localStorage.getItem("mpf_closings")||"[]"),i=a.findIndex(x=>x.date===t);
- if(i>=0)a[i]=r;else a.unshift(r);
+ const ok=await runPreCloseAccountingCheck();if(!ok)return;
+ const r=await buildDailyManagementData(today());
+ r.date=r.day;delete r.day;r.closedAt=iso();r.accountingCheck="PASSED";r.automationVersion=PSM_AUTOMATION_VERSION;
+ let a=JSON.parse(localStorage.getItem("mpf_closings")||"[]"),i=a.findIndex(x=>x.date===r.date);
+ if(i>=0){
+   if(!confirm("Today's closing already exists. Replace it with recalculated figures?"))return;
+   a[i]=r;
+ }else a.unshift(r);
  localStorage.setItem("mpf_closings",JSON.stringify(a));
- audit("closing","CLOSE",t);toast("Daily closing saved with net invoice values and farmer payments.");renderClosings()
+ audit("closing","CLOSE",r.date,"Accounting Check PASSED");
+ await runDailyAutoBackup({force:true});
+ toast("Daily closing saved after accounting reconciliation. Backup updated.");
+ renderClosings();
 }
 function renderClosings(){
  let a=JSON.parse(localStorage.getItem("mpf_closings")||"[]"),last=a[0];
@@ -5636,7 +5759,7 @@ function renderClosings(){
  window._closingViewRows=a;
  document.getElementById("closingRows").innerHTML=a.length?a.map((x,i)=>`<tr onclick="openClosingListDetails(${i})"><td>${esc(x.date)}</td><td class="mono">${esc("CLOSE-"+x.date)}</td><td>Daily Closing</td></tr>`).join(""):`<tr><td colspan="3" class="empty">No daily closing yet</td></tr>`;
 }
-function openClosingListDetails(i){const x=window._closingViewRows?.[i];if(!x)return;openGenericDetails("Daily Closing","CLOSE-"+x.date,{date:x.date,id:"CLOSE-"+x.date,name:"Daily Closing",liftings:x.liftings,cages:x.cages,kg:fmt(x.kg),liftingPayable:"Rs. "+fmt(x.liftingPayable),sales:"Rs. "+fmt(x.sales),storePayments:"Rs. "+fmt(x.payments),farmerPayments:"Rs. "+fmt(x.farmerPayments||0),mpfSettlements:"Rs. "+fmt(x.singkeSettlements),closedAt:x.closedAt})}
+function openClosingListDetails(i){const x=window._closingViewRows?.[i];if(!x)return;openGenericDetails("Daily Closing","CLOSE-"+x.date,{date:x.date,id:"CLOSE-"+x.date,name:"Daily Closing",accountingCheck:x.accountingCheck||"Legacy closing",liftings:x.liftings,cages:x.cages,kg:fmt(x.kg),liftingPayable:"Rs. "+fmt(x.liftingPayable),sales:"Rs. "+fmt(x.sales),grossProfit:"Rs. "+fmt(x.grossProfit||0),storePayments:"Rs. "+fmt(x.storePayments??x.payments??0),farmerPayments:"Rs. "+fmt(x.farmerPayments||0),mpfSettlements:"Rs. "+fmt(x.singkeSettlements),cashInHand:"Rs. "+fmt(x.cashInHand||0),accountBalance:"Rs. "+fmt(x.accountBalance||0),storeReceivable:"Rs. "+fmt(x.storeReceivable||0),storeCredit:"Rs. "+fmt(x.storeCredit||0),mpfDue:"Rs. "+fmt(x.singkeDue||0),unsoldCages:x.unsoldCages??"—",closedAt:x.closedAt})}
 
 async function exportData(options={}){
  let o={};
@@ -6418,11 +6541,21 @@ async function loadSettings(){
   }
   updateSyncBadge();updateSyncHealth();
 }
+async function saveDailyManagementSnapshot(){
+ try{
+  const day=today(),key="daily_management_snapshot:"+day;
+  if(await txGet("settings",key))return;
+  const value=await buildDailyManagementData(day);
+  await txPut("settings",{key,value,updatedAt:iso()});
+ }catch(e){console.warn("Daily management snapshot:",e)}
+}
+
 async function refreshAll(){
  await reconcileCageInventoryState({sync:false});
  await renderDashboard();await renderFarmers();await renderFarmersCombined();await renderLiftings();await renderSales();await renderStores();await renderSingke();await populateStoreSelect();await populateFarmerLedgerSelect();
  renderAudit();renderClosings();updateSyncBadge();updateSyncHealth();
  await updatePageMiniSummaries();await renderRecentActivity();
+ await saveDailyManagementSnapshot();
 }
 
 const CLEAN_START_VERSION="PSM_PRODUCTION_NO_RESET";
