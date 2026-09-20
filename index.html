@@ -3443,7 +3443,7 @@ async function openSale(){
    <div class="field"><label>Total Birds</label><input id="saBirds" disabled value="0"></div>
    <div class="field sale-total-amount-field"><label>Sales Total Amount (Net) ₹</label><input id="saTotalAmount" disabled value="₹0.00"></div>
    <div class="field"><label>Payment Status</label><select id="saMode" onchange="handleSalePaymentModeChange()"><option value="Credit">Credit</option><option value="Paid">Paid at Invoice</option></select></div>
-   <div class="field" id="saPaidField" style="display:none"><label>Paid Amount at Invoice ₹</label><input id="saPaid" type="number" step="0.01" min="0.01" value="" placeholder="Enter amount received"><div class="sub">Enter only the amount the store gives you now.</div></div>
+   <div class="field" id="saPaidField" style="display:none"><label>Paid Amount at Invoice ₹</label><input id="saPaid" type="number" step="0.01" min="0.01" value="" placeholder="Enter amount received"><div class="sub">Enter full received amount. Any excess clears older store dues; the remainder becomes store advance.</div></div>
    <div class="field"><label>Payment Mode</label><select id="saPaidMode" disabled><option>Cash</option><option>UPI</option><option>Bank</option><option>Cheque</option></select><div class="sub" id="saPaidModeHint">Not required for Credit.</div></div>
    <div class="field"><label>Remarks</label><input id="saRem"></div>
   </div>
@@ -3560,7 +3560,7 @@ async function updateMultiCageSaleSummary(){
  const weight=chosen.reduce((a,c)=>a+(Number(c.weight)||0),0),birds=chosen.reduce((a,c)=>a+(Number(c.birdCount)||0),0);
  const w=document.getElementById("saWeight"),aw=document.getElementById("saActualWeight"),b=document.getElementById("saBirds"),s=document.getElementById("saSelectedSummary");
  if(aw)aw.value=fmt(weight);
- if(w)w.value=fmt(weight);
+ if(w){const signature=[...ids].sort().join("|");if(w.dataset.cageSignature!==signature){w.value=fmt(weight);w.dataset.cageSignature=signature}}
  if(b)b.value=birds;
  if(s)s.innerHTML=chosen.length?`<b>${chosen.length} cage${chosen.length===1?"":"s"} selected</b> · ${fmt(weight)} kg · ${birds} birds<br>${chosen.map(c=>`Cage ${esc(c.cageNumber||c.id)}`).join(", ")}`:"No cages selected.";
  updateSaleAmountPreview();
@@ -3624,7 +3624,8 @@ async function saveSale(){
  if(weight<=0)return toast("Enter a valid billed weight.");
  const exactAmount=Math.round(weight*rate*100)/100,rr=invoiceRound(exactAmount),netAmount=rr.rounded;
  if(!isCredit&&paid<=0)return toast("Enter the amount received at the time of invoice.");
- if(paid>netAmount)return toast("Paid Amount cannot be more than the Sales Total Amount.");
+ if(!Number.isFinite(paid)||paid<0)return toast("Enter a valid payment amount.");
+ const invoicePaid=money2(Math.min(paid,netAmount)),excess=money2(Math.max(0,paid-netAmount));
  const inv=await nextSequentialNumber("sale",date),sid=inv;
  if((await txAll("sales")).some(x=>x.id!==sid&&x.invoiceNumber===inv))return toast("Invoice number conflict detected. Please retry.");
  const farmerIds=[...new Set(current.map(c=>String(c.farmerId||"")).filter(Boolean))],liftingIds=[...new Set(current.map(c=>String(c.liftingId||"")).filter(Boolean))];
@@ -3635,15 +3636,26 @@ async function saveSale(){
    liftingId:liftingIds[0]||null,liftingIds,farmerId:farmerIds[0]||null,farmerIds,farmerName,
    cageId:current[0].id,cageIds:current.map(c=>c.id),cageNumber:current.map(c=>c.cageNumber||c.id).join(", "),cageNumbers:current.map(c=>c.cageNumber||c.id),cageDetails,
    birdsCount:birds,totalBirds:birds,originalCageWeight:cageWeight,netWeight:weight,weight,totalWeight:weight,salesRate:rate,ratePerKg:rate,
-   saleAmount:exactAmount,totalAmount:exactAmount,roundOff:rr.roundOff,netAmount,invoiceNetAmount:netAmount,paidAmount:paid,
+   saleAmount:exactAmount,totalAmount:exactAmount,roundOff:rr.roundOff,netAmount,invoiceNetAmount:netAmount,paidAmount:invoicePaid,
+   paymentReceivedAtInvoice:paid,excessStorePayment:excess,
    previousDue:money2(fin.outstanding),outstanding:money2(fin.outstanding+netAmount-paid),
    paymentMethod,salePaymentStatus:isCredit?"Credit":"Paid",remarks:document.getElementById("saRem").value.trim(),isWangkheiSale:!!store.isWangkhei,
    createdAt:iso(),updatedAt:iso()};
+ const excessPayment=excess>0?{
+   id:id("PAY"),receiptNumber:await nextSequentialNumber("payment",date),storeId,paymentDate:date,amount:excess,
+   paymentMode,referenceNumber:inv,remarks:`Excess received on invoice ${inv}; adjust existing store outstanding, then advance`,
+   storeName:store.name||"",storePhone:store.phone||"",linkedSaleId:sid,
+   previousDue:money2(fin.outstanding),remainingDue:money2(fin.outstanding-excess),
+   createdAt:iso(),updatedAt:iso()
+ }:null;
+ if(excessPayment&&(await txAll("payments")).some(x=>x.receiptNumber===excessPayment.receiptNumber))return toast("Payment receipt number conflict. Retry.");
+ if(excessPayment)r.excessPaymentId=excessPayment.id;
  try{
    await new Promise((resolve,reject)=>{
-     const tx=db.transaction(["sales","cages","settings"],"readwrite");
+     const tx=db.transaction(["sales","cages","settings","payments"],"readwrite");
      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("Sale transaction aborted."));
      tx.objectStore("sales").put(r);
+     if(excessPayment)tx.objectStore("payments").put(excessPayment);
      const cs=tx.objectStore("cages"),ss=tx.objectStore("settings");
      for(const c of current){
        c.isSold=true;c.saleId=sid;c.updatedAt=r.updatedAt;cs.put(c);
@@ -3652,6 +3664,7 @@ async function saveSale(){
    });
  }catch(e){console.error(e);return toast("Unable to save sale. No cages were changed.");}
  queueCloud("sales","UPSERT",r);
+ if(excessPayment)queueCloud("payments","UPSERT",excessPayment);
  for(const c of current){
    queueCloud("cages","UPSERT",c);
    queueCloud("settings","UPSERT",{key:"cage_state_"+c.id,value:{isSold:true,saleId:sid,updatedAt:r.updatedAt},updatedAt:r.updatedAt});
@@ -4830,6 +4843,7 @@ function handleEditSalePaymentModeChange(){
 }
 async function saveEditedSale(id){
   let s=await txGet("sales",id);if(!s)return;
+  if(s.excessPaymentId)return toast("This invoice has a linked excess-payment receipt. Editing is blocked to prevent ledger mismatch; reconcile the linked receipt first.");
   const weight=Number(document.getElementById("esaWeight").value),rate=Number(document.getElementById("esaRate").value),status=document.getElementById("esaMode")?.value||"Credit";
   const isCredit=String(status).toLowerCase()==="credit",paymentMethod=isCredit?"Credit":(document.getElementById("esaPaidMode")?.value||"Cash");
   const paid=isCredit?0:money2(document.getElementById("esaPaid")?.value);
@@ -4846,6 +4860,7 @@ async function saveEditedSale(id){
 async function deleteSale(id){
  requireAdmin();
  const s=await txGet("sales",id);if(!s)return;
+ if(s.excessPaymentId)return toast("Invoice has a linked excess-payment receipt. Deletion blocked until a controlled reversal is implemented.");
  const ids=Array.isArray(s.cageIds)&&s.cageIds.length?s.cageIds:(s.cageId?[s.cageId]:[]);
  if(!confirm(`Delete this sale and release ${ids.length||1} cage${ids.length===1?"":"s"}?`))return;
  for(const cid of ids){
@@ -5373,6 +5388,10 @@ async function accountingIntegrityCheck(){
    const inv=String(s.invoiceNumber||"");if(inv){if(invoiceSeen.has(inv))issues.push(`Duplicate sales invoice number: ${inv}`);invoiceSeen.add(inv)}
  }
  for(const p of payments){
+   if(p.linkedSaleId){const linked=sales.find(x=>String(x.id)===String(p.linkedSaleId));
+     if(!linked)issues.push(`Excess receipt ${p.receiptNumber||p.id}: linked invoice missing`);
+     else if(String(linked.excessPaymentId)!==String(p.id)||Math.abs(money2(linked.excessStorePayment)-money2(p.amount))>.009)issues.push(`Excess receipt ${p.receiptNumber||p.id}: invoice linkage/amount mismatch`);
+   }
    if(!storeIds.has(String(p.storeId)))issues.push(`Store payment ${p.receiptNumber||p.id}: store record is missing`);
    if((Number(p.amount)||0)<=0)issues.push(`Store payment ${p.receiptNumber||p.id}: invalid amount`);
    const rec=String(p.receiptNumber||"");if(rec){if(receiptSeen.has(rec))issues.push(`Duplicate store payment receipt: ${rec}`);receiptSeen.add(rec)}
