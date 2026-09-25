@@ -1592,6 +1592,23 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
 
 </style>
 <meta name="theme-color" content="#b91c1c">
+
+<style id="psm-green-action-theme">
+/* PSM action buttons: green. Navigation and pagination intentionally stay neutral. */
+.btn:not(.danger), .auth-submit, .auth-passkey, button.ok, button.primary {
+  background:#15803d !important; color:#fff !important; border-color:#15803d !important;
+  box-shadow:0 2px 7px rgba(21,128,61,.16);
+}
+.btn:not(.danger):hover, .auth-submit:hover, .auth-passkey:hover, button.ok:hover, button.primary:hover {background:#166534 !important;border-color:#166534 !important;}
+.btn:not(.danger):disabled, .auth-submit:disabled, .auth-passkey:disabled {background:#9ca3af !important;border-color:#9ca3af !important;color:#fff !important;box-shadow:none;}
+/* Navigation is not part of the green action-button theme. */
+.nav, .mobile-more-item {box-shadow:none !important;}
+/* List/payment-ledger pagination remains neutral for visual separation. */
+#farmerPrevBtn,#farmerNextBtn,#farmerCombinedPrevBtn,#farmerCombinedNextBtn,
+button[onclick*="changeFarmerPage("],button[onclick*="changeFarmerCombinedPage("],button[onclick*="openStorePaymentLedger("] {
+  background:#fff !important;color:#334155 !important;border-color:#cbd5e1 !important;box-shadow:none !important;
+}
+</style>
 </head>
 <body>
 <div id="authScreen" class="auth-screen">
@@ -1690,7 +1707,8 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
   <div class="card metric"><div class="lab">Store Outstanding</div><div class="val">₹<span id="mDue">0.00</span></div><div class="mini">All stores</div></div>
   <div class="card metric"><div class="lab">Unsold Cages</div><div class="val" id="mUnsold">0</div><div class="mini" id="mUnsoldSub">Calculated from actual cage + sale records</div></div>
   <div class="card metric"><div class="lab">Gross Profit</div><div class="val">₹<span id="mGrossProfit">0.00</span></div><div class="mini" id="mGrossProfitSub">Sales minus lifting cost</div></div>
-  <div class="card metric"><div class="lab">Total Funds (Cash + Account)</div><div class="val">₹<span id="mTotalFunds">0.00</span></div><div class="mini">Cash ₹<span id="mCashInHand">0.00</span> · Account ₹<span id="mAccountBalance">0.00</span></div></div>
+  <div class="card metric"><div class="lab">Cash in Hand</div><div class="val">₹<span id="mCashInHand">0.00</span></div><div class="mini">Direct cash received − cash paid</div></div>
+  <div class="card metric"><div class="lab">Account</div><div class="val">₹<span id="mAccountBalance">0.00</span></div><div class="mini">UPI / bank received − UPI / bank paid</div></div>
  </div>
  <div style="height:12px"></div>
  <div class="grid g2">
@@ -1700,7 +1718,7 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
  <div id="attention" class="alerts"></div>
   </div>
   <div class="card">
-   <div class="kicker">MPF A/C</div><div class="hero" style="margin-top:8px"><div class="sub">Remaining Due to MPF</div><div class="val">₹<span id="dashSingke">0.00</span></div><div class="sub">Previous Due + Singke Liftings − Unpaid Wangkhei − Settlements − Singke Farmer Payments</div></div>
+   <div class="kicker">MPF A/C</div><div class="hero" style="margin-top:8px"><div class="sub">Remaining Due to MPF</div><div class="val">₹<span id="dashSingke">0.00</span></div><div class="sub">Previous Due + Lifting Payable − Wangkhei − Settlements − Farmer Payments</div></div>
   </div>
  </div>
 
@@ -1860,14 +1878,15 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
  </div>
  <div class="grid g4">
   <div class="card metric"><div class="lab">Previous Due</div><div class="val">₹<span id="sPrev">0.00</span></div><div class="mini" id="sPrevDate">Not set</div></div>
-  <div class="card metric"><div class="lab">Singke Lifting Payable</div><div class="val">₹<span id="sLift">0.00</span></div><div class="mini">All liftings</div></div>
-  <div class="card metric"><div class="lab">Wangkhei Unpaid Adjustments</div><div class="val">₹<span id="sWang">0.00</span></div><div class="mini"><span id="sWangKg">0.00</span> kg total</div></div>
+  <div class="card metric"><div class="lab">Lifting Payable</div><div class="val">₹<span id="sLift">0.00</span></div><div class="mini">All liftings</div></div>
+  <div class="card metric"><div class="lab">Wangkhei Adjustments</div><div class="val">₹<span id="sWang">0.00</span></div><div class="mini"><span id="sWangKg">0.00</span> kg total</div></div>
   <div class="card metric"><div class="lab">Other Settlements</div><div class="val">₹<span id="sSet">0.00</span></div><div class="mini">Cash / bank payouts</div></div>
-  <div class="card metric"><div class="lab">Paid to Singke-Account Farmers</div><div class="val">₹<span id="sFarmerPaid">0.00</span></div><div class="mini">Excludes Satrajit and Domen Khomba direct payments</div></div>
-  <div class="card metric"><div class="lab">Total Funds (Cash + Account)</div><div class="val">₹<span id="sTotalFunds">0.00</span></div><div class="mini">Cash ₹<span id="sCashHand">0.00</span> · Account ₹<span id="sAccountBalance">0.00</span></div></div>
+  <div class="card metric"><div class="lab">Paid Directly to Farmers</div><div class="val">₹<span id="sFarmerPaid">0.00</span></div><div class="mini">Deducted from Due to Singke</div></div>
+  <div class="card metric"><div class="lab">Cash in Hand</div><div class="val">₹<span id="sCashHand">0.00</span></div><div class="mini">Direct cash received − cash paid</div></div>
+  <div class="card metric"><div class="lab">Account</div><div class="val">₹<span id="sAccountBalance">0.00</span></div><div class="mini">UPI / bank received − UPI / bank paid</div></div>
  </div>
  <div style="height:12px"></div>
- <div class="hero"><div class="sub">Remaining Due to Singke</div><div class="val">₹<span id="sRemain">0.00</span></div><div class="sub">Previous Due + Singke Liftings − Unpaid Wangkhei Adjustments − Other Settlements − Singke Farmer Payments. Satrajit and Domen Khomba are paid separately.</div></div>
+ <div class="hero"><div class="sub">Remaining Due to Singke</div><div class="val">₹<span id="sRemain">0.00</span></div><div class="sub">Previous Due + Lifting Payable − Wangkhei Adjustments − Other Settlements − Payments Made Directly to Farmers</div></div>
  <div style="height:12px"></div>
  <div class="card"><b>Money Accounts</b><div class="sub" style="margin-top:6px"><b>Cash in Hand</b> records only direct Cash receipts and Cash payments. <b>Account</b> records UPI / Bank receipts and UPI / Bank payments. Credit sales do not increase either balance until payment is actually received.</div></div>
  <div style="height:12px"></div>
@@ -1928,7 +1947,6 @@ body.dark-mode .accounting-report-table td{border-color:#365044!important}
    <div class="field"><label>To</label><input id="reportTo" type="date" onchange="renderDateRangeReport()"></div>
    <div class="field"><label>Accounting Report / Statement</label><select id="reportType" onchange="renderDateRangeReport()">
     <option value="summary">Accounting Summary</option>
-    <option value="funds">Total Funds Reconciliation Statement</option>
     <option value="farmer">Farmer Lifting Purchase Register</option>
     <option value="sales">Store Sales Register</option>
     <option value="payments">Store Payment Register</option>
@@ -2370,7 +2388,25 @@ async function openStoreDetails(storeId){
  openDetailsModal(s.name,`Store ${s.id}`,[
   ["Date",simpleDate(s.createdAt)],["Store ID",s.id],["Name",s.name],["Phone",s.phone],
   ["Opening Due",wang?"N/A":"Rs. "+fmt(f.opening)],["Sales","Rs. "+fmt(f.totalSales)],["Paid","Rs. "+fmt(f.totalPaid)],["Outstanding",wang?"N/A":"Rs. "+fmt(f.outstanding)],["Account",wang?"MPF A/C":"General"]
- ],`<button class="btn primary" onclick="closeModal();editStore('${s.id}')">Edit</button><button class="btn ok" onclick="closeModal();openPayment('${s.id}')">Payment</button>${!wang?`<button class="btn" onclick="closeModal();sendOutstandingReminder('${s.id}')">WhatsApp Reminder</button>`:""}${S.role==="admin"?`<button class="btn danger" onclick="closeModal();deleteStore('${s.id}')">Delete</button>`:""}`);
+ ],`<button class="btn primary" onclick="closeModal();editStore('${s.id}')">Edit</button><button class="btn ok" onclick="closeModal();openPayment('${s.id}')">Payment</button><button class="btn" onclick="closeModal();openStorePaymentLedger('${s.id}',1)">Payment Ledger</button>${!wang?`<button class="btn" onclick="closeModal();sendOutstandingReminder('${s.id}')">WhatsApp Reminder</button>`:""}${S.role==="admin"?`<button class="btn danger" onclick="closeModal();deleteStore('${s.id}')">Delete</button>`:""}`);
+}
+async function openStorePaymentLedger(storeId,page=1){
+ const st=await txGet("stores",storeId);if(!st)return toast("Store not found.");
+ const all=(await txAll("payments")).filter(x=>String(x.storeId)===String(storeId)).sort((a,b)=>String(b.paymentDate||b.createdAt||"").localeCompare(String(a.paymentDate||a.createdAt||""))||String(b.createdAt||b.id||"").localeCompare(String(a.createdAt||a.id||"")));
+ const perPage=10,totalPages=Math.max(1,Math.ceil(all.length/perPage));page=Math.min(Math.max(1,Number(page)||1),totalPages);
+ const start=(page-1)*perPage,items=all.slice(start,start+perPage);
+ const rows=items.map((x,i)=>`<tr onclick="openStorePaymentLedgerEntry('${String(x.id).replace(/'/g,"\\'")}')" style="cursor:pointer"><td>${start+i+1}</td><td>${esc(simpleDate(x.paymentDate||x.createdAt))}</td><td class="mono">${esc(x.receiptNumber||x.referenceNumber||x.id||"—")}</td><td>${esc(x.paymentMode||x.paymentMethod||"—")}</td><td style="text-align:right"><b>₹${fmt(Number(x.amount)||0)}</b></td><td>${esc(x.remarks||x.notes||"—")}</td></tr>`).join("");
+ const total=money2(all.reduce((a,x)=>a+(Number(x.amount)||0),0));
+ const pager=totalPages>1?`<div class="split" style="margin-top:12px;gap:8px;flex-wrap:wrap"><button class="btn" ${page<=1?"disabled":""} onclick="openStorePaymentLedger('${storeId}',${page-1})">← Previous</button><span class="badge blue">Page ${page} of ${totalPages} · ${all.length} payments</span><button class="btn" ${page>=totalPages?"disabled":""} onclick="openStorePaymentLedger('${storeId}',${page+1})">Next →</button></div>`:`<div class="sub" style="margin-top:10px">${all.length} payment${all.length===1?"":"s"}</div>`;
+ openModal(`<div class="detail-title">${esc(st.name)} — Payment Ledger</div><div class="detail-sub">Latest payments first · 10 entries per page</div><div class="detail-grid">${detailItem("Store ID",st.id)}${detailItem("Total Payments",all.length)}${detailItem("Total Paid","Rs. "+fmt(total))}${detailItem("Page",page+" / "+totalPages)}</div><div class="tablewrap" style="margin-top:14px"><table><thead><tr><th>#</th><th>Date</th><th>Receipt / Ref.</th><th>Mode</th><th>Amount</th><th>Remarks</th></tr></thead><tbody>${rows||`<tr><td colspan="6" class="empty">No payment records for this store</td></tr>`}</tbody></table></div>${pager}<div class="detail-actions"><button class="btn ok" onclick="closeModal();openPayment('${storeId}')">+ Payment</button><button class="btn" onclick="closeModal();openStoreDetails('${storeId}')">Back to Store</button></div>`);
+ const d=document.querySelector("#modal .dialog");if(d){d.classList.add("detail-floating");d.scrollTop=0}
+}
+async function openStorePaymentLedgerEntry(paymentId){
+ const x=await txGet("payments",paymentId);if(!x)return toast("Payment not found.");
+ const st=await txGet("stores",x.storeId);
+ openDetailsModal("Payment Details",x.receiptNumber||x.referenceNumber||x.id,[
+  ["Store",st?.name||x.storeName||"—"],["Date",simpleDate(x.paymentDate||x.createdAt)],["Amount","Rs. "+fmt(Number(x.amount)||0)],["Payment Mode",x.paymentMode||x.paymentMethod||"—"],["Reference",x.referenceNumber||x.receiptNumber||"—"],["Remarks",x.remarks||x.notes||"—"]
+ ],`<button class="btn primary" onclick="closeModal();editStorePayment('${x.id}')">Edit Payment</button><button class="btn" onclick="closeModal();openStorePaymentLedger('${x.storeId}',1)">Back to Ledger</button>${S.role==="admin"?`<button class="btn danger" onclick="deleteStorePayment('${x.id}')">Delete Duplicate</button>`:""}`);
 }
 async function openLiftingDetails(lid){
  const l=await txGet("liftings",lid);if(!l)return toast("Lifting not found.");
@@ -2407,7 +2443,7 @@ async function openSaleDetails(sid){
   ["Cages",details.map(x=>x.cageNumber||x.cageId).join(", ")],["No. of Cages",details.length],["Birds",s.birdsCount||0],["Weight",fmt(s.weight??s.netWeight)+" kg"],
   ["Rate","Rs. "+fmt(s.salesRate??s.ratePerKg)+" / kg"],["Invoice Amount","Rs. "+fmt(ps.invoice)],
   ["Payment Method",s.paymentMethod||"—"],["Paid at Sale","Rs. "+fmt(ps.paidAtSale)],["Payment Received Later","Rs. "+fmt(ps.later)],["Total Paid for This Invoice","Rs. "+fmt(ps.totalPaid)],["This Invoice Due","Rs. "+fmt(ps.due)],
-  ["Store Outstanding","Rs. "+fmt((await storeSummary(s.storeId)).outstanding)],["Payment",s.paymentMethod||"—"],["Remarks",s.remarks||"—"]
+  ["Store Outstanding",wang?"N/A":"Rs. "+fmt((await storeSummary(s.storeId)).outstanding)],["Payment",s.paymentMethod||"—"],["Remarks",s.remarks||"—"]
  ],`<button class="btn" onclick="closeModal();editSale('${s.id}')">Edit</button><button class="btn primary" onclick="closeModal();previewStoreInvoice('${s.id}')">Invoice</button><button class="btn" onclick="shareStoreInvoiceWhatsApp('${s.id}')">WhatsApp</button><button class="btn" onclick="sendStoreInvoiceSms('${s.id}')">SMS</button>${S.role==="admin"?`<button class="btn danger" onclick="closeModal();deleteSale('${s.id}')">Delete</button>`:""}`);
 }
 
@@ -3087,7 +3123,7 @@ async function saveLifting(editId="",confirmed=false){
  if(oldCages.some(c=>c.isSold))return toast("Cannot edit lifting with sold cages.");
 
  const now=iso();
- const record={...(old||{}),id:lid,invoiceNumber,farmerId:draft.farmerId,farmerName:farmer.name,liftingDate:draft.date,totalCages:cages.length,totalWeight:totalKg,totalBirds,liftingRate:Number(draft.rate),liftingAmount:exact,totalAmount:exact,roundOff:rr.roundOff,netAmount:rr.rounded,payableAmount:rr.rounded,remarks:draft.remarks,payableToSingke:!isDirectPayFarmerName(farmer.name),createdAt:old?.createdAt||now,updatedAt:now};
+ const record={...(old||{}),id:lid,invoiceNumber,farmerId:draft.farmerId,farmerName:farmer.name,liftingDate:draft.date,totalCages:cages.length,totalWeight:totalKg,totalBirds,liftingRate:Number(draft.rate),liftingAmount:exact,totalAmount:exact,roundOff:rr.roundOff,netAmount:rr.rounded,payableAmount:rr.rounded,remarks:draft.remarks,payableToSingke:true,createdAt:old?.createdAt||now,updatedAt:now};
  const newCages=cages.map(c0=>({id:id("C"),cageNumber:c0.cageNumber,weight:c0.weight,birdCount:c0.birdCount,isSold:false,saleId:null,liftingId:lid,farmerId:draft.farmerId,createdAt:now,updatedAt:now}));
 
  try{
@@ -3142,8 +3178,8 @@ async function openPayment(preselectStoreId=""){
   <div class="field"><label>Store</label><select id="pStore" onchange="updatePaymentStoreDue()">${stores.map(s=>`<option value="${s.id}" ${String(s.id)===String(preselectStoreId)?"selected":""}>${esc(s.name)}</option>`).join("")}</select></div>
   <div class="field"><label>Current Due ₹</label><input id="pCurrentDue" disabled value="Loading…"></div>
   <div class="field"><label>Date</label><input id="pDate" type="date" value="${today()}"></div>
-  ${splitTenderFields("p")}
-  <div class="field"><label>Total Received ₹</label><input id="pAmt" disabled value="0.00"></div>
+  <div class="field"><label>Amount Received ₹</label><input id="pAmt" type="number" step="0.01" min="0" oninput="updatePaymentRemainingPreview()"></div>
+  <div class="field"><label>Mode</label><select id="pMode"><option>Cash</option><option>UPI</option><option>Bank</option><option>Cheque</option></select></div>
   <div class="field"><label>Sales Due After Payment ₹</label><input id="pRemainingDue" disabled value="0.00"></div>
   <div class="field"><label>Reference</label><input id="pRef"></div>
   <div class="field"><label>Remarks</label><input id="pRem"></div>
@@ -3348,15 +3384,14 @@ async function salePaymentStatus(sale){
 }
 
 async function savePayment(){
- const tender=splitTender("p");if(!tender)return toast("Enter valid non-negative cash and account amounts (maximum two decimals).");
- const date=document.getElementById("pDate").value,storeId=document.getElementById("pStore").value,amount=tender.amount;
+ const date=document.getElementById("pDate").value,storeId=document.getElementById("pStore").value,amount=money2(document.getElementById("pAmt").value);
  if(!date||!storeId||amount<=0)return toast("Valid store, date and amount required.");
  const s=await txGet("stores",storeId);if(!s)return toast("Store not found.");
  const before=await storeSummary(storeId);
  const previousDue=money2(before.outstanding),remainingDue=money2(previousDue-amount);
  const allocation=await allocateStorePaymentToSales(storeId,date,amount);
  const r={id:id("PAY"),receiptNumber:await nextSequentialNumber("payment",date),storeId,paymentDate:date,amount,
-   cashAmount:tender.cashAmount,accountAmount:tender.accountAmount,paymentMode:splitMode(tender),referenceNumber:document.getElementById("pRef").value.trim(),
+   paymentMode:document.getElementById("pMode").value,referenceNumber:document.getElementById("pRef").value.trim(),
    remarks:document.getElementById("pRem").value.trim(),storeName:s.name||"",storePhone:s.phone||"",
    previousDue,remainingDue,saleAllocations:allocation.allocations,unallocatedAmount:allocation.unallocated,createdAt:iso(),updatedAt:iso()};
  const payDup=(await txAll("payments")).find(x=>x.storeId===r.storeId&&x.paymentDate===r.paymentDate&&Math.abs(Number(x.amount)-r.amount)<0.01&&String(x.paymentMode||"")===String(r.paymentMode||"")&&String(x.referenceNumber||"")===String(r.referenceNumber||""));
@@ -3374,8 +3409,8 @@ async function editStorePayment(paymentId){
   <div class="field"><label>Receipt</label><input value="${esc(p.receiptNumber||p.id)}" disabled></div>
   <div class="field"><label>Store</label><select id="epStore">${stores.map(s=>`<option value="${s.id}" ${String(s.id)===String(p.storeId)?"selected":""}>${esc(s.name)}</option>`).join("")}</select></div>
   <div class="field"><label>Date</label><input id="epDate" type="date" value="${esc(p.paymentDate||today())}"></div>
-  <div class="field"><label>Amount Received ₹</label><input id="epAmt" disabled value="${Number(p.amount)||0}"></div>
-  ${splitTenderFields("ep",tenderParts(p).cash,tenderParts(p).account)}
+  <div class="field"><label>Amount Received ₹</label><input id="epAmt" type="number" step="0.01" min="0.01" value="${Number(p.amount)||0}"></div>
+  <div class="field"><label>Mode</label><select id="epMode">${["Cash","UPI","Bank","Cheque"].map(x=>`<option ${String(p.paymentMode||"")===x?"selected":""}>${x}</option>`).join("")}</select></div>
   <div class="field"><label>Reference</label><input id="epRef" value="${esc(p.referenceNumber||"")}"></div>
   <div class="field" style="grid-column:1/-1"><label>Remarks</label><input id="epRem" value="${esc(p.remarks||"")}"></div>
  </div>
@@ -3387,8 +3422,7 @@ async function editStorePayment(paymentId){
 }
 async function saveEditedStorePayment(paymentId){
  const old=await txGet("payments",paymentId);if(!old)return toast("Payment not found.");
- const tender=splitTender("ep");if(!tender)return toast("Enter valid cash and account amounts.");
- const storeId=document.getElementById("epStore")?.value,date=document.getElementById("epDate")?.value,amount=tender.amount;
+ const storeId=document.getElementById("epStore")?.value,date=document.getElementById("epDate")?.value,amount=Number(document.getElementById("epAmt")?.value)||0;
  if(!storeId||!date||amount<=0)return toast("Valid store, date and amount required.");
  const st=await txGet("stores",storeId);if(!st)return toast("Store not found.");
  // Calculate due without this payment so the edited record is not counted twice.
@@ -3398,7 +3432,7 @@ async function saveEditedStorePayment(paymentId){
  const salePaid=money2(sales.reduce((a,x)=>a+(Number(x.paidAmount)||0),0)),otherDirect=money2(otherPays.reduce((a,x)=>a+(Number(x.amount)||0),0));
  const previousDue=money2(opening+totalSales-salePaid-otherDirect),remainingDue=money2(previousDue-amount);
  const updated={...old,storeId,storeName:st.name||"",storePhone:st.phone||"",paymentDate:date,amount:money2(amount),
-   cashAmount:tender.cashAmount,accountAmount:tender.accountAmount,paymentMode:splitMode(tender),referenceNumber:document.getElementById("epRef")?.value.trim()||"",
+   paymentMode:document.getElementById("epMode")?.value||old.paymentMode,referenceNumber:document.getElementById("epRef")?.value.trim()||"",
    remarks:document.getElementById("epRem")?.value.trim()||"",previousDue,remainingDue,
    saleAllocations:[],unallocatedAmount:0,updatedAt:iso()};
  await txPut("payments",updated);queueCloud("payments","UPSERT",updated);
@@ -3444,7 +3478,8 @@ async function openSale(){
    <div class="field"><label>Total Birds</label><input id="saBirds" disabled value="0"></div>
    <div class="field sale-total-amount-field"><label>Sales Total Amount (Net) ₹</label><input id="saTotalAmount" disabled value="₹0.00"></div>
    <div class="field"><label>Payment Status</label><select id="saMode" onchange="handleSalePaymentModeChange()"><option value="Credit">Credit</option><option value="Paid">Paid at Invoice</option></select></div>
-   <div id="saPaidField" style="display:none;grid-column:1/-1"><div class="grid g2">${splitTenderFields("sa")}</div><div class="field"><label>Total Received at Invoice ₹</label><input id="saPaid" disabled value="0.00"></div><div class="sub">Excess clears older dues, then becomes store advance.</div></div>
+   <div class="field" id="saPaidField" style="display:none"><label>Paid Amount at Invoice ₹</label><input id="saPaid" type="number" step="0.01" min="0.01" value="" placeholder="Enter amount received"><div class="sub">Enter full received amount. Any excess clears older store dues; the remainder becomes store advance.</div></div>
+   <div class="field"><label>Payment Mode</label><select id="saPaidMode" disabled><option>Cash</option><option>UPI</option><option>Bank</option><option>Cheque</option></select><div class="sub" id="saPaidModeHint">Not required for Credit.</div></div>
    <div class="field"><label>Remarks</label><input id="saRem"></div>
   </div>
   <div style="height:12px"></div><button class="btn primary" onclick="saveSale()">Save Sale</button>`);
@@ -3588,6 +3623,7 @@ function fillSaleWeight(){updateMultiCageSaleSummary()}
 async function updateSaleStoreOutstanding(){
   const storeId=document.getElementById("saStore")?.value,el=document.getElementById("saOutstanding");if(!storeId||!el)return;
   const st=await txGet("stores",storeId);
+  if(st?.isWangkhei||String(st?.name||"").toLowerCase().includes("wangkhei")){el.value="N/A - MPF A/C settlement";return}
   const f=await storeSummary(storeId);el.value=`₹${fmt(f.outstanding)}`;
 }
 async function storeSummary(storeId){
@@ -3601,10 +3637,8 @@ async function storeSummary(storeId){
 async function saveSale(){
  const storeId=document.getElementById("saStore").value,date=document.getElementById("saDate").value,rate=Number(document.getElementById("saRate").value),salePaymentStatus=document.getElementById("saMode").value||"Credit";
  const isCredit=String(salePaymentStatus).toLowerCase()==="credit";
- const tender=isCredit?{cashAmount:0,accountAmount:0,amount:0}:splitTender("sa");if(!tender)return toast("Enter valid cash and account amounts.");
- const paymentMethod=isCredit?"Credit":splitMode(tender);
- const paymentMode=paymentMethod;
- const paid=tender.amount;
+ const paymentMethod=isCredit?"Credit":(document.getElementById("saPaidMode")?.value||"Cash");
+ const paid=isCredit?0:(Number(document.getElementById("saPaid").value)||0);
  let cageIds=selectedSaleCageIds();
  if(!date||!storeId||rate<=0)return toast("Date, store and sales rate are required.");
  if(!cageIds.length)return toast("Select at least one cage.");
@@ -3639,16 +3673,14 @@ async function saveSale(){
    birdsCount:birds,totalBirds:birds,originalCageWeight:cageWeight,netWeight:weight,weight,totalWeight:weight,salesRate:rate,ratePerKg:rate,
    saleAmount:exactAmount,totalAmount:exactAmount,roundOff:rr.roundOff,netAmount,invoiceNetAmount:netAmount,paidAmount:invoicePaid,
    paymentReceivedAtInvoice:paid,excessStorePayment:excess,
-   cashReceivedAtInvoice:tender.cashAmount,accountReceivedAtInvoice:tender.accountAmount,
-   cashAmount:money2(Math.min(tender.cashAmount,invoicePaid)),accountAmount:money2(invoicePaid-Math.min(tender.cashAmount,invoicePaid)),
    previousDue:money2(fin.outstanding),outstanding:money2(fin.outstanding+netAmount-paid),
    paymentMethod,salePaymentStatus:isCredit?"Credit":"Paid",remarks:document.getElementById("saRem").value.trim(),isWangkheiSale:!!store.isWangkhei,
    createdAt:iso(),updatedAt:iso()};
  const excessPayment=excess>0?{
    id:id("PAY"),receiptNumber:await nextSequentialNumber("payment",date),storeId,paymentDate:date,amount:excess,
-   cashAmount:money2(Math.max(0,tender.cashAmount-Math.min(tender.cashAmount,invoicePaid))),accountAmount:money2(excess-Math.max(0,tender.cashAmount-Math.min(tender.cashAmount,invoicePaid))),paymentMode,referenceNumber:inv,remarks:`Excess received on invoice ${inv}; adjust existing store outstanding, then advance`,
+   paymentMode,referenceNumber:inv,remarks:`Excess received on invoice ${inv}; adjust existing store outstanding, then advance`,
    storeName:store.name||"",storePhone:store.phone||"",linkedSaleId:sid,
-   previousDue:money2(fin.outstanding),remainingDue:money2(Math.max(0,fin.outstanding-excess)),advanceCreated:money2(Math.max(0,excess-Math.max(0,fin.outstanding))),
+   previousDue:money2(fin.outstanding),remainingDue:money2(fin.outstanding-excess),
    createdAt:iso(),updatedAt:iso()
  }:null;
  if(excessPayment&&(await txAll("payments")).some(x=>x.receiptNumber===excessPayment.receiptNumber))return toast("Payment receipt number conflict. Retry.");
@@ -3686,12 +3718,10 @@ async function buildSingkeLedgerPdf(){
   const s=await singkeAccountingData();
   const farmerMap=new Map((await txAll("farmers")).map(f=>[String(f.id),f.name]));
   let ev=[
-    ...s.liftUsed.map(x=>({date:x.liftingDate||"",type:x.farmerName||farmerMap.get(String(x.farmerId))||"Farmer Lifting",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,debit:singkeRoundedLiftingPayable(x),credit:0,remarks:x.remarks||""})),
-    ...s.wangSales.map(x=>({date:x.saleDate||"",type:"Wangkhei Sale Adjustment",ref:x.invoiceNumber||x.id,kg:Number(x.netWeight??x.weight??x.totalWeight)||0,debit:0,credit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,remarks:x.remarks||""})),
-    ...s.wangSales.filter(x=>Number(x.paidAmount)>0).map(x=>({date:x.saleDate||"",type:"Wangkhei Invoice Payment (Cash + A/C)",ref:x.invoiceNumber||x.id,kg:0,debit:Number(x.paidAmount)||0,credit:0,remarks:"Invoice payment received; reverses paid MPF adjustment"})),
-    ...s.wangPayments.map(x=>({date:x.paymentDate||"",type:"Wangkhei Payment Received (Cash + A/C)",ref:x.receiptNumber||x.id,kg:0,debit:Number(x.amount)||0,credit:0,remarks:x.remarks||""})),
+    ...s.liftUsed.map(x=>({date:x.liftingDate||"",type:x.farmerName||farmerMap.get(String(x.farmerId))||"Farmer Lifting",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,debit:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,credit:0,remarks:x.remarks||""})),
+    ...s.wangSales.map(x=>({date:x.saleDate||"",type:"Wangkhei Adjustment",ref:x.invoiceNumber||x.id,kg:Number(x.netWeight??x.weight??x.totalWeight)||0,debit:0,credit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,remarks:x.remarks||""})),
     ...s.setsUsed.map(x=>({date:x.date||x.paymentDate||"",type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,debit:0,credit:Number(x.amount)||0,remarks:x.remarks||""})),
-    ...s.farmerUsed.map(x=>({date:x.paymentDate||"",type:x.farmerName||farmerMap.get(String(x.farmerId))||"Farmer Payment",ref:x.id||x._settingKey||"Payment",kg:0,debit:0,credit:Number(x.amount)||0,remarks:x.remarks||""}))
+    ...s.farmerUsed.map(x=>({date:x.paymentDate||"",type:"Farmer Payment",ref:x.id||x._settingKey||"Payment",kg:0,debit:0,credit:Number(x.amount)||0,remarks:x.remarks||""}))
   ].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
   const from=document.getElementById("singkeFrom")?.value||"",to=document.getElementById("singkeTo")?.value||"";
   let bal=Number(s.p?.amount)||0;
@@ -3712,11 +3742,10 @@ async function downloadSingkeLedgerPdf(){
   }catch(e){toast(e.message)}
 }
 
-async function openSettlement(){openModal(`<h3>Record Payout to Singke</h3><div class="grid g2"><div class="field"><label>Date</label><input id="ssDate" type="date" value="${today()}"></div>${splitTenderFields("ss")}<div class="field"><label>Total Payout ₹</label><input id="ssAmt" disabled value="0.00"></div><div class="field"><label>Reference</label><input id="ssRef"></div></div><div class="field" style="margin-top:8px"><label>Remarks</label><input id="ssRem"></div><div style="height:12px"></div><button class="btn primary" onclick="saveSettlement()">Save Settlement</button>`)}
+async function openSettlement(){openModal(`<h3>Record Payout to Singke</h3><div class="grid g2"><div class="field"><label>Date</label><input id="ssDate" type="date" value="${today()}"></div><div class="field"><label>Amount ₹</label><input id="ssAmt" type="number" step="0.01"></div><div class="field"><label>Method</label><select id="ssMode"><option>Cash</option><option>UPI</option><option>Bank</option><option>Cheque</option></select></div><div class="field"><label>Reference</label><input id="ssRef"></div></div><div class="field" style="margin-top:8px"><label>Remarks</label><input id="ssRem"></div><div style="height:12px"></div><button class="btn primary" onclick="saveSettlement()">Save Settlement</button>`)}
 async function saveSettlement(){
  let date=document.getElementById("ssDate").value;
- const tender=splitTender("ss");if(!tender)return toast("Enter valid cash and account amounts.");
- let r={id:id("SSET"),receiptNumber:await nextSequentialNumber("settlement",date),date,amount:tender.amount,cashAmount:tender.cashAmount,accountAmount:tender.accountAmount,paymentMethod:splitMode(tender),referenceNumber:document.getElementById("ssRef").value.trim(),remarks:document.getElementById("ssRem").value.trim(),createdAt:iso(),updatedAt:iso()};
+ let r={id:id("SSET"),receiptNumber:await nextSequentialNumber("settlement",date),date,amount:Number(document.getElementById("ssAmt").value)||0,paymentMethod:document.getElementById("ssMode").value,referenceNumber:document.getElementById("ssRef").value.trim(),remarks:document.getElementById("ssRem").value.trim(),createdAt:iso(),updatedAt:iso()};
  if(!r.date||r.amount<=0)return toast("Valid date and amount required.");
  if((await txAll("singke_settlements")).some(x=>x.receiptNumber===r.receiptNumber))return toast("Receipt number conflict. Please retry.");
  await txPut("singke_settlements",r);queueCloud("singke_settlements","UPSERT",r);audit("singke","SETTLEMENT",r.id,r.receiptNumber);closeModal();refreshAll()
@@ -3787,99 +3816,84 @@ function accountingCellText(v){
  return pdfSafeText(v);
 }
 function buildAccountingTablePdf({title,subtitle="",headers=[],rows=[],summary=[]}){
- const W=headers.length>8?1191:842,H=headers.length>8?842:595,left=28,right=28,top=H-47,bottom=34;
- const pageWidth=W-left-right,rowH=39,headerH=22;
+ // Professional A4 portrait statement/ledger generator with embedded PSM logo.
+ const W=595,H=842,left=28,right=28,top=706,bottom=40;
+ const pageWidth=W-left-right,rowH=20,headerH=25;
  const cols=Math.max(1,headers.length);
  const weightFor=(h)=>{
    const x=String(h||"").toLowerCase();
-   if(/description|farmer|store|name|reference|invoice/.test(x))return 1.7;
-   if(/date|type|mode|cage/.test(x))return 1.15;
+   if(/description|farmer|store|name|reference|invoice|remarks/.test(x))return 1.55;
+   if(/date|type|mode|cage/.test(x))return 1.10;
+   if(/amount|debit|credit|balance|rate|kg|birds|payment|sales|payable|profit/.test(x))return .92;
    return 1;
  };
  const weights=headers.map(weightFor),ws=weights.reduce((a,b)=>a+b,0);
  const widths=weights.map(w=>pageWidth*w/ws);
- const rowPages=[];
- const available=top-88-bottom;
- const rowsPerPage=Math.max(8,Math.floor((available-headerH)/rowH));
- for(let i=0;i<rows.length;i+=rowsPerPage)rowPages.push(rows.slice(i,i+rowsPerPage));
- if(!rowPages.length)rowPages.push([]);
-
+ const available=top-72-bottom;
+ const rowsPerPage=Math.max(12,Math.floor((available-headerH)/rowH));
+ const rowPages=[];for(let i=0;i<rows.length;i+=rowsPerPage)rowPages.push(rows.slice(i,i+rowsPerPage));if(!rowPages.length)rowPages.push([]);
  const objs=[null],add=o=>{objs.push(o);return objs.length-1};
  const f1=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
  const f2=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+ const logoBytes=Uint8Array.from(atob(PSM_LOGO_JPEG_BASE64),c=>c.charCodeAt(0)&255);
+ const logoHex=Array.from(logoBytes,b=>b.toString(16).padStart(2,"0")).join("").toUpperCase()+">";
+ const imgObj=add(`<< /Type /XObject /Subtype /Image /Width ${PSM_LOGO_JPEG_WIDTH} /Height ${PSM_LOGO_JPEG_HEIGHT} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter [/ASCIIHexDecode /DCTDecode] /Length ${logoHex.length} >>\nstream\n${logoHex}\nendstream`);
  const pageIds=[],contentIds=[];
  const esc=s=>pdfSafeText(s).replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)");
- const txt=(cmd,x,y,s,size=7.2,b=false)=>cmd.push(`BT /${b?"F2":"F1"} ${size} Tf 0.08 0.10 0.09 rg 1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm (${esc(s)}) Tj ET`);
- const line=(cmd,x1,y1,x2,y2,w=.45)=>cmd.push(`0.58 0.64 0.61 RG ${w} w ${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`);
+ const txt=(cmd,x,y,s,size=6.6,b=false,color="0.08 0.10 0.09")=>cmd.push(`BT /${b?"F2":"F1"} ${size} Tf ${color} rg 1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm (${esc(s)}) Tj ET`);
+ const line=(cmd,x1,y1,x2,y2,w=.4)=>cmd.push(`0.70 0.75 0.72 RG ${w} w ${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`);
  const fill=(cmd,x,y,w,h,r,g,b)=>cmd.push(`${r} ${g} ${b} rg ${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re f`);
- const truncate=(s,w)=>{
-   const t=accountingCellText(s),max=Math.max(4,Math.floor(w/4.35));
-   return t.length>max?t.slice(0,Math.max(1,max-3))+"...":t;
- };
- const wrapCell=(s,w)=>{
-   const text=accountingCellText(s),max=Math.max(4,Math.floor(w/4.35));
-   if(text.length<=max)return [text];
-   const first=text.slice(0,max),remaining=text.slice(max);
-   const second=remaining.slice(0,max),third=remaining.slice(max);
-   return third?[first,second,third.length>max?third.slice(0,Math.max(1,max-3))+"...":third]:[first,second];
- };
-
+ const truncate=(v,w)=>{const t=accountingCellText(v),max=Math.max(3,Math.floor(w/3.7));return t.length>max?t.slice(0,Math.max(1,max-1))+"…":t};
  rowPages.forEach((pageRows,pi)=>{
-   const c=[];
-   fill(c,0,0,W,H,1,1,1);
-   fill(c,left,H-56,pageWidth,34,.93,.97,.95);
-   txt(c,left+8,H-39,"PSM BROILER DISTRIBUTOR",14,true);
-   txt(c,left+250,H-39,title,12,true);
-   txt(c,left+8,H-68,subtitle||`Generated: ${new Date().toLocaleString("en-IN")}`,7.2,false);
+   const c=[];fill(c,0,0,W,H,1,1,1);
+   // Header band + actual company logo.
+   fill(c,left,H-102,pageWidth,74,.965,.985,.972);
+   c.push(`q 76 0 0 51 ${left+8} ${H-91} cm /Im1 Do Q`);
+   txt(c,left+94,H-55,"PSM BROILER DISTRIBUTOR",15,true,"0.06 0.28 0.14");
+   txt(c,left+94,H-73,title,10.5,true);
+   txt(c,left+94,H-88,subtitle||`Generated: ${new Date().toLocaleString("en-IN")}`,6.6,false,"0.28 0.34 0.31");
    if(summary.length){
-     const summaries=summary.map(([k,v])=>`${k}: ${accountingCellText(v)}`);
-     const summaryLines=[];let lineText="";
-     for(const part of summaries){if((lineText+"  |  "+part).length>125&&lineText){summaryLines.push(lineText);lineText=part}else lineText+=(lineText?"  |  ":"")+part;}
-     if(lineText)summaryLines.push(lineText);
-     summaryLines.slice(0,3).forEach((lineText,i)=>txt(c,left+8,H-78-i*9,truncate(lineText,pageWidth-16),6.5,true));
-   }
-
-   let y=top-52;
-   fill(c,left,y-headerH,pageWidth,headerH,.88,.94,.90);
-   let x=left;
-   line(c,left,y,left+pageWidth,y,.7);
-   line(c,left,y-headerH,left+pageWidth,y-headerH,.7);
-   for(let i=0;i<cols;i++){
-     line(c,x,y,x,y-headerH,.55);
-     txt(c,x+4,y-14,truncate(headers[i],widths[i]-8),7.1,true);
-     x+=widths[i];
-   }
-   line(c,left+pageWidth,y,left+pageWidth,y-headerH,.55);
-   y-=headerH;
-
-   pageRows.forEach((row,ri)=>{
-     if(ri%2===1)fill(c,left,y-rowH,pageWidth,rowH,.975,.985,.98);
-     x=left;
-     line(c,left,y-rowH,left+pageWidth,y-rowH,.4);
-     for(let i=0;i<cols;i++){
-       line(c,x,y,x,y-rowH,.4);
-       wrapCell(row[i],widths[i]-8).forEach((part,j)=>txt(c,x+4,y-12-j*11,part,6.6,false));
-       x+=widths[i];
+     const isFarmerLedger=String(title||"").toUpperCase().includes("FARMER LIFTING & PAYMENT LEDGER");
+     if(isFarmerLedger){
+       const wanted=["Total Kg","Lifting Amount","Payment Received","Outstanding"];
+       const items=wanted.map(k=>summary.find(x=>String(x?.[0]||"")===k)).filter(Boolean);
+       const gap=7, boxW=(pageWidth-gap*3)/4, boxY=H-143, boxH=34;
+       items.forEach((it,i)=>{
+         const bx=left+i*(boxW+gap);
+         fill(c,bx,boxY,boxW,boxH,.965,.985,.972);
+         c.push(`0.46 0.70 0.54 RG 0.75 w ${bx.toFixed(2)} ${boxY.toFixed(2)} ${boxW.toFixed(2)} ${boxH.toFixed(2)} re S`);
+         txt(c,bx+6,boxY+22,String(it[0]),6.7,true,"0.18 0.34 0.24");
+         let value=accountingCellText(it[1]);
+         if(String(it[0])==="Total Kg") value=value+" kg";
+         else if(!/^Rs\.|^₹/.test(value)) value="Rs. "+value;
+         txt(c,bx+6,boxY+7,truncate(value,boxW-12),10.2,true,"0.04 0.22 0.11");
+       });
+     }else{
+       const sm=summary.map(([k,v])=>`${k}: ${accountingCellText(v)}`).join("   |   ");
+       txt(c,left+8,H-116,truncate(sm,pageWidth-16),6.5,true,"0.12 0.35 0.20");
      }
-     line(c,left+pageWidth,y,left+pageWidth,y-rowH,.4);
-     y-=rowH;
+   }
+   let y=String(title||"").toUpperCase().includes("FARMER LIFTING & PAYMENT LEDGER")?top-74:top-44;
+   fill(c,left,y-headerH,pageWidth,headerH,.89,.95,.91);
+   let x=left;line(c,left,y,left+pageWidth,y,.65);line(c,left,y-headerH,left+pageWidth,y-headerH,.65);
+   for(let i=0;i<cols;i++){line(c,x,y,x,y-headerH,.45);txt(c,x+3,y-16,truncate(headers[i],widths[i]-6),6.35,true);x+=widths[i]}
+   line(c,left+pageWidth,y,left+pageWidth,y-headerH,.45);y-=headerH;
+   pageRows.forEach((row,ri)=>{
+     if(ri%2===1)fill(c,left,y-rowH,pageWidth,rowH,.982,.989,.984);
+     x=left;line(c,left,y-rowH,left+pageWidth,y-rowH,.32);
+     for(let i=0;i<cols;i++){line(c,x,y,x,y-rowH,.32);txt(c,x+3,y-13,truncate(row[i],widths[i]-6),6.15,false);x+=widths[i]}
+     line(c,left+pageWidth,y,left+pageWidth,y-rowH,.32);y-=rowH;
    });
-
-   txt(c,left,bottom-6,`Page ${pi+1} of ${rowPages.length}`,7,false);
-   txt(c,W-right-170,bottom-6,"Computer-generated accounting statement",7,false);
-
-   const stream=c.join("\n");
-   const cid=add(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
-   contentIds.push(cid);pageIds.push(add(""));
+   line(c,left,bottom+12,left+pageWidth,bottom+12,.45);
+   txt(c,left,bottom-2,`Page ${pi+1} of ${rowPages.length}`,6.5,false,"0.35 0.40 0.38");
+   txt(c,W-right-205,bottom-2,"Computer-generated PSM accounting statement",6.5,false,"0.35 0.40 0.38");
+   const stream=c.join("\n"),cid=add(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);contentIds.push(cid);pageIds.push(add(""));
  });
- const pagesId=add("");
- const catalog=add(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`);
- pageIds.forEach((pid,i)=>objs[pid]=`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 ${f1} 0 R /F2 ${f2} 0 R >> >> /Contents ${contentIds[i]} 0 R >>`);
+ const pagesId=add(""),catalog=add(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`);
+ pageIds.forEach((pid,i)=>objs[pid]=`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 ${f1} 0 R /F2 ${f2} 0 R >> /XObject << /Im1 ${imgObj} 0 R >> >> /Contents ${contentIds[i]} 0 R >>`);
  objs[pagesId]=`<< /Type /Pages /Kids [${pageIds.map(x=>x+" 0 R").join(" ")}] /Count ${pageIds.length} >>`;
- let out="%PDF-1.4\n",offs=[0];
- for(let i=1;i<objs.length;i++){offs[i]=out.length;out+=`${i} 0 obj\n${objs[i]}\nendobj\n`}
- const xref=out.length;out+=`xref\n0 ${objs.length}\n0000000000 65535 f \n`;
- for(let i=1;i<objs.length;i++)out+=String(offs[i]).padStart(10,"0")+" 00000 n \n";
+ let out="%PDF-1.4\n",offs=[0];for(let i=1;i<objs.length;i++){offs[i]=out.length;out+=`${i} 0 obj\n${objs[i]}\nendobj\n`}
+ const xref=out.length;out+=`xref\n0 ${objs.length}\n0000000000 65535 f \n`;for(let i=1;i<objs.length;i++)out+=String(offs[i]).padStart(10,"0")+" 00000 n \n";
  out+=`trailer\n<< /Size ${objs.length} /Root ${catalog} 0 R >>\nstartxref\n${xref}\n%%EOF`;
  return new Blob([Uint8Array.from(out,ch=>ch.charCodeAt(0)&255)],{type:"application/pdf"});
 }
@@ -4164,14 +4178,11 @@ function buildTemplateStoreInvoicePdf(data){
  if(cageDetails.length>12)txt(48,y+2,`+ ${cageDetails.length-12} more cage(s) included in invoice totals`,7,true,accent);
 
  const rr=invoiceRound(s.saleAmount??s.totalAmount),net=Number(s.netAmount??s.invoiceNetAmount??rr.rounded);
- const excessInfo=invoiceExcessBreakdown(s);
  const rows=wang
    ? [["Invoice Amount",`Rs. ${fmt(rr.exact)}`],["Round Off",`${rr.roundOff>=0?"+":""}Rs. ${fmt(rr.roundOff)}`],["Net Invoice",`Rs. ${fmt(net)}`],["Paid Amount",`Rs. ${fmt(s.paidAmount)}`],["Settlement","MPF A/C"]]
    : [["Previous Due",`Rs. ${fmt(s.previousDue)}`],["Invoice Amount",`Rs. ${fmt(rr.exact)}`],["Round Off",`${rr.roundOff>=0?"+":""}Rs. ${fmt(rr.roundOff)}`],["Net Invoice",`Rs. ${fmt(net)}`],["Paid Amount",`Rs. ${fmt(s.paidAmount)}`],["Outstanding",`Rs. ${fmt(s.outstanding)}`]];
- rows.push(["Cash Received",`Rs. ${fmt(excessInfo.cash)}`],["Account Received",`Rs. ${fmt(excessInfo.account)}`],["Total Received",`Rs. ${fmt(excessInfo.received)}`],["Excess Received",`Rs. ${fmt(excessInfo.excess)}`]);
- if(!wang)rows.push(["Previous Due Adjusted",`Rs. ${fmt(excessInfo.previousAdjusted)}`],["New Store Advance",`Rs. ${fmt(excessInfo.advance)}`]);
- const totalY=173,totalH=rows.length*14+10;rect(310,totalY,249,totalH,light,[254,202,202]);
- rows.forEach((r,i)=>{const yy=totalY+totalH-13-(i*14);txt(323,yy,r[0],7,i===rows.length-1);txt(457,yy,r[1],7,true,i===rows.length-1?accent:[17,24,39])});
+ const totalY=190,totalH=rows.length*18+18;rect(310,totalY,249,totalH,light,[254,202,202]);
+ rows.forEach((r,i)=>{const yy=totalY+totalH-18-(i*18);txt(323,yy,r[0],8,i===rows.length-1);txt(457,yy,r[1],8,true,i===rows.length-1?accent:[17,24,39])});
 
  rect(36,125,523,38,light,[254,202,202]);txt(48,147,"Thank you for your business!",9,true,accent);txt(48,133,"Reliable broiler supply from PSM Broiler Distributor.",8);
  txt(48,94,"PSM Broiler Distributor",10,true);txt(48,78,"Kongba Kshetri Leikai, Imphal East, Manipur - 795008",7.5);txt(390,78,"Phone: 7005215398",7.5,true);
@@ -4328,7 +4339,7 @@ async function exportStoreLedgerExcel(){
  const st=await txGet("stores",storeId),wang=!!(st?.isWangkhei||String(st?.name||"").toLowerCase().includes("wangkhei"));
  const farmerMap=new Map((await txAll("farmers")).map(f=>[String(f.id),f.name])),ev=[];
  for(const x of (await txAll("sales")).filter(x=>x.storeId===storeId))ev.push({date:x.saleDate,type:"Sale",farmer:await saleFarmerDisplayName(x,farmerMap),kg:Number(x.weight??x.netWeight)||0,rate:Number(x.salesRate??x.ratePerKg)||0,d:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,c:Number(x.paidAmount)||0,sortRef:x.invoiceNumber||x.id});
- for(const x of (await txAll("payments")).filter(x=>x.storeId===storeId))ev.push({date:x.paymentDate,type:"Receipt · "+(x.storeName||st.name),farmer:"—",kg:"—",rate:"—",d:0,c:Number(x.amount)||0,sortRef:x.receiptNumber||x.referenceNumber||x.id});
+ for(const x of (await txAll("payments")).filter(x=>x.storeId===storeId))ev.push({date:x.paymentDate,type:"Payment",farmer:"—",kg:"—",rate:"—",d:0,c:Number(x.amount)||0,sortRef:x.receiptNumber||x.referenceNumber||x.id});
  ev.sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.sortRef).localeCompare(String(b.sortRef)));
  let bal=wang?0:(Number(st.openingDue)||0),rows=[];
  if(!wang)rows.push(["","Opening Due","—","—","—",Number(st.openingDue)||0,0,bal]);
@@ -4355,7 +4366,7 @@ async function buildLedgerPdf(){
   const farmerMap=new Map((await txAll("farmers")).map(f=>[String(f.id),f.name]));
   const ev=[];
   for(const x of (await txAll("sales")).filter(x=>x.storeId===storeId))ev.push({date:x.saleDate,type:"Sale",farmer:await saleFarmerDisplayName(x,farmerMap),kg:Number(x.weight??x.netWeight)||0,rate:Number(x.salesRate??x.ratePerKg)||0,debit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,credit:Number(x.paidAmount)||0,sortRef:x.invoiceNumber||x.id});
-  for(const x of (await txAll("payments")).filter(x=>x.storeId===storeId))ev.push({date:x.paymentDate,type:"Receipt · "+(x.storeName||st.name),farmer:"—",kg:"—",rate:"—",debit:0,credit:Number(x.amount)||0,sortRef:x.receiptNumber||x.referenceNumber||x.id});
+  for(const x of (await txAll("payments")).filter(x=>x.storeId===storeId))ev.push({date:x.paymentDate,type:"Payment",farmer:"—",kg:"—",rate:"—",debit:0,credit:Number(x.amount)||0,sortRef:x.receiptNumber||x.referenceNumber||x.id});
   ev.sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.sortRef).localeCompare(String(b.sortRef)));
   let bal=wang?0:(Number(st.openingDue)||0),rows=[];
   if(!wang)rows.push(["","Opening Due","—","—","—",Number(st.openingDue)||0,0,bal]);
@@ -4647,12 +4658,12 @@ Cages: ${Array.isArray(s.cageNumbers)&&s.cageNumbers.length?s.cageNumbers.join("
 Weight: ${fmt(s.weight??s.netWeight)} kg
 Rate: Rs. ${fmt(s.salesRate??s.ratePerKg)} / kg
 Invoice Amount: Rs. ${fmt(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)}
-Previous Due: Rs. ${fmt(s.previousDue)}
+Previous Due: ${wang?"N/A":"Rs. "+fmt(s.previousDue)}
 Payment Method: ${s.paymentMethod||"-"}
 Paid at Sale: Rs. ${fmt(ps.paidAtSale)}
 Later Store Payments: Rs. ${fmt(ps.later)}
 Total Received: Rs. ${fmt(ps.totalPaid)}
-Invoice Balance: Rs. ${fmt(ps.due)}`;
+Invoice Balance: ${wang?"N/A":"Rs. "+fmt(ps.due)}`;
    if(openSmsComposer(st?.phone,msg))audit("invoice","STORE_SMS",saleId,st?.phone||"");
  }catch(e){toast("SMS error: "+e.message)}
 }
@@ -4846,8 +4857,8 @@ async function editSale(id){
  <div class="field"><label>Billed Weight kg (Editable)</label><input id="esaWeight" type="number" step="0.01" value="${s.weight??s.netWeight??0}"></div>
  <div class="field"><label>Sales Rate ₹/kg</label><input id="esaRate" type="number" step="0.01" value="${s.salesRate??s.ratePerKg??0}"></div>
  <div class="field"><label>Payment Status</label><select id="esaMode" onchange="handleEditSalePaymentModeChange()"><option value="Credit" ${String(s.salePaymentStatus||s.paymentMethod||"").toLowerCase()==="credit"?"selected":""}>Credit</option><option value="Paid" ${String(s.salePaymentStatus||s.paymentMethod||"").toLowerCase()!=="credit"?"selected":""}>Paid at Invoice</option></select></div>
- <div class="field" id="esaPaidField"><label>Paid Amount at Invoice ₹</label><input id="esaPaid" disabled value="${String(s.salePaymentStatus||s.paymentMethod||"").toLowerCase()==="credit"?"":(s.paidAmount??0)}"></div>
- ${splitTenderFields("esa",tenderParts(s,"paidAmount","paymentMethod").cash,tenderParts(s,"paidAmount","paymentMethod").account)}
+ <div class="field" id="esaPaidField"><label>Paid Amount at Invoice ₹</label><input id="esaPaid" type="number" step="0.01" min="0.01" value="${String(s.salePaymentStatus||s.paymentMethod||"").toLowerCase()==="credit"?"":(s.paidAmount??0)}"></div>
+ <div class="field"><label>Payment Mode</label><select id="esaPaidMode">${["Cash","UPI","Bank","Cheque"].map(x=>`<option ${String(s.paymentMethod||"")===x?"selected":""}>${x}</option>`).join("")}</select></div>
  <div class="field"><label>Remarks</label><input id="esaRem" value="${esc(s.remarks||"")}"></div></div>
  ${multi?`<div class="sub" style="margin-top:8px">This sale contains ${s.cageIds.length} cages. Actual cage weight is fixed; Billed Weight remains editable.</div>`:""}
  <div style="height:12px"></div><button class="btn primary" onclick="saveEditedSale('${id}')">Update Sale</button>`);
@@ -4864,15 +4875,14 @@ async function saveEditedSale(id){
   let s=await txGet("sales",id);if(!s)return;
   if(s.excessPaymentId)return toast("This invoice has a linked excess-payment receipt. Editing is blocked to prevent ledger mismatch; reconcile the linked receipt first.");
   const weight=Number(document.getElementById("esaWeight").value),rate=Number(document.getElementById("esaRate").value),status=document.getElementById("esaMode")?.value||"Credit";
-  const isCredit=String(status).toLowerCase()==="credit",tender=isCredit?{cashAmount:0,accountAmount:0,amount:0}:splitTender("esa");if(!tender)return toast("Enter valid cash and account amounts.");
-  const paymentMethod=isCredit?"Credit":splitMode(tender);
-  const paid=tender.amount;
+  const isCredit=String(status).toLowerCase()==="credit",paymentMethod=isCredit?"Credit":(document.getElementById("esaPaidMode")?.value||"Cash");
+  const paid=isCredit?0:money2(document.getElementById("esaPaid")?.value);
   if(weight<=0||rate<=0)return toast("Weight and rate required.");
   const exactAmount=Math.round(weight*rate*100)/100,rr=invoiceRound(exactAmount),netAmount=rr.rounded;
   if(!isCredit&&paid<=0)return toast("Enter the amount received at invoice time.");
   if(paid>netAmount)return toast("Paid Amount cannot be more than the Sales Total Amount.");
   s.saleDate=document.getElementById("esaDate").value||s.saleDate;
-  s.weight=weight;s.netWeight=weight;s.totalWeight=weight;s.salesRate=rate;s.ratePerKg=rate;s.saleAmount=exactAmount;s.totalAmount=exactAmount;s.roundOff=rr.roundOff;s.netAmount=netAmount;s.invoiceNetAmount=netAmount;s.paidAmount=paid;s.cashAmount=tender.cashAmount;s.accountAmount=tender.accountAmount;s.paymentMethod=paymentMethod;s.salePaymentStatus=isCredit?"Credit":"Paid";
+  s.weight=weight;s.netWeight=weight;s.totalWeight=weight;s.salesRate=rate;s.ratePerKg=rate;s.saleAmount=exactAmount;s.totalAmount=exactAmount;s.roundOff=rr.roundOff;s.netAmount=netAmount;s.invoiceNetAmount=netAmount;s.paidAmount=paid;s.paymentMethod=paymentMethod;s.salePaymentStatus=isCredit?"Credit":"Paid";
   s.outstanding=money2((Number(s.previousDue)||0)+netAmount-paid);
   s.remarks=document.getElementById("esaRem").value.trim();s.updatedAt=iso();
   await txPut("sales",s);queueCloud("sales","UPSERT",s);audit("sales","UPDATE",id);clearCurrentFormDraft();closeModal();await refreshAll();
@@ -4890,23 +4900,10 @@ async function deleteSale(id){
  await txDel("sales",id);queueCloud("sales","DELETE",id);audit("sales","DELETE",id);refreshAll();
 }
 
-function invoiceExcessBreakdown(s){
- const net=money2(Number(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)||0);
- const received=money2(Number(s.paymentReceivedAtInvoice??s.paidAmount)||0);
- const previous=money2(Math.max(0,Number(s.previousDue)||0));
- const excess=money2(Math.max(0,received-net));
- const previousAdjusted=money2(Math.min(previous,excess));
- const advance=money2(Math.max(0,excess-previousAdjusted));
- const due=money2(Math.max(0,previous-previousAdjusted));
- const cash=money2(Number(s.cashReceivedAtInvoice??s.cashAmount)||0);
- const account=money2(Number(s.accountReceivedAtInvoice??s.accountAmount)||0);
- return {net,received,previous,excess,previousAdjusted,advance,due,cash,account};
-}
 async function previewStoreInvoice(saleId){
  const s=await txGet("sales",saleId);if(!s)return toast("Sale not found.");
  const st=await txGet("stores",s.storeId),farmer=s.farmerId?await txGet("farmers",s.farmerId):null,ps=await salePaymentStatus(s);
  const wang=!!(st?.isWangkhei||s.isWangkheiSale);
- const excessInfo=invoiceExcessBreakdown(s);
  const saleCages=Array.isArray(s.cageDetails)&&s.cageDetails.length?s.cageDetails:[{cageNumber:s.cageNumber||s.cageId||"",weight:Number(s.weight??s.netWeight)||0,birdCount:Number(s.birdsCount)||0}];
  const physicalWeight=money2(saleCages.reduce((sum,c)=>sum+(Number(c.weight)||0),0));
  const cageRows=saleCages.map((c,i)=>`<tr><td>${i+1}</td><td><b>${esc(c.cageNumber||c.cageId||"")}</b></td><td>${fmt(c.weight)}</td><td>${c.birdCount||0}</td></tr>`).join("");
@@ -4944,19 +4941,14 @@ async function previewStoreInvoice(saleId){
     <div class="psm-totals">
       <div class="psm-total-row"><span>Billed Weight</span><b>${fmt(s.weight??s.netWeight)} kg</b></div>
       <div class="psm-total-row"><span>Sales Rate</span><b>₹${fmt(s.salesRate??s.ratePerKg)} / kg</b></div>
-      <div class="psm-total-row"><span>Previous Due</span><b>₹${fmt(s.previousDue)}</b></div>
+      ${wang?"":`<div class="psm-total-row"><span>Previous Due</span><b>₹${fmt(s.previousDue)}</b></div>`}
       <div class="psm-total-row"><span>Exact Invoice Amount</span><b>₹${fmt(s.saleAmount??s.totalAmount)}</b></div>
       ${(()=>{const rr=invoiceRound(s.saleAmount??s.totalAmount);return `<div class="psm-total-row"><span>Round Off</span><b>${rr.roundOff>=0?"+":""}₹${fmt(rr.roundOff)}</b></div><div class="psm-total-row"><span>Net Invoice Amount</span><b>₹${fmt(rr.rounded)}</b></div>`})()}
       <div class="psm-total-row"><span>Payment Status</span><b>${String(s.salePaymentStatus||s.paymentMethod||"").toLowerCase()==="credit"?"CREDIT":"PAID AT INVOICE"}</b></div>
       ${String(s.salePaymentStatus||s.paymentMethod||"").toLowerCase()==="credit"?"":`<div class="psm-total-row"><span>Paid at Invoice (${esc(s.paymentMethod||"")})</span><b>₹${fmt(ps.paidAtSale)}</b></div>`}
-      <div class="psm-total-row"><span>Cash Received at Invoice</span><b>₹${fmt(excessInfo.cash)}</b></div>
-      <div class="psm-total-row"><span>Account Received at Invoice</span><b>₹${fmt(excessInfo.account)}</b></div>
-      <div class="psm-total-row"><span>Total Received at Invoice</span><b>₹${fmt(excessInfo.received)}</b></div>
-      <div class="psm-total-row"><span>Excess Received</span><b>₹${fmt(excessInfo.excess)}</b></div>
-      ${wang?"":`<div class="psm-total-row"><span>Excess Applied to Previous Due</span><b>₹${fmt(excessInfo.previousAdjusted)}</b></div><div class="psm-total-row"><span>New Store Advance</span><b>₹${fmt(excessInfo.advance)}</b></div><div class="psm-total-row"><span>Previous Due Remaining</span><b>₹${fmt(excessInfo.due)}</b></div>`}
       ${ps.later>0?`<div class="psm-total-row"><span>Payment Received Later</span><b>₹${fmt(ps.later)}</b></div>`:""}
       ${ps.totalPaid>0?`<div class="psm-total-row"><span>Total Paid for This Invoice</span><b>₹${fmt(ps.totalPaid)}</b></div>`:""}
-      <div class="psm-total-row final"><span>This Invoice Due</span><span>₹${fmt(ps.due)}</span></div>
+      ${wang?`<div class="psm-total-row final"><span>Settlement</span><span>MPF A/C</span></div>`:`<div class="psm-total-row final"><span>This Invoice Due</span><span>₹${fmt(ps.due)}</span></div>`}
     </div>
     <div class="psm-thanks"><b>Thank you for your business!</b><span>Reliable broiler supply from PSM Broiler Distributor.</span></div>
     <div class="psm-footer">
@@ -4984,15 +4976,9 @@ Cages: ${Array.isArray(s.cageNumbers)&&s.cageNumbers.length?s.cageNumbers.join("
 Weight: ${fmt(s.weight??s.netWeight)} kg
 Rate: Rs. ${fmt(s.salesRate??s.ratePerKg)} / kg
 Invoice Amount: Rs. ${fmt(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)}
-Previous Due: Rs. ${fmt(s.previousDue)}
-Cash Received: Rs. ${fmt(invoiceExcessBreakdown(s).cash)}
-Account Received: Rs. ${fmt(invoiceExcessBreakdown(s).account)}
-Total Received: Rs. ${fmt(invoiceExcessBreakdown(s).received)}
-Excess Received: Rs. ${fmt(invoiceExcessBreakdown(s).excess)}
-Previous Due Adjusted: Rs. ${fmt(invoiceExcessBreakdown(s).previousAdjusted)}
-New Store Advance: Rs. ${fmt(invoiceExcessBreakdown(s).advance)}
-Paid for Invoice: Rs. ${fmt(s.paidAmount)}
-Total Outstanding: Rs. ${fmt(s.outstanding)}`;
+Previous Due: ${wang?"N/A":"Rs. "+fmt(s.previousDue)}
+Paid: Rs. ${fmt(s.paidAmount)}
+Total Outstanding: ${wang?"N/A":"Rs. "+fmt(s.outstanding)}`;
   const p=normalizeWhatsappPhone(st?.phone||s.storePhone);
   openWhatsAppUrl(`https://wa.me/${p}?text=${encodeURIComponent(msg)}`);
   audit("invoice","STORE_WHATSAPP_TEXT",saleId,st?.phone||"");
@@ -5041,88 +5027,47 @@ Kindly arrange payment at the earliest. Thank you.`;
  const ph=normalizeWhatsappPhone(st.phone);window.open(`https://wa.me/${ph}?text=${encodeURIComponent(msg)}`,"_blank");audit("stores","OUTSTANDING_REMINDER",storeId,`₹${fmt(f.outstanding)}`)
 }
 
-/* Split tender: cash and account are independently entered, with a derived total. */
-function splitTenderFields(prefix,cash=0,account=0){return `<div class="field"><label>Cash ₹</label><input id="${prefix}Cash" type="number" min="0" step="0.01" inputmode="decimal" value="${cash}" oninput="updateSplitTender('${prefix}')"></div><div class="field"><label>Account (Bank / UPI) ₹</label><input id="${prefix}Account" type="number" min="0" step="0.01" inputmode="decimal" value="${account}" oninput="updateSplitTender('${prefix}')"></div>`}
-function splitTender(prefix){
- const c=document.getElementById(prefix+'Cash'),a=document.getElementById(prefix+'Account');
- if(!c||!a)return null;
- const cash=Number(c.value),account=Number(a.value);
- if(!Number.isFinite(cash)||!Number.isFinite(account)||cash<0||account<0||Math.round(cash*100)!==cash*100&&Math.abs(Math.round(cash*100)-cash*100)>0.0001||Math.abs(Math.round(account*100)-account*100)>0.0001)return null;
- return {cashAmount:money2(cash),accountAmount:money2(account),amount:money2(cash+account)};
-}
-function updateSplitTender(prefix){const t=splitTender(prefix),total=document.getElementById(prefix+'Amt');if(total)total.value=t?String(t.amount):'Invalid';const paid=document.getElementById(prefix+'Paid');if(paid)paid.value=t?String(t.amount):'Invalid';if(prefix==='p')updatePaymentRemainingPreview();if(prefix==='fp')updateFarmerPaymentPreview()}
-function tenderParts(record,amountField='amount',modeField='paymentMode'){
- if(!record||typeof record!=='object')return {cash:0,account:0};
- const amount=Number(record[amountField])||0;
- if(record.cashAmount!==undefined&&record.accountAmount!==undefined)return {cash:money2(record.cashAmount),account:money2(record.accountAmount)};
- return {cash:isCashMode(record[modeField])?amount:0,account:isAccountMode(record[modeField])?amount:0};
-}
-function splitMode(t){return t.cashAmount>0&&t.accountAmount>0?'Cash + Account':t.cashAmount>0?'Cash':'Bank'}
 function normalizedPaymentMode(mode){return String(mode||"").trim().toLowerCase()}
 function isCashMode(mode){return normalizedPaymentMode(mode)==="cash"}
 function isAccountMode(mode){return ["upi","bank","bank transfer"].includes(normalizedPaymentMode(mode))}
-/* Household withdrawals live in the existing settings store and sync with the
-   main app's settings synchronization; no new Supabase table is required. */
-async function householdExpenses(){
- const rows=await txAll("settings");
- return rows.filter(x=>String(x.key||"").startsWith("household_expense:")&&x.value&&!x.value.deleted).map(x=>x.value);
-}
 async function fundsSummary(){
  const sales=await txAll("sales"),payments=await txAll("payments"),sets=await txAll("singke_settlements"),farmerPayments=await getFarmerPayments();
- const sum=(records,field,mode)=>money2(records.reduce((total,r)=>total+(r?tenderParts(r,field,mode).cash:0),0));
- const sumAccount=(records,field,mode)=>money2(records.reduce((total,r)=>total+(r?tenderParts(r,field,mode).account:0),0));
- const saleCash=sum(sales,"paidAmount","paymentMethod"),storeCash=sum(payments,"amount","paymentMode"),farmerCash=sum(farmerPayments,"amount","paymentMode"),singkeCash=sum(sets,"amount","paymentMethod");
- const saleAccount=sumAccount(sales,"paidAmount","paymentMethod"),storeAccount=sumAccount(payments,"amount","paymentMode"),farmerAccount=sumAccount(farmerPayments,"amount","paymentMode"),singkeAccount=sumAccount(sets,"amount","paymentMethod");
- const household=await householdExpenses();
- const householdCash=money2(household.reduce((a,x)=>a+Number(x.cashAmount||0),0));
- const householdAccount=money2(household.reduce((a,x)=>a+Number(x.accountAmount||0),0));
- const cashInHand=money2(saleCash+storeCash-farmerCash-singkeCash-householdCash),accountBalance=money2(saleAccount+storeAccount-farmerAccount-singkeAccount-householdAccount);
- return {saleCash,storeCash,farmerCash,singkeCash,saleAccount,storeAccount,farmerAccount,singkeAccount,householdCash,householdAccount,cashInHand,accountBalance,totalFunds:money2(cashInHand+accountBalance)};
+ const saleCash=money2(sales.filter(x=>isCashMode(x.paymentMethod)).reduce((a,x)=>a+(Number(x.paidAmount)||0),0));
+ const storeCash=money2(payments.filter(x=>isCashMode(x.paymentMode)).reduce((a,x)=>a+(Number(x.amount)||0),0));
+ const farmerCash=money2(farmerPayments.filter(x=>isCashMode(x.paymentMode)).reduce((a,x)=>a+(Number(x.amount)||0),0));
+ const singkeCash=money2(sets.filter(x=>isCashMode(x.paymentMethod)).reduce((a,x)=>a+(Number(x.amount)||0),0));
+
+ const saleAccount=money2(sales.filter(x=>isAccountMode(x.paymentMethod)).reduce((a,x)=>a+(Number(x.paidAmount)||0),0));
+ const storeAccount=money2(payments.filter(x=>isAccountMode(x.paymentMode)).reduce((a,x)=>a+(Number(x.amount)||0),0));
+ const farmerAccount=money2(farmerPayments.filter(x=>isAccountMode(x.paymentMode)).reduce((a,x)=>a+(Number(x.amount)||0),0));
+ const singkeAccount=money2(sets.filter(x=>isAccountMode(x.paymentMethod)).reduce((a,x)=>a+(Number(x.amount)||0),0));
+
+ return {
+  saleCash,storeCash,farmerCash,singkeCash,
+  saleAccount,storeAccount,farmerAccount,singkeAccount,
+  cashInHand:money2(saleCash+storeCash-farmerCash-singkeCash),
+  accountBalance:money2(saleAccount+storeAccount-farmerAccount-singkeAccount)
+ };
 }
 async function cashInHandSummary(){return fundsSummary()}
 
-// Direct-pay farmers are outside MPF/Singke lifting liabilities. Resolve by farmer ID
-// and normalized name so historical liftings/payments remain correctly classified.
-function isDirectPayFarmerName(name){
- const n=String(name||"").normalize("NFKC").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
- return n==="satrajit"||n==="domen khomba";
-}
-function isDirectPayFarmer(row,farmerNames){
- return isDirectPayFarmerName(farmerNames.get(String(row.farmerId||""))||row.farmerName||"");
-}
-// Singke reconciliation: round each eligible lifting payable DOWN to the nearest Rs 50.
-// Original lifting amounts remain untouched for source records and other accounts.
-function singkeRoundedLiftingPayable(l){
- const raw=Number(l.netAmount??l.payableAmount??l.liftingAmount??l.totalAmount)||0;
- return Math.floor(Math.max(0,raw)/50)*50;
-}
 async function singkeAccountingData(){
  const p=await setting("singke_previous_due",{amount:0});
  const lift=await txAll("liftings"),sales=await txAll("sales"),stores=await txAll("stores"),sets=await txAll("singke_settlements"),farmerPayments=await getFarmerPayments();
- const farmerNames=new Map((await txAll("farmers")).map(f=>[String(f.id),f.name]));
  const wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>String(s.id)));
  const cutoff=String(p?.asOf||"");
  const afterOpening=d=>!cutoff?true:(!!d&&String(d)>cutoff);
- const liftUsed=lift.filter(x=>afterOpening(x.liftingDate)&&!isDirectPayFarmer(x,farmerNames));
- const directLiftUsed=lift.filter(x=>afterOpening(x.liftingDate)&&isDirectPayFarmer(x,farmerNames));
+ const liftUsed=lift.filter(x=>afterOpening(x.liftingDate));
  const wangSales=sales.filter(s=>(s.isWangkheiSale||wm.has(String(s.storeId)))&&afterOpening(s.saleDate));
  const setsUsed=sets.filter(s=>afterOpening(s.date||s.paymentDate));
- const farmerUsed=farmerPayments.filter(s=>afterOpening(s.paymentDate)&&!isDirectPayFarmer(s,farmerNames));
- const directFarmerUsed=farmerPayments.filter(s=>afterOpening(s.paymentDate)&&isDirectPayFarmer(s,farmerNames));
- const liftingPayable=money2(liftUsed.reduce((a,l)=>a+singkeRoundedLiftingPayable(l),0));
- // Wangkhei sales reduce MPF due only while unpaid. Cash/Account received must not also be deducted from MPF A/C.
- const wangGross=money2(wangSales.reduce((a,s)=>a+(Number(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)||0),0));
- const wangStoreIds=new Set(wangSales.map(s=>String(s.storeId)));
- const wangInvoiceReceived=money2(wangSales.reduce((a,s)=>a+(Number(s.paidAmount)||0),0));
- const wangPayments=(await txAll("payments")).filter(x=>wangStoreIds.has(String(x.storeId))&&afterOpening(x.paymentDate));
- const wangLaterReceived=money2(wangPayments.reduce((a,x)=>a+(Number(x.amount)||0),0));
- const wangReceived=money2(wangInvoiceReceived+wangLaterReceived);
- const wang=money2(wangGross-wangReceived);
+ const farmerUsed=farmerPayments.filter(s=>afterOpening(s.paymentDate));
+ const liftingPayable=money2(liftUsed.reduce((a,l)=>a+(Number(l.netAmount??l.payableAmount??l.liftingAmount??l.totalAmount)||0),0));
+ const wang=money2(wangSales.reduce((a,s)=>a+(Number(s.netAmount??s.invoiceNetAmount??s.saleAmount??s.totalAmount)||0),0));
  const wangKg=money2(wangSales.reduce((a,s)=>a+(Number(s.netWeight??s.weight??s.totalWeight)||0),0));
  const sett=money2(setsUsed.reduce((a,s)=>a+(Number(s.amount)||0),0));
  const farmerPaid=money2(farmerUsed.reduce((a,s)=>a+(Number(s.amount)||0),0));
  const remain=money2((Number(p?.amount)||0)+liftingPayable-wang-sett-farmerPaid);
- return {p,cutoff,liftUsed,directLiftUsed,directFarmerUsed,wangSales,wangPayments,wangGross,wangReceived,setsUsed,farmerUsed,liftingPayable,wang,wangKg,sett,farmerPaid,remain};
+ return {p,cutoff,liftUsed,wangSales,setsUsed,farmerUsed,liftingPayable,wang,wangKg,sett,farmerPaid,remain};
 }
 async function singkeSummary(){return singkeAccountingData()}
 
@@ -5135,19 +5080,17 @@ async function renderSingke(){
   const kgEl=document.getElementById("sWangKg");if(kgEl)kgEl.textContent=fmt(s.wangKg);
   document.getElementById("sSet").textContent=fmt(s.sett);
   const sfp=document.getElementById("sFarmerPaid");if(sfp)sfp.textContent=fmt(s.farmerPaid);
-  const cash=await fundsSummary(),sch=document.getElementById("sCashHand"),sab=document.getElementById("sAccountBalance");if(sch)sch.textContent=fmt(cash.cashInHand);if(sab)sab.textContent=fmt(cash.accountBalance);const totalEl=document.getElementById("sTotalFunds");if(totalEl)totalEl.textContent=fmt(cash.totalFunds);
+  const cash=await fundsSummary(),sch=document.getElementById("sCashHand"),sab=document.getElementById("sAccountBalance");if(sch)sch.textContent=fmt(cash.cashInHand);if(sab)sab.textContent=fmt(cash.accountBalance);
   document.getElementById("sRemain").textContent=fmt(s.remain);
   const dash=document.getElementById("dashSingke");if(dash)dash.textContent=fmt(s.remain);
 
   const acc=await singkeAccountingData();
   const farmerMap=new Map((await txAll("farmers")).map(f=>[String(f.id),f.name]));
   let ev=[
-    ...acc.liftUsed.map(x=>({date:x.liftingDate||"",type:x.farmerName||farmerMap.get(String(x.farmerId))||"Farmer Lifting",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,debit:singkeRoundedLiftingPayable(x),credit:0,remarks:x.remarks||""})),
-    ...acc.wangSales.map(x=>({date:x.saleDate||"",type:"Wangkhei Sale Adjustment",ref:x.invoiceNumber||x.id,kg:Number(x.netWeight??x.weight??x.totalWeight)||0,debit:0,credit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,remarks:x.remarks||""})),
-    ...acc.wangSales.filter(x=>Number(x.paidAmount)>0).map(x=>({date:x.saleDate||"",type:"Wangkhei Invoice Payment (Cash + A/C)",ref:x.invoiceNumber||x.id,kg:0,debit:Number(x.paidAmount)||0,credit:0,remarks:"Invoice payment received"})),
-    ...acc.wangPayments.map(x=>({date:x.paymentDate||"",type:"Wangkhei Payment Received (Cash + A/C)",ref:x.receiptNumber||x.id,kg:0,debit:Number(x.amount)||0,credit:0,remarks:x.remarks||""})),
+    ...acc.liftUsed.map(x=>({date:x.liftingDate||"",type:x.farmerName||farmerMap.get(String(x.farmerId))||"Farmer Lifting",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,debit:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,credit:0,remarks:x.remarks||""})),
+    ...acc.wangSales.map(x=>({date:x.saleDate||"",type:"Wangkhei Adjustment",ref:x.invoiceNumber||x.id,kg:Number(x.netWeight??x.weight??x.totalWeight)||0,debit:0,credit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,remarks:x.remarks||""})),
     ...acc.setsUsed.map(x=>({date:x.date||x.paymentDate||"",type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,debit:0,credit:Number(x.amount)||0,remarks:x.remarks||""})),
-    ...acc.farmerUsed.map(x=>({date:x.paymentDate||"",type:x.farmerName||farmerMap.get(String(x.farmerId))||"Farmer (name unavailable)",ref:x.id||x._settingKey||"Payment",kg:0,debit:0,credit:Number(x.amount)||0,remarks:x.remarks||""}))
+    ...acc.farmerUsed.map(x=>({date:x.paymentDate||"",type:"Farmer Payment",ref:x.id||x._settingKey||"Payment",kg:0,debit:0,credit:Number(x.amount)||0,remarks:x.remarks||""}))
   ].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
   const from=document.getElementById("singkeFrom")?.value||"",to=document.getElementById("singkeTo")?.value||"";
   let bal=Number(s.p?.amount)||0;if(from){for(const e of ev){if(e.date&&e.date<from)bal+=e.debit-e.credit}}
@@ -5201,8 +5144,8 @@ async function openFarmerPayment(farmerId){
    <div class="field"><label>Farmer</label><input value="${esc(f.name)}" disabled></div>
    <div class="field"><label>Current Outstanding ₹</label><input id="fpCurrentDue" value="${fmt(due)}" disabled data-value="${due}"></div>
    <div class="field"><label>Date</label><input id="fpDate" type="date" value="${today()}"></div>
-   ${splitTenderFields("fp")}
-   <div class="field"><label>Total Paid ₹</label><input id="fpAmount" disabled value="0.00"></div>
+   <div class="field"><label>Amount ₹</label><input id="fpAmount" type="number" min="0.01" step="0.01" inputmode="decimal" oninput="updateFarmerPaymentPreview()"></div>
+   <div class="field"><label>Payment Mode</label><select id="fpMode"><option>Cash</option><option>UPI</option><option>Bank</option><option>Cheque</option></select></div>
    <div class="field"><label>Outstanding After Payment ₹</label><input id="fpRemaining" value="${fmt(due)}" disabled></div>
    <div class="field" style="grid-column:1/-1"><label>Remarks</label><input id="fpRemarks" placeholder="Optional"></div>
   </div>
@@ -5214,15 +5157,14 @@ function updateFarmerPaymentPreview(){
 }
 async function saveFarmerPayment(farmerId){
  const f=await txGet("farmers",farmerId);if(!f)return toast("Farmer not found.");
- const tender=splitTender("fp");if(!tender)return toast("Enter valid cash and account amounts.");
- const date=document.getElementById("fpDate")?.value||"",amount=tender.amount,mode=splitMode(tender),remarks=document.getElementById("fpRemarks")?.value?.trim()||"";
+ const date=document.getElementById("fpDate")?.value||"",amount=money2(document.getElementById("fpAmount")?.value),mode=document.getElementById("fpMode")?.value||"Cash",remarks=document.getElementById("fpRemarks")?.value?.trim()||"";
  if(!date||amount<=0)return toast("Enter a valid date and payment amount.");
  const before=await getFarmerLedgerData(farmerId);
  const priorRows=before.rows.filter(r=>String(r.date||"")<=String(date));
  const previousOutstanding=money2(priorRows.length?priorRows[priorRows.length-1].balance:0);
  if(amount>previousOutstanding+.009&&!confirm(`Payment ₹${fmt(amount)} is higher than farmer outstanding ₹${fmt(previousOutstanding)} as of ${date}. Save as an advance/credit balance?`))return;
  const idv=id("FP"),remainingOutstanding=money2(previousOutstanding-amount),now=iso();
- const p={id:idv,farmerId,farmerName:f.name||"",paymentDate:date,amount,cashAmount:tender.cashAmount,accountAmount:tender.accountAmount,paymentMode:mode,remarks,previousOutstanding,remainingOutstanding,createdAt:now,updatedAt:now};
+ const p={id:idv,farmerId,farmerName:f.name||"",paymentDate:date,amount,paymentMode:mode,remarks,previousOutstanding,remainingOutstanding,createdAt:now,updatedAt:now};
  await setSetting(farmerPaymentSettingKey(idv),p);
  audit("farmer_payments","CREATE",idv,`${f.name} | ₹${fmt(amount)} | ${mode}`);
  clearCurrentFormDraft();closeModal();await refreshAll();
@@ -5244,7 +5186,7 @@ async function getFarmerLedgerData(farmerId){
    const kg=money2(g.kg),raw=money2(kg*g.rate),amount=farmerLedgerRound50(raw);
    return {...g,kg,raw,amount,payment:0};
  });
- const paymentRows=payments.map(p=>({date:String(p.paymentDate||""),rate:null,kg:null,raw:0,amount:0,payment:money2(p.amount),farmerName:farmer.name,kind:"payment",paymentMode:p.paymentMode||"",paymentId:p.id||"",sortKey:`P-${p.createdAt||p.id||""}`}));
+ const paymentRows=payments.map(p=>({date:String(p.paymentDate||""),rate:null,kg:null,raw:0,amount:0,payment:money2(p.amount),farmerName:farmer.name,kind:"payment",paymentMode:p.paymentMode||"",remarks:p.remarks||"",paymentId:p.id||"",sortKey:`P-${p.createdAt||p.id||""}`}));
  const events=[...liftingRows,...paymentRows].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.sortKey).localeCompare(String(b.sortKey)));
  let balance=0;
  const rows=events.map(e=>{balance=money2(balance+(Number(e.amount)||0)-(Number(e.payment)||0));return {...e,balance}});
@@ -5259,12 +5201,48 @@ async function renderFarmerLedger(){
  host.innerHTML=d.rows.length?d.rows.map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(d.farmer.name)}</td><td>${r.kind==="lifting"?fmt(r.kg):"—"}</td><td>${r.kind==="lifting"?"₹"+fmt(r.rate):"—"}</td><td>${r.amount?"₹"+fmt(r.amount):"—"}</td><td>${r.payment?"₹"+fmt(r.payment):"—"}</td><td><b>₹${fmt(r.balance)}</b></td></tr>`).join(""):`<tr><td colspan="7" class="empty">No lifting or payment records for this farmer.</td></tr>`;
  if(sum)sum.innerHTML=`<b>Total:</b> ${fmt(d.totalKg)} kg &nbsp; | &nbsp; Lifting Amount: <b>₹${fmt(d.totalAmount)}</b> &nbsp; | &nbsp; Payments: <b>₹${fmt(d.totalPaid)}</b> &nbsp; | &nbsp; Outstanding: <b>₹${fmt(d.balance)}</b>`;
 }
+
+function buildFarmerSeparatedLedgerPdf(d,liftingRows,paymentRows){
+ const W=595,H=842,left=28,right=28,pageWidth=W-left-right,bottom=40,rowH=20,headH=24;
+ const objs=[null],add=o=>{objs.push(o);return objs.length-1};
+ const f1=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"),f2=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+ const logoBytes=Uint8Array.from(atob(PSM_LOGO_JPEG_BASE64),c=>c.charCodeAt(0)&255),logoHex=Array.from(logoBytes,b=>b.toString(16).padStart(2,"0")).join("").toUpperCase()+">";
+ const imgObj=add(`<< /Type /XObject /Subtype /Image /Width ${PSM_LOGO_JPEG_WIDTH} /Height ${PSM_LOGO_JPEG_HEIGHT} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter [/ASCIIHexDecode /DCTDecode] /Length ${logoHex.length} >>\nstream\n${logoHex}\nendstream`);
+ const esc=v=>pdfSafeText(v).replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)");
+ const txt=(c,x,y,v,size=7,b=false,col="0.08 0.10 0.09")=>c.push(`BT /${b?"F2":"F1"} ${size} Tf ${col} rg 1 0 0 1 ${x} ${y} Tm (${esc(v)}) Tj ET`);
+ const fill=(c,x,y,w,h,r,g,b)=>c.push(`${r} ${g} ${b} rg ${x} ${y} ${w} ${h} re f`);
+ const line=(c,x1,y1,x2,y2,w=.4)=>c.push(`0.70 0.75 0.72 RG ${w} w ${x1} ${y1} m ${x2} ${y2} l S`);
+ const trunc=(v,w)=>{const t=pdfSafeText(v),m=Math.max(4,Math.floor(w/3.8));return t.length>m?t.slice(0,m-1)+"...":t};
+ const pageIds=[],contentIds=[]; let c=[],y=0,pageNo=0;
+ const startPage=()=>{c=[];pageNo++;fill(c,0,0,W,H,1,1,1);fill(c,left,H-102,pageWidth,74,.965,.985,.972);c.push(`q 76 0 0 51 ${left+8} ${H-91} cm /Im1 Do Q`);txt(c,left+94,H-55,"PSM BROILER DISTRIBUTOR",15,true,"0.06 0.28 0.14");txt(c,left+94,H-73,"FARMER LIFTING & PAYMENT LEDGER",10.5,true);txt(c,left+94,H-88,`Farmer: ${d.farmer.name} | Generated: ${new Date().toLocaleString("en-IN")}`,6.5,false,"0.28 0.34 0.31");y=H-143;if(pageNo===1){const items=[["Total Kg",fmt(d.totalKg)+" kg"],["Lifting Amount","Rs. "+fmt(d.totalAmount)],["Payment Received","Rs. "+fmt(d.totalPaid)],["Outstanding","Rs. "+fmt(d.balance)]],gap=7,bw=(pageWidth-gap*3)/4;items.forEach((it,i)=>{const bx=left+i*(bw+gap);fill(c,bx,y,bw,34,.965,.985,.972);c.push(`0.46 0.70 0.54 RG .75 w ${bx} ${y} ${bw} 34 re S`);txt(c,bx+6,y+22,it[0],6.7,true,"0.18 0.34 0.24");txt(c,bx+6,y+7,trunc(it[1],bw-12),10,true,"0.04 0.22 0.11")});y-=50;}};
+ const finishPage=()=>{line(c,left,bottom+12,left+pageWidth,bottom+12);txt(c,left,bottom-2,"Farmer Lifting & Payment Ledger",6.2,false,"0.35 0.40 0.38");txt(c,W-right-160,bottom-2,`PSM accounting statement | Page ${pageNo}`,6.2,false,"0.35 0.40 0.38");const stream=c.join("\n"),cid=add(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);contentIds.push(cid);pageIds.push(add(""));};
+ const section=(title,headers,widths,rows,totalRow)=>{
+   const need=36+headH+rowH*(Math.max(1,rows.length)+1)+10;
+   if(y-need<bottom+18){finishPage();startPage();}
+   fill(c,left,y-28,pageWidth,28,.90,.96,.92);txt(c,left+8,y-18,title,10,true,"0.05 0.30 0.15");y-=36;
+   const drawHeader=()=>{fill(c,left,y-headH,pageWidth,headH,.94,.97,.95);let x=left;line(c,left,y,left+pageWidth,y,.6);headers.forEach((h,i)=>{line(c,x,y,x,y-headH);txt(c,x+4,y-16,trunc(h,widths[i]-8),6.5,true);x+=widths[i]});line(c,left+pageWidth,y,left+pageWidth,y-headH);line(c,left,y-headH,left+pageWidth,y-headH);y-=headH;};
+   drawHeader();
+   if(!rows.length){txt(c,left+8,y-13,"No records",7,false,"0.35 0.40 0.38");y-=rowH;}
+   for(let ri=0;ri<rows.length;ri++){
+     if(y-rowH<bottom+18){finishPage();startPage();fill(c,left,y-28,pageWidth,28,.90,.96,.92);txt(c,left+8,y-18,title+" (continued)",10,true,"0.05 0.30 0.15");y-=36;drawHeader();}
+     const r=rows[ri];if(ri%2)fill(c,left,y-rowH,pageWidth,rowH,.985,.991,.987);let x=left;line(c,left,y-rowH,left+pageWidth,y-rowH,.3);r.forEach((v,i)=>{line(c,x,y,x,y-rowH,.3);txt(c,x+4,y-13,trunc(v,widths[i]-8),6.25);x+=widths[i]});line(c,left+pageWidth,y,left+pageWidth,y-rowH,.3);y-=rowH;
+   }
+   if(y-rowH<bottom+18){finishPage();startPage();fill(c,left,y-28,pageWidth,28,.90,.96,.92);txt(c,left+8,y-18,title+" - TOTAL",10,true,"0.05 0.30 0.15");y-=36;drawHeader();}
+   fill(c,left,y-rowH,pageWidth,rowH,.90,.96,.92);let x=left;line(c,left,y,left+pageWidth,y,.7);totalRow.forEach((v,i)=>{line(c,x,y,x,y-rowH,.4);txt(c,x+4,y-13,trunc(v,widths[i]-8),6.7,true,"0.04 0.22 0.11");x+=widths[i]});line(c,left+pageWidth,y,left+pageWidth,y-rowH,.4);line(c,left,y-rowH,left+pageWidth,y-rowH,.7);y-=rowH+14;
+ };
+ startPage();
+ section("PART A - LIFTING ACCOUNTING",["Date","Total Kg","Rate / Kg","Lifting Amount","Outstanding After Entry"],[92,105,100,112,130],liftingRows,["TOTAL",fmt(d.totalKg)+" kg","—","Rs. "+fmt(d.totalAmount),"Rs. "+fmt(d.balance)]);
+ section("PART B - PAYMENT ACCOUNTING",["Date","Payment Mode","Payment Received","Outstanding After Entry","Remarks"],[92,105,112,112,118],paymentRows,["TOTAL","—","Rs. "+fmt(d.totalPaid),"Rs. "+fmt(d.balance),"—"]);
+ finishPage();
+ const pagesId=add(""),catalog=add(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`);pageIds.forEach((pid,i)=>objs[pid]=`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 ${f1} 0 R /F2 ${f2} 0 R >> /XObject << /Im1 ${imgObj} 0 R >> >> /Contents ${contentIds[i]} 0 R >>`);objs[pagesId]=`<< /Type /Pages /Kids [${pageIds.map(x=>x+" 0 R").join(" ")}] /Count ${pageIds.length} >>`;
+ let out="%PDF-1.4\n",offs=[0];for(let i=1;i<objs.length;i++){offs[i]=out.length;out+=`${i} 0 obj\n${objs[i]}\nendobj\n`}const xref=out.length;out+=`xref\n0 ${objs.length}\n0000000000 65535 f \n`;for(let i=1;i<objs.length;i++)out+=String(offs[i]).padStart(10,"0")+" 00000 n \n";out+=`trailer\n<< /Size ${objs.length} /Root ${catalog} 0 R >>\nstartxref\n${xref}\n%%EOF`;return new Blob([Uint8Array.from(out,ch=>ch.charCodeAt(0)&255)],{type:"application/pdf"});
+}
 async function downloadFarmerLedgerPdf(){
  try{
    const id=document.getElementById("farmerLedgerFarmer")?.value||"",d=await getFarmerLedgerData(id);
-   const rows=d.rows.map(r=>[r.date,d.farmer.name,r.kind==="lifting"?r.kg:"—",r.kind==="lifting"?r.rate:"—",r.amount||"—",r.payment||"—",r.balance]);
-   const summary=[["Total Kg",d.totalKg],["Lifting Amount",d.totalAmount],["Payment Received",d.totalPaid],["Outstanding",d.balance],["Amount Rule","Round down to lower Rs. 50 step"]];
-   const blob=buildAccountingTablePdf({title:"FARMER LIFTING & PAYMENT LEDGER",subtitle:`Farmer: ${d.farmer.name} | Generated: ${new Date().toLocaleString("en-IN")}`,headers:["Date","Farmer Name","Total Kg","Rate","Total Amount","Payment Received","Balance"],rows,summary});
+   const liftingRows=d.rows.filter(r=>r.kind==="lifting").map(r=>[r.date,fmt(r.kg)+" kg","Rs. "+fmt(r.rate),"Rs. "+fmt(r.amount),"Rs. "+fmt(r.balance)]);
+   const paymentRows=d.rows.filter(r=>r.kind==="payment").map(r=>[r.date,r.paymentMode||"—","Rs. "+fmt(r.payment),"Rs. "+fmt(r.balance),r.remarks||"—"]);
+   const blob=buildFarmerSeparatedLedgerPdf(d,liftingRows,paymentRows);
    await downloadPdfBlob(blob,`PSM_Farmer_Ledger_${d.farmer.name.replace(/[^a-z0-9]+/gi,"_")}_${today()}`);
    audit("ledger","FARMER_PDF",id,d.farmer.name);
  }catch(e){toast(e.message)}
@@ -5296,7 +5274,7 @@ async function renderLedger(){
  for(const x of (await txAll("sales")).filter(x=>x.storeId===idd)){
    saleRows.push({date:x.saleDate,type:"Sale",farmer:await saleFarmerDisplayName(x,farmerMap),kg:Number(x.weight??x.netWeight)||0,rate:Number(x.salesRate??x.ratePerKg)||0,debit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,credit:Number(x.paidAmount)||0,sortRef:x.invoiceNumber||x.id});
  }
- const pays=(await txAll("payments")).filter(x=>x.storeId===idd).map(x=>({date:x.paymentDate,type:"Receipt · "+(x.storeName||st.name),farmer:"—",kg:"—",rate:"—",debit:0,credit:Number(x.amount)||0,sortRef:x.receiptNumber||x.referenceNumber||x.id,paymentId:x.id}));
+ const pays=(await txAll("payments")).filter(x=>x.storeId===idd).map(x=>({date:x.paymentDate,type:"Payment",farmer:"—",kg:"—",rate:"—",debit:0,credit:Number(x.amount)||0,sortRef:x.receiptNumber||x.referenceNumber||x.id,paymentId:x.id}));
  const ev=[...saleRows,...pays].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.sortRef).localeCompare(String(b.sortRef)));
  let bal=wang?0:(Number(s?.openingDue)||0),rows=[];window._ledgerViewRows=[];
  if(!wang){const d={date:s?.createdAt?simpleDate(s.createdAt):"",type:"Opening Due",farmer:"—",kg:"—",rate:"—",debit:Number(s.openingDue)||0,credit:0,balance:bal};window._ledgerViewRows.push(d);rows.push(`<tr onclick="openLedgerListDetails(0)"><td>${esc(d.date)}</td><td>Opening Due</td><td>—</td><td>—</td><td>—</td><td>${fmt(d.debit)}</td><td>—</td><td>${fmt(d.balance)}</td></tr>`)}
@@ -5630,7 +5608,7 @@ async function renderDashboard(){
  let liftMap=new Map(allLift.map(x=>[String(x.id),x])),cageMap=new Map(cages.map(x=>[x.id,x]));
  let cost=money2(sales.reduce((sum,s)=>sum+saleLiftingCost(s,liftMap),0));
  let gp=money2(salesAmt-cost);document.getElementById("mGrossProfit").textContent=fmt(gp);document.getElementById("mGrossProfitSub").textContent=`${periodLabel}: net sales − physical cage lifting cost`;
- const cashSummary=await fundsSummary(),cashEl=document.getElementById("mCashInHand"),accountEl=document.getElementById("mAccountBalance");if(cashEl)cashEl.textContent=fmt(cashSummary.cashInHand);if(accountEl)accountEl.textContent=fmt(cashSummary.accountBalance);const totalEl=document.getElementById("mTotalFunds");if(totalEl)totalEl.textContent=fmt(cashSummary.totalFunds);
+ const cashSummary=await fundsSummary(),cashEl=document.getElementById("mCashInHand"),accountEl=document.getElementById("mAccountBalance");if(cashEl)cashEl.textContent=fmt(cashSummary.cashInHand);if(accountEl)accountEl.textContent=fmt(cashSummary.accountBalance);
  let att=[];
  const accountingIssues=await accountingIntegrityCheck();
  if(accountingIssues.length)att.push(`Accounting integrity: ${accountingIssues.length} issue(s) found — ${accountingIssues.slice(0,3).join("; ")}`);
@@ -5652,7 +5630,7 @@ async function renderDashboard(){
  if(creditStores.length)att.push(`${creditStores.length} store(s) have a credit/overpayment balance`);
  document.getElementById("attention").innerHTML=att.length?att.map(x=>`<div class="row">${esc(x)}</div>`).join(""):`<div class="row" style="background:#ecfdf5;color:#166534">No current reconciliation alerts.</div>`;
  const ageEl=document.getElementById("unsoldAgeDays");if(ageEl)ageEl.value=ageDays;
- updateSyncHealth();
+ updateSyncHealth();await renderSingke()
 }
 
 async function getDateRangeReportData(){
@@ -5671,37 +5649,6 @@ async function getDateRangeReportData(){
  const liftingCost=money2(periodSales.reduce((s,x)=>s+saleLiftingCost(x,liftMap),0));
  const grossProfit=money2(netSales-liftingCost);
 
- if(type==="funds"){
-   title="Total Funds Reconciliation Statement";
-   headers=["Date","Reference","Transaction / Party","Cash In","Cash Out","Account In","Account Out","Cash Balance","Account Balance","Total Funds"];
-   const events=[];
-   const add=(record,date,reference,label,sign,field,mode)=>{
-     const parts=tenderParts(record,field,mode),cash=money2(parts.cash),account=money2(parts.account);
-     if(!cash&&!account)return;
-     events.push({date:String(date||""),reference:String(reference||record.id||""),label,cashIn:sign>0?cash:0,cashOut:sign<0?cash:0,accountIn:sign>0?account:0,accountOut:sign<0?account:0});
-   };
-   for(const x of sales)add(x,x.saleDate,x.invoiceNumber||x.id,"Invoice payment from · "+(x.storeName||storeMap.get(String(x.storeId))?.name||"Store"),1,"paidAmount","paymentMethod");
-   for(const x of payments)add(x,x.paymentDate,x.receiptNumber||x.id,"Received from store · "+(x.storeName||storeMap.get(String(x.storeId))?.name||"Store")+(x.remarks?" · "+x.remarks:""),1,"amount","paymentMode");
-   for(const x of farmerPayments)add(x,x.paymentDate,x.receiptNumber||x.id,"Paid to farmer · "+(x.farmerName||farmers.get(String(x.farmerId))?.name||"Farmer")+(x.remarks?" · "+x.remarks:""),-1,"amount","paymentMode");
-   for(const x of sets)add(x,x.date||x.paymentDate,x.receiptNumber||x.id,"Payment to MPF / Singke"+(x.remarks?" · "+x.remarks:""),-1,"amount","paymentMethod");
-   for(const x of await householdExpenses())add(x,x.date,x.id,"External withdrawal · "+(x.remarks||"No remark"),-1,"amount","paymentMode");
-   events.sort((a,b)=>a.date.localeCompare(b.date)||a.reference.localeCompare(b.reference));
-   let cash=0,account=0,openingCash=0,openingAccount=0;
-   const inRange=event=>ok(event.date);
-   for(const e of events){if(inRange(e))continue;if(from&&e.date&&e.date<from){openingCash=money2(openingCash+e.cashIn-e.cashOut);openingAccount=money2(openingAccount+e.accountIn-e.accountOut)}}
-   cash=openingCash;account=openingAccount;
-   rows=[[from||"Beginning","—","Opening balance",0,0,0,0,cash,account,money2(cash+account)]];
-   let cashIn=0,cashOut=0,accountIn=0,accountOut=0;
-   for(const e of events.filter(inRange)){
-     cash=money2(cash+e.cashIn-e.cashOut);account=money2(account+e.accountIn-e.accountOut);
-     cashIn=money2(cashIn+e.cashIn);cashOut=money2(cashOut+e.cashOut);
-     accountIn=money2(accountIn+e.accountIn);accountOut=money2(accountOut+e.accountOut);
-     rows.push([e.date,e.reference,e.label,e.cashIn,e.cashOut,e.accountIn,e.accountOut,cash,account,money2(cash+account)]);
-   }
-   rows.push([to||"Latest","—","CLOSING BALANCE",cashIn,cashOut,accountIn,accountOut,cash,account,money2(cash+account)]);
-   summary=[["Opening Cash",openingCash],["Opening Account",openingAccount],["Cash Received",cashIn],["Cash Paid",cashOut],["Account Received",accountIn],["Account Paid",accountOut],["Closing Cash",cash],["Closing Account",account],["Total Funds",money2(cash+account)]];
-   return {from,to,type,title,headers,rows,summary,totals:{netSales,liftingPayable,paymentsReceived,grossProfit}};
- }
  if(type==="summary"){
    title="Accounting Summary";
    headers=["Particular","Amount / Value","Notes"];
@@ -5757,8 +5704,8 @@ async function getDateRangeReportData(){
    headers=["Date","Store","Type","Reference","Debit","Credit","Running Balance"];
    for(const st of stores.filter(s=>!s.isWangkhei&&!String(s.name||"").toLowerCase().includes("wangkhei"))){
      const ev=[
-       ...sales.filter(x=>x.storeId===st.id).map(x=>({date:x.saleDate,type:"Sale · "+(x.storeName||st.name),ref:x.invoiceNumber||x.id,d:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,c:Number(x.paidAmount)||0})),
-       ...payments.filter(x=>x.storeId===st.id).map(x=>({date:x.paymentDate,type:"Store receipt · "+(x.storeName||st.name),ref:x.receiptNumber||x.referenceNumber||x.id,d:0,c:Number(x.amount)||0}))
+       ...sales.filter(x=>x.storeId===st.id).map(x=>({date:x.saleDate,type:"Sale",ref:x.invoiceNumber||x.id,d:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,c:Number(x.paidAmount)||0})),
+       ...payments.filter(x=>x.storeId===st.id).map(x=>({date:x.paymentDate,type:"Payment",ref:x.receiptNumber||x.referenceNumber||x.id,d:0,c:Number(x.amount)||0}))
      ].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
      let bal=Number(st.openingDue)||0;
      for(const e of ev){
@@ -5783,19 +5730,15 @@ async function getDateRangeReportData(){
  }
  if(type==="singke"){
    title="MPF / Singke Reconciliation Ledger";
-   headers=["Date","Transaction / Party","Reference","Kg","Debit","Credit","Running Due"];
-   const acc=await singkeAccountingData();
-   const farmerNames=new Map(farmersArr.map(f=>[String(f.id),f.name]));
-   const wangName=x=>x.storeName||storeMap.get(String(x.storeId))?.name||"MPF Wangkhei";
-   const ev=[
-     ...acc.liftUsed.map(x=>({date:x.liftingDate||"",type:"Lifting · "+(x.farmerName||farmerNames.get(String(x.farmerId))||"Farmer (name unavailable)"),ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,d:singkeRoundedLiftingPayable(x),c:0})),
-     ...acc.wangSales.map(x=>({date:x.saleDate||"",type:"Sale adjustment · "+wangName(x),ref:x.invoiceNumber||x.id,kg:Number(x.netWeight??x.weight??x.totalWeight)||0,d:0,c:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0})),
-     ...acc.wangSales.filter(x=>Number(x.paidAmount)>0).map(x=>({date:x.saleDate||"",type:"Invoice receipt · "+wangName(x),ref:x.invoiceNumber||x.id,kg:0,d:Number(x.paidAmount)||0,c:0})),
-     ...acc.wangPayments.map(x=>({date:x.paymentDate||"",type:"Store receipt · "+wangName(x),ref:x.receiptNumber||x.id,kg:0,d:Number(x.amount)||0,c:0})),
-     ...acc.setsUsed.map(x=>({date:x.date||x.paymentDate||"",type:"MPF settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,d:0,c:Number(x.amount)||0})),
-     ...acc.farmerUsed.map(x=>({date:x.paymentDate||"",type:"Farmer payment · "+(x.farmerName||farmerNames.get(String(x.farmerId))||"Farmer (name unavailable)"),ref:x.id||x._settingKey||"Payment",kg:0,d:0,c:Number(x.amount)||0}))
+   headers=["Date","Type","Reference","Kg","Debit","Credit","Running Due"];
+   const p=await setting("singke_previous_due",{amount:0});
+   const wm=new Set(stores.filter(s=>s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei")).map(s=>s.id));
+   let ev=[
+     ...liftings.map(x=>({date:x.liftingDate,type:"Lifting Payable",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,d:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,c:0})),
+     ...sales.filter(x=>x.isWangkheiSale||wm.has(x.storeId)).map(x=>({date:x.saleDate,type:"Wangkhei Adjustment",ref:x.invoiceNumber||x.id,kg:Number(x.weight??x.netWeight)||0,d:0,c:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0})),
+     ...sets.map(x=>({date:x.date,type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,d:0,c:Number(x.amount)||0}))
    ].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
-   let bal=Number(acc.p?.amount)||0;
+   let bal=Number(p.amount)||0;
    for(const e of ev){
      if(from&&e.date<from){bal=money2(bal+e.d-e.c);continue}
      if(to&&e.date>to)continue;
@@ -6412,7 +6355,7 @@ function fromCloudRecord(t,c){
       liftingAmount:Number(c.total_amount)||0,totalAmount:Number(c.total_amount)||0,
       netAmount:Number(c.singke_payable_amount??c.total_amount)||0,payableAmount:Number(c.singke_payable_amount??c.total_amount)||0,
       wangkheiDeductions:Number(c.wangkhei_deductions_applied)||0,remarks:c.remarks||"",
-      payableToSingke:!isDirectPayFarmerName(c.farmer_name),createdAt:c.created_at||n,updatedAt:c.updated_at||c.created_at||n
+      payableToSingke:true,createdAt:c.created_at||n,updatedAt:c.updated_at||c.created_at||n
     };
     case"cages":{
       const w=Number(c.net_weight??c.gross_weight)||0;
@@ -6629,7 +6572,7 @@ function fromCloud(t,r){
 let n=iso();switch(t){
  case"farmers":return{id:r.id,name:r.name,phone:r.phone,farmLocation:r.village||"",village:r.village||"",capacity:r.capacity||null,createdAt:r.created_at||n,updatedAt:r.updated_at||n};
  case"stores":return{id:r.id,name:r.name,contactPerson:r.contact_person||"",phone:r.phone||"",address:r.address||"",openingDue:0,isWangkhei:!!r.is_wangkhei,singkeAccount:r.is_wangkhei?"Singke":"General",createdAt:r.created_at||n,updatedAt:r.updated_at||n};
- case"liftings":return{id:r.id,liftingDate:r.lifting_date,farmerId:r.farmer_id,farmerName:r.farmer_name||"",vehicleNumber:r.vehicle_number||"",driverName:r.driver_name||"",liftingRate:Number(r.rate_per_kg)||0,ratePerKg:Number(r.rate_per_kg)||0,totalBirds:Number(r.total_birds)||0,totalWeight:Number(r.total_weight)||0,liftingAmount:Number(r.total_amount)||0,totalAmount:Number(r.total_amount)||0,singkePayableAmount:Number(r.singke_payable_amount)||Number(r.total_amount)||0,wangkheiDeductions:Number(r.wangkhei_deductions_applied)||0,remarks:r.remarks||"",payableToSingke:!isDirectPayFarmerName(r.farmer_name),createdAt:r.created_at||n,updatedAt:r.updated_at||n};
+ case"liftings":return{id:r.id,liftingDate:r.lifting_date,farmerId:r.farmer_id,farmerName:r.farmer_name||"",vehicleNumber:r.vehicle_number||"",driverName:r.driver_name||"",liftingRate:Number(r.rate_per_kg)||0,ratePerKg:Number(r.rate_per_kg)||0,totalBirds:Number(r.total_birds)||0,totalWeight:Number(r.total_weight)||0,liftingAmount:Number(r.total_amount)||0,totalAmount:Number(r.total_amount)||0,singkePayableAmount:Number(r.singke_payable_amount)||Number(r.total_amount)||0,wangkheiDeductions:Number(r.wangkhei_deductions_applied)||0,remarks:r.remarks||"",payableToSingke:true,createdAt:r.created_at||n,updatedAt:r.updated_at||n};
  case"cages":return{id:r.id,liftingId:r.lifting_id,cageNumber:r.serial_number||"",weight:Number(r.net_weight)||Number(r.gross_weight)||0,grossWeight:Number(r.gross_weight)||0,emptyWeight:Number(r.tare_weight)||0,netWeight:Number(r.net_weight)||0,birdCount:Number(r.birds_count)||0,birdsCount:Number(r.birds_count)||0,createdAt:r.created_at||n,updatedAt:r.updated_at||r.created_at||n};
  case"sales":return{id:r.id,saleDate:r.sale_date,storeId:r.store_id,storeName:r.store_name||"",isWangkheiSale:!!r.is_wangkhei_store,liftingId:r.lifting_id||null,farmerId:r.farmer_id||null,farmerName:r.farmer_name||"",birdsCount:Number(r.total_birds)||0,weight:Number(r.total_weight)||0,netWeight:Number(r.total_weight)||0,salesRate:Number(r.rate_per_kg)||0,ratePerKg:Number(r.rate_per_kg)||0,saleAmount:Number(r.total_amount)||0,totalAmount:Number(r.total_amount)||0,createdAt:r.created_at||n,updatedAt:r.updated_at||n};
  case"payments":return{id:r.id,paymentDate:r.payment_date,storeId:r.store_id,storeName:r.store_name||"",amount:Number(r.amount)||0,paymentMode:r.payment_mode||"Cash",referenceNumber:r.reference_number||"",remarks:r.remarks||"",createdAt:r.created_at||n,updatedAt:r.updated_at||n};
@@ -6692,25 +6635,12 @@ async function saveDailyManagementSnapshot(){
  }catch(e){console.warn("Daily management snapshot:",e)}
 }
 
-/* Keep one failed view from preventing Dashboard, MPF A/C and other pages from updating. */
 async function refreshAll(){
- const safe=async(name,fn)=>{try{await fn()}catch(e){console.error('PSM refresh error ['+name+']:',e);const el=document.getElementById('attention');if(el&&name==='Dashboard')el.textContent='Dashboard refresh error: '+(e?.message||String(e))+' — other pages remain available.';}};
- await safe('Inventory',()=>reconcileCageInventoryState({sync:false}));
- await safe('Dashboard',renderDashboard);
- await safe('Farmers',renderFarmers);
- await safe('Farmer listing',renderFarmersCombined);
- await safe('Liftings',renderLiftings);
- await safe('Sales',renderSales);
- await safe('Stores',renderStores);
- await safe('MPF A/C',renderSingke);
- await safe('Store selector',populateStoreSelect);
- await safe('Farmer selector',populateFarmerLedgerSelect);
- await safe('Audit',renderAudit);
- await safe('Closing',renderClosings);
- await safe('Sync status',async()=>{updateSyncBadge();updateSyncHealth()});
- await safe('Page summaries',updatePageMiniSummaries);
- await safe('Recent activity',renderRecentActivity);
- await safe('Daily snapshot',saveDailyManagementSnapshot);
+ await reconcileCageInventoryState({sync:false});
+ await renderDashboard();await renderFarmers();await renderFarmersCombined();await renderLiftings();await renderSales();await renderStores();await renderSingke();await populateStoreSelect();await populateFarmerLedgerSelect();
+ renderAudit();renderClosings();updateSyncBadge();updateSyncHealth();
+ await updatePageMiniSummaries();await renderRecentActivity();
+ await saveDailyManagementSnapshot();
 }
 
 const CLEAN_START_VERSION="PSM_PRODUCTION_NO_RESET";
