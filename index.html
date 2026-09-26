@@ -3178,8 +3178,10 @@ async function openPayment(preselectStoreId=""){
   <div class="field"><label>Store</label><select id="pStore" onchange="updatePaymentStoreDue()">${stores.map(s=>`<option value="${s.id}" ${String(s.id)===String(preselectStoreId)?"selected":""}>${esc(s.name)}</option>`).join("")}</select></div>
   <div class="field"><label>Current Due ₹</label><input id="pCurrentDue" disabled value="Loading…"></div>
   <div class="field"><label>Date</label><input id="pDate" type="date" value="${today()}"></div>
-  <div class="field"><label>Amount Received ₹</label><input id="pAmt" type="number" step="0.01" min="0" oninput="updatePaymentRemainingPreview()"></div>
-  <div class="field"><label>Mode</label><select id="pMode"><option>Cash</option><option>UPI</option><option>Bank</option><option>Cheque</option></select></div>
+  <div class="field"><label>Cash Received ₹</label><input id="pCash" type="number" step="0.01" min="0" value="0" oninput="updatePaymentRemainingPreview()"></div>
+  <div class="field"><label>Account / UPI Received ₹</label><input id="pAccount" type="number" step="0.01" min="0" value="0" oninput="updatePaymentRemainingPreview()"></div>
+  <div class="field"><label>Total Received ₹</label><input id="pAmt" disabled value="0.00"></div>
+  <div class="field"><label>Payment Split</label><input disabled value="Cash + Account / UPI"></div>
   <div class="field"><label>Sales Due After Payment ₹</label><input id="pRemainingDue" disabled value="0.00"></div>
   <div class="field"><label>Reference</label><input id="pRef"></div>
   <div class="field"><label>Remarks</label><input id="pRem"></div>
@@ -3241,8 +3243,9 @@ async function updatePaymentStoreDue(){
 }
 function updatePaymentRemainingPreview(){
  const due=Number(document.getElementById("pCurrentDue")?.dataset?.value)||0;
- const paid=Number(document.getElementById("pAmt")?.value)||0;
- const el=document.getElementById("pRemainingDue");
+ const cash=money2(document.getElementById("pCash")?.value),account=money2(document.getElementById("pAccount")?.value),paid=money2(cash+account);
+ const total=document.getElementById("pAmt"),el=document.getElementById("pRemainingDue");
+ if(total)total.value=fmt(paid);
  if(el)el.value=fmt(due-paid);
 }
 async function shareStorePaymentWhatsApp(paymentId){
@@ -3384,14 +3387,16 @@ async function salePaymentStatus(sale){
 }
 
 async function savePayment(){
- const date=document.getElementById("pDate").value,storeId=document.getElementById("pStore").value,amount=money2(document.getElementById("pAmt").value);
- if(!date||!storeId||amount<=0)return toast("Valid store, date and amount required.");
+ const date=document.getElementById("pDate").value,storeId=document.getElementById("pStore").value;
+ const cashAmount=money2(document.getElementById("pCash")?.value),accountAmount=money2(document.getElementById("pAccount")?.value),amount=money2(cashAmount+accountAmount);
+ if(!date||!storeId||amount<=0)return toast("Enter a Cash or Account / UPI amount.");
  const s=await txGet("stores",storeId);if(!s)return toast("Store not found.");
  const before=await storeSummary(storeId);
  const previousDue=money2(before.outstanding),remainingDue=money2(previousDue-amount);
  const allocation=await allocateStorePaymentToSales(storeId,date,amount);
- const r={id:id("PAY"),receiptNumber:await nextSequentialNumber("payment",date),storeId,paymentDate:date,amount,
-   paymentMode:document.getElementById("pMode").value,referenceNumber:document.getElementById("pRef").value.trim(),
+ const paymentMode=cashAmount>0&&accountAmount>0?"Split":cashAmount>0?"Cash":"Account";
+ const r={id:id("PAY"),receiptNumber:await nextSequentialNumber("payment",date),storeId,paymentDate:date,amount,cashAmount,accountAmount,
+   paymentMode,referenceNumber:document.getElementById("pRef").value.trim(),
    remarks:document.getElementById("pRem").value.trim(),storeName:s.name||"",storePhone:s.phone||"",
    previousDue,remainingDue,saleAllocations:allocation.allocations,unallocatedAmount:allocation.unallocated,createdAt:iso(),updatedAt:iso()};
  const payDup=(await txAll("payments")).find(x=>x.storeId===r.storeId&&x.paymentDate===r.paymentDate&&Math.abs(Number(x.amount)-r.amount)<0.01&&String(x.paymentMode||"")===String(r.paymentMode||"")&&String(x.referenceNumber||"")===String(r.referenceNumber||""));
@@ -3478,8 +3483,9 @@ async function openSale(){
    <div class="field"><label>Total Birds</label><input id="saBirds" disabled value="0"></div>
    <div class="field sale-total-amount-field"><label>Sales Total Amount (Net) ₹</label><input id="saTotalAmount" disabled value="₹0.00"></div>
    <div class="field"><label>Payment Status</label><select id="saMode" onchange="handleSalePaymentModeChange()"><option value="Credit">Credit</option><option value="Paid">Paid at Invoice</option></select></div>
-   <div class="field" id="saPaidField" style="display:none"><label>Paid Amount at Invoice ₹</label><input id="saPaid" type="number" step="0.01" min="0.01" value="" placeholder="Enter amount received"><div class="sub">Enter full received amount. Any excess clears older store dues; the remainder becomes store advance.</div></div>
-   <div class="field"><label>Payment Mode</label><select id="saPaidMode" disabled><option>Cash</option><option>UPI</option><option>Bank</option><option>Cheque</option></select><div class="sub" id="saPaidModeHint">Not required for Credit.</div></div>
+   <div class="field" id="saPaidField" style="display:none"><label>Cash Received ₹</label><input id="saCashPaid" type="number" step="0.01" min="0" value="0" oninput="updateSaleSplitPayment()"></div>
+   <div class="field" id="saAccountPaidField" style="display:none"><label>Account / UPI Received ₹</label><input id="saAccountPaid" type="number" step="0.01" min="0" value="0" oninput="updateSaleSplitPayment()"></div>
+   <div class="field"><label>Total Received ₹</label><input id="saPaid" disabled value="0.00"><div class="sub">Excess clears store outstanding; remainder becomes advance.</div></div>
    <div class="field"><label>Remarks</label><input id="saRem"></div>
   </div>
   <div style="height:12px"></div><button class="btn primary" onclick="saveSale()">Save Sale</button>`);
@@ -3513,7 +3519,7 @@ async function openSaleCageSelectionPage(){
    weight:document.getElementById("saWeight")?.value||"",
    paid:document.getElementById("saPaid")?.value||"",
    mode:document.getElementById("saMode")?.value||"Credit",
-   paidMode:document.getElementById("saPaidMode")?.value||"Cash",
+   cashPaid:document.getElementById("saCashPaid")?.value||"0",accountPaid:document.getElementById("saAccountPaid")?.value||"0",
    remarks:document.getElementById("saRem")?.value||""
  };
  closeModal();
@@ -3572,7 +3578,7 @@ async function reopenSaleModalFromDraft(){
  const date=document.getElementById("saDate");if(date)date.value=d.date||today();
  const store=document.getElementById("saStore");if(store&&d.storeId)store.value=d.storeId;
  const rate=document.getElementById("saRate");if(rate)rate.value=d.rate||"";
- const paid=document.getElementById("saPaid");if(paid)paid.value=d.paid||"0";
+ const cp=document.getElementById("saCashPaid");if(cp)cp.value=d.cashPaid||"0";const ap=document.getElementById("saAccountPaid");if(ap)ap.value=d.accountPaid||"0";
  const mode=document.getElementById("saMode");if(mode&&d.mode)mode.value=d.mode;
  const rem=document.getElementById("saRem");if(rem)rem.value=d.remarks||"";
  window._saleSelectedCageIds=selected;
@@ -3600,49 +3606,26 @@ async function updateMultiCageSaleSummary(){
  if(s)s.innerHTML=chosen.length?`<b>${chosen.length} cage${chosen.length===1?"":"s"} selected</b> · ${fmt(weight)} kg · ${birds} birds<br>${chosen.map(c=>`Cage ${esc(c.cageNumber||c.id)}`).join(", ")}`:"No cages selected.";
  updateSaleAmountPreview();
 }
-function handleSalePaymentModeChange(){
- const status=document.getElementById("saMode")?.value||"Credit";
- const paid=document.getElementById("saPaid"),field=document.getElementById("saPaidField"),paidMode=document.getElementById("saPaidMode"),hint=document.getElementById("saPaidModeHint");
- const isCredit=String(status).toLowerCase()==="credit";
- if(field)field.style.display=isCredit?"none":"";
- if(paid){
-   if(isCredit){paid.value="";paid.disabled=true;paid.required=false}
-   else{paid.disabled=false;paid.required=true}
- }
- if(paidMode)paidMode.disabled=isCredit;
- if(hint)hint.textContent=isCredit?"Not required for Credit.":"How the amount was received at invoice time.";
-}
-function updateSaleAmountPreview(){
- const weight=Number(document.getElementById("saWeight")?.value)||0;
- const rate=Number(document.getElementById("saRate")?.value)||0;
- const exact=money2(weight*rate),net=invoiceRound(exact).rounded;
- const el=document.getElementById("saTotalAmount");
- if(el){el.value=`₹${fmt(net)}`;el.title=`Exact ₹${fmt(exact)} before invoice rounding`;}
-}
-function fillSaleWeight(){updateMultiCageSaleSummary()}
-async function updateSaleStoreOutstanding(){
-  const storeId=document.getElementById("saStore")?.value,el=document.getElementById("saOutstanding");if(!storeId||!el)return;
-  const st=await txGet("stores",storeId);
-  if(st?.isWangkhei||String(st?.name||"").toLowerCase().includes("wangkhei")){el.value="N/A - MPF A/C settlement";return}
-  const f=await storeSummary(storeId);el.value=`₹${fmt(f.outstanding)}`;
-}
-async function storeSummary(storeId){
-  let s=await txGet("stores",storeId),sales=(await txAll("sales")).filter(x=>String(x.storeId)===String(storeId)),pays=(await txAll("payments")).filter(x=>String(x.storeId)===String(storeId)),opening=money2(s?.openingDue);
-  const totalSales=money2(sales.reduce((a,x)=>a+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0));
-  const salePaid=money2(sales.reduce((a,x)=>a+(Number(x.paidAmount)||0),0));
-  const direct=money2(pays.reduce((a,x)=>a+(Number(x.amount)||0),0));
-  const totalPaid=money2(salePaid+direct);
-  return {opening,totalSales,totalPaid,outstanding:money2(opening+totalSales-totalPaid)}
-}
+function updateSaleSplitPayment(){const c=money2(document.getElementById("saCashPaid")?.value),a=money2(document.getElementById("saAccountPaid")?.value),t=document.getElementById("saPaid");if(t)t.value=fmt(money2(c+a));updateSaleAmountPreview()}
+function handleSalePaymentModeChange(){const isCredit=String(document.getElementById("saMode")?.value||"Credit").toLowerCase()==="credit";const c=document.getElementById("saPaidField"),a=document.getElementById("saAccountPaidField");if(c)c.style.display=isCredit?"none":"";if(a)a.style.display=isCredit?"none":"";if(isCredit){const x=document.getElementById("saCashPaid"),y=document.getElementById("saAccountPaid");if(x)x.value="0";if(y)y.value="0"}updateSaleSplitPayment()}
 async function saveSale(){
+ if(window._psmSaleSaving)return toast("Sale is already being saved.");
+ window._psmSaleSaving=true;
+ const saveBtn=[...document.querySelectorAll("button")].find(b=>b.getAttribute("onclick")==="saveSale()");
+ if(saveBtn){saveBtn.disabled=true;saveBtn.dataset.oldText=saveBtn.textContent;saveBtn.textContent="Saving...";}
+ try{
  const storeId=document.getElementById("saStore").value,date=document.getElementById("saDate").value,rate=Number(document.getElementById("saRate").value),salePaymentStatus=document.getElementById("saMode").value||"Credit";
  const isCredit=String(salePaymentStatus).toLowerCase()==="credit";
- const paymentMethod=isCredit?"Credit":(document.getElementById("saPaidMode")?.value||"Cash");
- const paid=isCredit?0:(Number(document.getElementById("saPaid").value)||0);
+ const cashReceived=isCredit?0:money2(document.getElementById("saCashPaid")?.value),accountReceived=isCredit?0:money2(document.getElementById("saAccountPaid")?.value),paid=money2(cashReceived+accountReceived);
+ const paymentMethod=isCredit?"Credit":cashReceived>0&&accountReceived>0?"Split":cashReceived>0?"Cash":"Account";
  let cageIds=selectedSaleCageIds();
  if(!date||!storeId||rate<=0)return toast("Date, store and sales rate are required.");
  if(!cageIds.length)return toast("Select at least one cage.");
- if(navigator.onLine&&AUTH_SESSION)await backgroundBidirectionalSync({force:true});
+ // Save Sale must never wait indefinitely for network synchronization.
+ // Cloud synchronization continues in the background; the local sale transaction remains atomic.
+ if(navigator.onLine&&AUTH_SESSION){
+   backgroundBidirectionalSync({force:true}).catch(e=>console.warn("Pre-sale background sync skipped:",e));
+ }
  await reconcileCageInventoryState({sync:false});
  const current=[];
  for(const cid of cageIds){
@@ -3674,11 +3657,12 @@ async function saveSale(){
    saleAmount:exactAmount,totalAmount:exactAmount,roundOff:rr.roundOff,netAmount,invoiceNetAmount:netAmount,paidAmount:invoicePaid,
    paymentReceivedAtInvoice:paid,excessStorePayment:excess,
    previousDue:money2(fin.outstanding),outstanding:money2(fin.outstanding+netAmount-paid),
-   paymentMethod,salePaymentStatus:isCredit?"Credit":"Paid",remarks:document.getElementById("saRem").value.trim(),isWangkheiSale:!!store.isWangkhei,
+   cashAmount:money2(Math.min(cashReceived,invoicePaid)),accountAmount:money2(invoicePaid-Math.min(cashReceived,invoicePaid)),paymentMethod,salePaymentStatus:isCredit?"Credit":"Paid",remarks:document.getElementById("saRem").value.trim(),isWangkheiSale:!!store.isWangkhei,
    createdAt:iso(),updatedAt:iso()};
+ const invoiceCash=money2(Math.min(cashReceived,invoicePaid)),invoiceAccount=money2(invoicePaid-invoiceCash),excessCash=money2(Math.max(0,cashReceived-invoiceCash)),excessAccount=money2(Math.max(0,accountReceived-invoiceAccount));
  const excessPayment=excess>0?{
-   id:id("PAY"),receiptNumber:await nextSequentialNumber("payment",date),storeId,paymentDate:date,amount:excess,
-   paymentMode,referenceNumber:inv,remarks:`Excess received on invoice ${inv}; adjust existing store outstanding, then advance`,
+   id:id("PAY"),receiptNumber:await nextSequentialNumber("payment",date),storeId,paymentDate:date,amount:excess,cashAmount:excessCash,accountAmount:excessAccount,
+   paymentMode:excessCash>0&&excessAccount>0?"Split":excessCash>0?"Cash":"Account",referenceNumber:inv,remarks:`Excess received on invoice ${inv}; adjust existing store outstanding, then advance`,
    storeName:store.name||"",storePhone:store.phone||"",linkedSaleId:sid,
    previousDue:money2(fin.outstanding),remainingDue:money2(fin.outstanding-excess),
    createdAt:iso(),updatedAt:iso()
@@ -3706,6 +3690,14 @@ async function saveSale(){
  }
  audit("sales","CREATE",sid,`${inv} | ${current.length} cages`);
  clearCurrentFormDraft();window._saleModalDraft=null;closeModal();await refreshAll();await previewStoreInvoice(sid);
+ }catch(e){
+   console.error("Save Sale failed:",e);
+   toast("Unable to save sale: "+(e?.message||"Unexpected error"));
+ }finally{
+   window._psmSaleSaving=false;
+   const b=[...document.querySelectorAll("button")].find(x=>x.getAttribute("onclick")==="saveSale()");
+   if(b){b.disabled=false;b.textContent=b.dataset.oldText||"Save Sale";}
+ }
 }
 
 function clearSingkeFilter(){
@@ -3742,10 +3734,11 @@ async function downloadSingkeLedgerPdf(){
   }catch(e){toast(e.message)}
 }
 
-async function openSettlement(){openModal(`<h3>Record Payout to Singke</h3><div class="grid g2"><div class="field"><label>Date</label><input id="ssDate" type="date" value="${today()}"></div><div class="field"><label>Amount ₹</label><input id="ssAmt" type="number" step="0.01"></div><div class="field"><label>Method</label><select id="ssMode"><option>Cash</option><option>UPI</option><option>Bank</option><option>Cheque</option></select></div><div class="field"><label>Reference</label><input id="ssRef"></div></div><div class="field" style="margin-top:8px"><label>Remarks</label><input id="ssRem"></div><div style="height:12px"></div><button class="btn primary" onclick="saveSettlement()">Save Settlement</button>`)}
+async function openSettlement(){openModal(`<h3>Record Payout to Singke</h3><div class="grid g2"><div class="field"><label>Date</label><input id="ssDate" type="date" value="${today()}"></div><div class="field"><label>Cash Payment ₹</label><input id="ssCash" type="number" min="0" step="0.01" value="0" oninput="updateSettlementSplitTotal()"></div><div class="field"><label>Account / UPI Payment ₹</label><input id="ssAccount" type="number" min="0" step="0.01" value="0" oninput="updateSettlementSplitTotal()"></div><div class="field"><label>Total Settlement ₹</label><input id="ssAmt" disabled value="0.00"></div><div class="field"><label>Reference</label><input id="ssRef"></div></div><div class="field" style="margin-top:8px"><label>Remarks</label><input id="ssRem"></div><div style="height:12px"></div><button class="btn primary" onclick="saveSettlement()">Save Settlement</button>`)}
+function updateSettlementSplitTotal(){const c=money2(document.getElementById("ssCash")?.value),a=money2(document.getElementById("ssAccount")?.value),t=document.getElementById("ssAmt");if(t)t.value=fmt(money2(c+a))}
 async function saveSettlement(){
- let date=document.getElementById("ssDate").value;
- let r={id:id("SSET"),receiptNumber:await nextSequentialNumber("settlement",date),date,amount:Number(document.getElementById("ssAmt").value)||0,paymentMethod:document.getElementById("ssMode").value,referenceNumber:document.getElementById("ssRef").value.trim(),remarks:document.getElementById("ssRem").value.trim(),createdAt:iso(),updatedAt:iso()};
+ let date=document.getElementById("ssDate").value,cashAmount=money2(document.getElementById("ssCash")?.value),accountAmount=money2(document.getElementById("ssAccount")?.value),amount=money2(cashAmount+accountAmount);
+ let r={id:id("SSET"),receiptNumber:await nextSequentialNumber("settlement",date),date,amount,cashAmount,accountAmount,paymentMethod:cashAmount>0&&accountAmount>0?"Split":cashAmount>0?"Cash":"Account",referenceNumber:document.getElementById("ssRef").value.trim(),remarks:document.getElementById("ssRem").value.trim(),createdAt:iso(),updatedAt:iso()};
  if(!r.date||r.amount<=0)return toast("Valid date and amount required.");
  if((await txAll("singke_settlements")).some(x=>x.receiptNumber===r.receiptNumber))return toast("Receipt number conflict. Please retry.");
  await txPut("singke_settlements",r);queueCloud("singke_settlements","UPSERT",r);audit("singke","SETTLEMENT",r.id,r.receiptNumber);closeModal();refreshAll()
@@ -5030,24 +5023,30 @@ Kindly arrange payment at the earliest. Thank you.`;
 function normalizedPaymentMode(mode){return String(mode||"").trim().toLowerCase()}
 function isCashMode(mode){return normalizedPaymentMode(mode)==="cash"}
 function isAccountMode(mode){return ["upi","bank","bank transfer"].includes(normalizedPaymentMode(mode))}
+function splitMoneyParts(record,modeField="paymentMode"){
+ const total=money2(record?.amount ?? record?.paidAmount ?? 0);
+ if(record && (record.cashAmount!=null || record.accountAmount!=null)){
+   const cash=money2(record.cashAmount),account=money2(record.accountAmount);
+   return {cash,account,total:money2(cash+account)};
+ }
+ const mode=String(record?.[modeField]||"");
+ return {cash:isCashMode(mode)?total:0,account:isAccountMode(mode)?total:0,total};
+}
+function splitPaymentLabel(record,modeField="paymentMode"){
+ const p=splitMoneyParts(record,modeField);
+ if(p.cash>0&&p.account>0)return `Cash ₹${fmt(p.cash)} + A/C ₹${fmt(p.account)}`;
+ if(p.cash>0)return `Cash ₹${fmt(p.cash)}`;
+ if(p.account>0)return `A/C ₹${fmt(p.account)}`;
+ return record?.[modeField]||"—";
+}
 async function fundsSummary(){
  const sales=await txAll("sales"),payments=await txAll("payments"),sets=await txAll("singke_settlements"),farmerPayments=await getFarmerPayments();
- const saleCash=money2(sales.filter(x=>isCashMode(x.paymentMethod)).reduce((a,x)=>a+(Number(x.paidAmount)||0),0));
- const storeCash=money2(payments.filter(x=>isCashMode(x.paymentMode)).reduce((a,x)=>a+(Number(x.amount)||0),0));
- const farmerCash=money2(farmerPayments.filter(x=>isCashMode(x.paymentMode)).reduce((a,x)=>a+(Number(x.amount)||0),0));
- const singkeCash=money2(sets.filter(x=>isCashMode(x.paymentMethod)).reduce((a,x)=>a+(Number(x.amount)||0),0));
-
- const saleAccount=money2(sales.filter(x=>isAccountMode(x.paymentMethod)).reduce((a,x)=>a+(Number(x.paidAmount)||0),0));
- const storeAccount=money2(payments.filter(x=>isAccountMode(x.paymentMode)).reduce((a,x)=>a+(Number(x.amount)||0),0));
- const farmerAccount=money2(farmerPayments.filter(x=>isAccountMode(x.paymentMode)).reduce((a,x)=>a+(Number(x.amount)||0),0));
- const singkeAccount=money2(sets.filter(x=>isAccountMode(x.paymentMethod)).reduce((a,x)=>a+(Number(x.amount)||0),0));
-
- return {
-  saleCash,storeCash,farmerCash,singkeCash,
-  saleAccount,storeAccount,farmerAccount,singkeAccount,
-  cashInHand:money2(saleCash+storeCash-farmerCash-singkeCash),
-  accountBalance:money2(saleAccount+storeAccount-farmerAccount-singkeAccount)
- };
+ const saleParts=sales.map(x=>splitMoneyParts({amount:x.paidAmount,cashAmount:x.cashAmount,accountAmount:x.accountAmount,paymentMethod:x.paymentMethod},"paymentMethod"));
+ const saleCash=money2(saleParts.reduce((a,x)=>a+x.cash,0)),saleAccount=money2(saleParts.reduce((a,x)=>a+x.account,0));
+ const storeCash=money2(payments.reduce((a,x)=>a+splitMoneyParts(x,"paymentMode").cash,0)),storeAccount=money2(payments.reduce((a,x)=>a+splitMoneyParts(x,"paymentMode").account,0));
+ const farmerCash=money2(farmerPayments.reduce((a,x)=>a+splitMoneyParts(x,"paymentMode").cash,0)),farmerAccount=money2(farmerPayments.reduce((a,x)=>a+splitMoneyParts(x,"paymentMode").account,0));
+ const singkeCash=money2(sets.reduce((a,x)=>a+splitMoneyParts(x,"paymentMethod").cash,0)),singkeAccount=money2(sets.reduce((a,x)=>a+splitMoneyParts(x,"paymentMethod").account,0));
+ return {saleCash,storeCash,farmerCash,singkeCash,saleAccount,storeAccount,farmerAccount,singkeAccount,cashInHand:money2(saleCash+storeCash-farmerCash-singkeCash),accountBalance:money2(saleAccount+storeAccount-farmerAccount-singkeAccount),combinedBalance:money2(saleCash+storeCash+saleAccount+storeAccount-farmerCash-singkeCash-farmerAccount-singkeAccount)};
 }
 async function cashInHandSummary(){return fundsSummary()}
 
@@ -5144,27 +5143,29 @@ async function openFarmerPayment(farmerId){
    <div class="field"><label>Farmer</label><input value="${esc(f.name)}" disabled></div>
    <div class="field"><label>Current Outstanding ₹</label><input id="fpCurrentDue" value="${fmt(due)}" disabled data-value="${due}"></div>
    <div class="field"><label>Date</label><input id="fpDate" type="date" value="${today()}"></div>
-   <div class="field"><label>Amount ₹</label><input id="fpAmount" type="number" min="0.01" step="0.01" inputmode="decimal" oninput="updateFarmerPaymentPreview()"></div>
-   <div class="field"><label>Payment Mode</label><select id="fpMode"><option>Cash</option><option>UPI</option><option>Bank</option><option>Cheque</option></select></div>
+   <div class="field"><label>Cash Payment ₹</label><input id="fpCash" type="number" min="0" step="0.01" value="0" inputmode="decimal" oninput="updateFarmerPaymentPreview()"></div>
+   <div class="field"><label>Account / UPI Payment ₹</label><input id="fpAccount" type="number" min="0" step="0.01" value="0" inputmode="decimal" oninput="updateFarmerPaymentPreview()"></div>
+   <div class="field"><label>Total Payment ₹</label><input id="fpAmount" value="0.00" disabled></div>
    <div class="field"><label>Outstanding After Payment ₹</label><input id="fpRemaining" value="${fmt(due)}" disabled></div>
    <div class="field" style="grid-column:1/-1"><label>Remarks</label><input id="fpRemarks" placeholder="Optional"></div>
   </div>
   <div style="height:12px"></div><button class="btn primary" onclick="saveFarmerPayment('${farmerId}')">Save Payment</button>`);
 }
 function updateFarmerPaymentPreview(){
- const due=Number(document.getElementById("fpCurrentDue")?.dataset?.value)||0,amt=Number(document.getElementById("fpAmount")?.value)||0,el=document.getElementById("fpRemaining");
- if(el)el.value=fmt(money2(due-amt));
+ const due=Number(document.getElementById("fpCurrentDue")?.dataset?.value)||0,cash=money2(document.getElementById("fpCash")?.value),account=money2(document.getElementById("fpAccount")?.value),amt=money2(cash+account),el=document.getElementById("fpRemaining"),total=document.getElementById("fpAmount");
+ if(total)total.value=fmt(amt);if(el)el.value=fmt(money2(due-amt));
 }
 async function saveFarmerPayment(farmerId){
  const f=await txGet("farmers",farmerId);if(!f)return toast("Farmer not found.");
- const date=document.getElementById("fpDate")?.value||"",amount=money2(document.getElementById("fpAmount")?.value),mode=document.getElementById("fpMode")?.value||"Cash",remarks=document.getElementById("fpRemarks")?.value?.trim()||"";
- if(!date||amount<=0)return toast("Enter a valid date and payment amount.");
+ const date=document.getElementById("fpDate")?.value||"",cashAmount=money2(document.getElementById("fpCash")?.value),accountAmount=money2(document.getElementById("fpAccount")?.value),amount=money2(cashAmount+accountAmount),remarks=document.getElementById("fpRemarks")?.value?.trim()||"";
+ const mode=cashAmount>0&&accountAmount>0?"Split":cashAmount>0?"Cash":"Account";
+ if(!date||amount<=0)return toast("Enter a Cash or Account / UPI payment amount.");
  const before=await getFarmerLedgerData(farmerId);
  const priorRows=before.rows.filter(r=>String(r.date||"")<=String(date));
  const previousOutstanding=money2(priorRows.length?priorRows[priorRows.length-1].balance:0);
  if(amount>previousOutstanding+.009&&!confirm(`Payment ₹${fmt(amount)} is higher than farmer outstanding ₹${fmt(previousOutstanding)} as of ${date}. Save as an advance/credit balance?`))return;
  const idv=id("FP"),remainingOutstanding=money2(previousOutstanding-amount),now=iso();
- const p={id:idv,farmerId,farmerName:f.name||"",paymentDate:date,amount,paymentMode:mode,remarks,previousOutstanding,remainingOutstanding,createdAt:now,updatedAt:now};
+ const p={id:idv,farmerId,farmerName:f.name||"",paymentDate:date,amount,cashAmount,accountAmount,paymentMode:mode,remarks,previousOutstanding,remainingOutstanding,createdAt:now,updatedAt:now};
  await setSetting(farmerPaymentSettingKey(idv),p);
  audit("farmer_payments","CREATE",idv,`${f.name} | ₹${fmt(amount)} | ${mode}`);
  clearCurrentFormDraft();closeModal();await refreshAll();
