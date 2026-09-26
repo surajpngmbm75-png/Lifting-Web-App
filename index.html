@@ -1610,7 +1610,12 @@ button[onclick*="changeFarmerPage("],button[onclick*="changeFarmerCombinedPage("
 }
 </style>
 </head>
-<body>
+<body><div id="psmReliabilityStatus" style="display:none">
+<span id="syncBadge"></span><span id="syncDetail"></span><span id="syncLastSuccess"></span>
+<span id="syncNetwork"></span><span id="syncPendingDeletes"></span><span id="syncPendingSaves"></span>
+<span id="autoBackupStatus"></span><span id="cleanStartBanner"></span><span id="cleanStartText"></span>
+</div>
+
 <div id="authScreen" class="auth-screen">
   <div class="auth-card">
     <div class="auth-brand">
@@ -2382,6 +2387,20 @@ async function openFarmerDetails(fid){
  ],`<button class="btn primary" onclick="closeModal();openFarmerById('${f.id}')">Edit</button><button class="btn ok" onclick="closeModal();openFarmerPayment('${f.id}')">Payment</button><button class="btn" onclick="closeModal();goToView('ledger');setTimeout(()=>{const s=document.getElementById('farmerLedgerFarmer');if(s){s.value='${f.id}';renderFarmerLedger()}},80)">Farmer Ledger</button>${S.role==="admin"?`<button class="btn danger" onclick="closeModal();deleteFarmer('${f.id}')">Delete</button>`:""}`);
 }
 async function openFarmerById(fid){const f=await txGet("farmers",fid);if(f)openFarmer(f)}
+
+async function storeSummary(storeId){
+ const store=await txGet("stores",storeId);
+ const sales=(await txAll("sales")).filter(x=>String(x.storeId)===String(storeId));
+ const payments=(await txAll("payments")).filter(x=>String(x.storeId)===String(storeId));
+ const opening=money2(store?.openingDue);
+ const totalSales=money2(sales.reduce((a,x)=>a+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0));
+ const salePaid=money2(sales.reduce((a,x)=>a+(Number(x.paidAmount)||0),0));
+ const directPaid=money2(payments.reduce((a,x)=>a+(Number(x.amount)||0),0));
+ const totalPaid=money2(salePaid+directPaid);
+ const outstanding=money2(opening+totalSales-totalPaid);
+ return {opening,totalSales,salePaid,directPaid,totalPaid,outstanding};
+}
+
 async function openStoreDetails(storeId){
  const s=await txGet("stores",storeId);if(!s)return toast("Store not found.");
  const f=await storeSummary(storeId),wang=!!(s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei"));
@@ -3388,8 +3407,10 @@ async function salePaymentStatus(sale){
 
 async function savePayment(){
  const date=document.getElementById("pDate").value,storeId=document.getElementById("pStore").value;
- const cashAmount=money2(document.getElementById("pCash")?.value),accountAmount=money2(document.getElementById("pAccount")?.value),amount=money2(cashAmount+accountAmount);
- if(!date||!storeId||amount<=0)return toast("Enter a Cash or Account / UPI amount.");
+ const pv=validateSplitAmounts(document.getElementById("pCash")?.value,document.getElementById("pAccount")?.value,{label:"Store payment"});
+ if(!pv.ok)return toast(pv.message);
+ const {cash:cashAmount,account:accountAmount,total:amount}=pv;
+ if(!date||!storeId)return toast("Valid store and date required.");
  const s=await txGet("stores",storeId);if(!s)return toast("Store not found.");
  const before=await storeSummary(storeId);
  const previousDue=money2(before.outstanding),remainingDue=money2(previousDue-amount);
@@ -3455,7 +3476,8 @@ async function deleteStorePayment(paymentId){
   if(await txGet("payments",paymentId))throw new Error("Local payment deletion could not be verified.");
   queueCloud("payments","DELETE",paymentId);
   audit("payments","DELETE",paymentId,`₹${fmt(p.amount)}`);
-  closeModal();await refreshAll();toast("Store payment deleted. Store outstanding and invoice balances recalculated.");
+  closeModal();await refreshAll();
+ schedulePostTransactionChecks();toast("Store payment deleted. Store outstanding and invoice balances recalculated.");
  }catch(e){console.error("Delete store payment:",e);toast(e?.message||"Unable to delete store payment.");}
 }
 
@@ -3616,7 +3638,9 @@ async function saveSale(){
  try{
  const storeId=document.getElementById("saStore").value,date=document.getElementById("saDate").value,rate=Number(document.getElementById("saRate").value),salePaymentStatus=document.getElementById("saMode").value||"Credit";
  const isCredit=String(salePaymentStatus).toLowerCase()==="credit";
- const cashReceived=isCredit?0:money2(document.getElementById("saCashPaid")?.value),accountReceived=isCredit?0:money2(document.getElementById("saAccountPaid")?.value),paid=money2(cashReceived+accountReceived);
+ const saleSplit=isCredit?{ok:true,cash:0,account:0,total:0}:validateSplitAmounts(document.getElementById("saCashPaid")?.value,document.getElementById("saAccountPaid")?.value,{label:"Invoice payment"});
+ if(!saleSplit.ok)return toast(saleSplit.message);
+ const cashReceived=saleSplit.cash,accountReceived=saleSplit.account,paid=saleSplit.total;
  const paymentMethod=isCredit?"Credit":cashReceived>0&&accountReceived>0?"Split":cashReceived>0?"Cash":"Account";
  let cageIds=selectedSaleCageIds();
  if(!date||!storeId||rate<=0)return toast("Date, store and sales rate are required.");
@@ -3689,7 +3713,8 @@ async function saveSale(){
    queueCloud("settings","UPSERT",{key:"cage_state_"+c.id,value:{isSold:true,saleId:sid,updatedAt:r.updatedAt},updatedAt:r.updatedAt});
  }
  audit("sales","CREATE",sid,`${inv} | ${current.length} cages`);
- clearCurrentFormDraft();window._saleModalDraft=null;closeModal();await refreshAll();await previewStoreInvoice(sid);
+ clearCurrentFormDraft();window._saleModalDraft=null;closeModal();await refreshAll();
+ schedulePostTransactionChecks();await previewStoreInvoice(sid);
  }catch(e){
    console.error("Save Sale failed:",e);
    toast("Unable to save sale: "+(e?.message||"Unexpected error"));
@@ -3737,7 +3762,9 @@ async function downloadSingkeLedgerPdf(){
 async function openSettlement(){openModal(`<h3>Record Payout to Singke</h3><div class="grid g2"><div class="field"><label>Date</label><input id="ssDate" type="date" value="${today()}"></div><div class="field"><label>Cash Payment ₹</label><input id="ssCash" type="number" min="0" step="0.01" value="0" oninput="updateSettlementSplitTotal()"></div><div class="field"><label>Account / UPI Payment ₹</label><input id="ssAccount" type="number" min="0" step="0.01" value="0" oninput="updateSettlementSplitTotal()"></div><div class="field"><label>Total Settlement ₹</label><input id="ssAmt" disabled value="0.00"></div><div class="field"><label>Reference</label><input id="ssRef"></div></div><div class="field" style="margin-top:8px"><label>Remarks</label><input id="ssRem"></div><div style="height:12px"></div><button class="btn primary" onclick="saveSettlement()">Save Settlement</button>`)}
 function updateSettlementSplitTotal(){const c=money2(document.getElementById("ssCash")?.value),a=money2(document.getElementById("ssAccount")?.value),t=document.getElementById("ssAmt");if(t)t.value=fmt(money2(c+a))}
 async function saveSettlement(){
- let date=document.getElementById("ssDate").value,cashAmount=money2(document.getElementById("ssCash")?.value),accountAmount=money2(document.getElementById("ssAccount")?.value),amount=money2(cashAmount+accountAmount);
+ let date=document.getElementById("ssDate").value,sv=validateSplitAmounts(document.getElementById("ssCash")?.value,document.getElementById("ssAccount")?.value,{label:"Singke settlement"});
+ if(!sv.ok)return toast(sv.message);
+ const {cash:cashAmount,account:accountAmount,total:amount}=sv;
  let r={id:id("SSET"),receiptNumber:await nextSequentialNumber("settlement",date),date,amount,cashAmount,accountAmount,paymentMethod:cashAmount>0&&accountAmount>0?"Split":cashAmount>0?"Cash":"Account",referenceNumber:document.getElementById("ssRef").value.trim(),remarks:document.getElementById("ssRem").value.trim(),createdAt:iso(),updatedAt:iso()};
  if(!r.date||r.amount<=0)return toast("Valid date and amount required.");
  if((await txAll("singke_settlements")).some(x=>x.receiptNumber===r.receiptNumber))return toast("Receipt number conflict. Please retry.");
@@ -5023,6 +5050,54 @@ Kindly arrange payment at the earliest. Thank you.`;
 function normalizedPaymentMode(mode){return String(mode||"").trim().toLowerCase()}
 function isCashMode(mode){return normalizedPaymentMode(mode)==="cash"}
 function isAccountMode(mode){return ["upi","bank","bank transfer"].includes(normalizedPaymentMode(mode))}
+
+function finiteMoney(v){const n=Number(v);return Number.isFinite(n)?money2(n):0}
+function validateSplitAmounts(cash,account,{allowZero=false,label="Payment"}={}){
+ cash=Number(cash);account=Number(account);
+ if(!Number.isFinite(cash)||!Number.isFinite(account))return {ok:false,message:`${label}: Cash and Account amounts must be valid numbers.`};
+ if(cash<0||account<0)return {ok:false,message:`${label}: negative amounts are not allowed.`};
+ const total=money2(cash+account);
+ if(!allowZero&&total<=0)return {ok:false,message:`${label}: enter a Cash or Account / UPI amount.`};
+ return {ok:true,cash:money2(cash),account:money2(account),total};
+}
+function accountingRecordKey(kind,r){return `${kind}:${r?.id||r?.receiptNumber||r?.invoiceNumber||"unknown"}`}
+async function runStartupSelfCheck(){
+ const requiredFns=["storeSummary","fundsSummary","refreshAll","saveSale","savePayment","saveFarmerPayment","saveSettlement","backgroundBidirectionalSync"];
+ const missingFns=requiredFns.filter(n=>typeof window[n]!=="function");
+ const requiredStores=["farmers","liftings","cages","stores","sales","payments","singke_settlements"];
+ let missingStores=[];
+ try{
+   if(db?.objectStoreNames)missingStores=requiredStores.filter(n=>!db.objectStoreNames.contains(n));
+ }catch(e){console.warn("DB self-check:",e)}
+ const problems=[...missingFns.map(x=>`Missing function: ${x}`),...missingStores.map(x=>`Missing local database store: ${x}`)];
+ if(problems.length){
+   console.error("Startup self-check failed",problems);
+   toast("Startup check found an app problem. Please use the latest backup/build.");
+ }
+ return {ok:!problems.length,problems};
+}
+async function quickAccountingReconcile(){
+ const issues=[];
+ try{
+   const stores=await txAll("stores");
+   for(const s of stores){
+     const x=await storeSummary(s.id);
+     if(!Number.isFinite(Number(x.outstanding)))issues.push(`Store ${s.name||s.id}: invalid outstanding`);
+   }
+   const f=await fundsSummary();
+   for(const k of ["cashInHand","accountBalance","combinedBalance"])if(!Number.isFinite(Number(f[k])))issues.push(`Invalid ${k}`);
+ }catch(e){issues.push(e?.message||String(e))}
+ return {ok:issues.length===0,issues};
+}
+function schedulePostTransactionChecks(){
+ clearTimeout(window._psmPostTxTimer);
+ window._psmPostTxTimer=setTimeout(async()=>{
+   try{
+     const r=await quickAccountingReconcile();
+     if(!r.ok){console.error("Post-transaction reconciliation",r.issues);toast("Saved, but accounting check found an issue. Review Accounting Control.")}
+   }catch(e){console.warn("Post-transaction check skipped:",e)}
+ },150);
+}
 function splitMoneyParts(record,modeField="paymentMode"){
  const total=money2(record?.amount ?? record?.paidAmount ?? 0);
  if(record && (record.cashAmount!=null || record.accountAmount!=null)){
@@ -5157,9 +5232,11 @@ function updateFarmerPaymentPreview(){
 }
 async function saveFarmerPayment(farmerId){
  const f=await txGet("farmers",farmerId);if(!f)return toast("Farmer not found.");
- const date=document.getElementById("fpDate")?.value||"",cashAmount=money2(document.getElementById("fpCash")?.value),accountAmount=money2(document.getElementById("fpAccount")?.value),amount=money2(cashAmount+accountAmount),remarks=document.getElementById("fpRemarks")?.value?.trim()||"";
+ const date=document.getElementById("fpDate")?.value||"",fv=validateSplitAmounts(document.getElementById("fpCash")?.value,document.getElementById("fpAccount")?.value,{label:"Farmer payment"}),remarks=document.getElementById("fpRemarks")?.value?.trim()||"";
+ if(!fv.ok)return toast(fv.message);
+ const {cash:cashAmount,account:accountAmount,total:amount}=fv;
  const mode=cashAmount>0&&accountAmount>0?"Split":cashAmount>0?"Cash":"Account";
- if(!date||amount<=0)return toast("Enter a Cash or Account / UPI payment amount.");
+ if(!date)return toast("Enter a valid payment date.");
  const before=await getFarmerLedgerData(farmerId);
  const priorRows=before.rows.filter(r=>String(r.date||"")<=String(date));
  const previousOutstanding=money2(priorRows.length?priorRows[priorRows.length-1].balance:0);
@@ -5169,6 +5246,7 @@ async function saveFarmerPayment(farmerId){
  await setSetting(farmerPaymentSettingKey(idv),p);
  audit("farmer_payments","CREATE",idv,`${f.name} | ₹${fmt(amount)} | ${mode}`);
  clearCurrentFormDraft();closeModal();await refreshAll();
+ schedulePostTransactionChecks();
  const sel=document.getElementById("farmerLedgerFarmer");if(sel){sel.value=farmerId;await renderFarmerLedger()}
  toast(`Farmer payment saved. Balance: ₹${fmt(remainingOutstanding)}`);
 }
@@ -6094,8 +6172,14 @@ async function authRequest(path,method="GET",body=null,token=null){
 async function refreshAuthSession(){
   const current=AUTH_SESSION||loadAuthSession();
   if(!current?.refresh_token)throw new Error("Your login session has expired.");
-  const data=await authRequest("token?grant_type=refresh_token","POST",{refresh_token:current.refresh_token});
-  saveAuthSession(data);return data;
+  try{
+    const data=await authRequest("token?grant_type=refresh_token","POST",{refresh_token:current.refresh_token});
+    saveAuthSession(data);return data;
+  }catch(e){
+    // Never erase a previously verified session because of a temporary network failure.
+    if(isNetworkAuthError(e)){AUTH_SESSION=current;throw e}
+    throw e;
+  }
 }
 async function getAuthenticatedUser(){
  let s=AUTH_SESSION||loadAuthSession();
@@ -6154,72 +6238,116 @@ async function supabaseLogout(){
 async function requireAuthentication(){
  updateAuthNetworkUI();
  const cached=loadAuthSession();
+
+ // Previously verified device: never freeze startup on a slow/failed auth check.
  if(cached){
    AUTH_SESSION=cached;
-   showLoginScreen();
-   const status=document.getElementById("authNetworkStatus");
-   if(status&&navigator.onLine){status.textContent="Checking saved sign-in…";status.className="auth-network-status online"}
-   if(!navigator.onLine){
-     const user=cachedAuthIdentity(cached);
-     unlockAuthenticatedApp(user,{offline:true});
-     return user;
+   const cachedUser=cachedAuthIdentity(cached);
+   unlockAuthenticatedApp(cachedUser,{offline:!navigator.onLine});
+
+   if(navigator.onLine){
+     Promise.resolve().then(async()=>{
+       try{
+         const user=await getAuthenticatedUser();
+         if(user)unlockAuthenticatedApp(user);
+       }catch(e){
+         console.warn("Background session validation:",e);
+         // Network errors keep the verified local session usable.
+         if(!isNetworkAuthError(e) && !loadAuthSession()){
+           showLoginScreen("Your session expired. Please sign in again.");
+         }
+       }
+     });
    }
-   try{
-     const user=await getAuthenticatedUser();
-     if(user){unlockAuthenticatedApp(user);return user}
-   }catch(e){
-     if(isNetworkAuthError(e)){
-       const user=cachedAuthIdentity(cached);
-       unlockAuthenticatedApp(user,{offline:true});
-       return user;
-     }
-   }
+   return cachedUser;
  }
 
- showLoginScreen(cached?"Your saved session could not be verified. Please sign in again.":(!navigator.onLine?"Internet is required for the first sign-in on this device.":""));
- const emailEl=document.getElementById("authEmail"),pwEl=document.getElementById("authPassword");
- if(emailEl){emailEl.value=rememberedLoginEmail()}
+ showLoginScreen(!navigator.onLine?"Internet is required for the first sign-in on this device.":"");
+ const emailEl=document.getElementById("authEmail");
+ if(emailEl)emailEl.value=rememberedLoginEmail();
  updatePasskeySupportUI();
  updateAuthNetworkUI();
 
- return await new Promise(resolve=>{
-   const form=document.getElementById("authForm"),passkeyBtn=document.getElementById("passkeyLoginBtn"),offlineBtn=document.getElementById("authOfflineBtn");
+ return await new Promise((resolve,reject)=>{
+   const form=document.getElementById("authForm");
+   const passkeyBtn=document.getElementById("passkeyLoginBtn");
+   const offlineBtn=document.getElementById("authOfflineBtn");
+   if(!form){
+     reject(new Error("Login form is unavailable. Reload the app."));
+     return;
+   }
+
    form.onsubmit=async e=>{
      e.preventDefault();
      const btn=document.getElementById("authSubmit"),err=document.getElementById("authError");
-     if(!navigator.onLine){err.textContent="Internet is required to sign in. If this device was previously verified, use Continue Offline.";err.style.display="block";updateAuthNetworkUI();return}
-     btn.disabled=true;btn.textContent="Signing In…";err.style.display="none";
+     if(!navigator.onLine){
+       if(err){err.textContent="Internet is required for the first sign-in on this device.";err.style.display="block"}
+       updateAuthNetworkUI();return;
+     }
+     const email=document.getElementById("authEmail")?.value?.trim()||"";
+     const password=document.getElementById("authPassword")?.value||"";
+     if(!email||!password){
+       if(err){err.textContent="Enter your email and password.";err.style.display="block"}
+       return;
+     }
+     if(btn){btn.disabled=true;btn.textContent="Signing In…"}
+     if(err)err.style.display="none";
      try{
-       const email=document.getElementById("authEmail").value.trim(),password=document.getElementById("authPassword").value;
        const user=await supabaseLogin(email,password);
-       document.getElementById("authPassword").value="";
+       const pw=document.getElementById("authPassword");if(pw)pw.value="";
        resolve(user);
      }catch(ex){
-       err.textContent=ex.message||"Unable to sign in.";err.style.display="block";
-     }finally{btn.disabled=false;btn.textContent="Sign In"}
+       console.error("Sign in failed:",ex);
+       if(err){
+         err.textContent=isNetworkAuthError(ex)
+           ?"Cannot reach the login server. Check your internet and try again."
+           :(ex?.message||"Unable to sign in.");
+         err.style.display="block";
+       }
+     }finally{
+       if(btn){btn.disabled=false;btn.textContent="Sign In"}
+     }
    };
+
    if(offlineBtn)offlineBtn.onclick=()=>{
      const s=loadAuthSession();
-     if(!s)return updateAuthNetworkUI();
+     if(!s){updateAuthNetworkUI();return}
      AUTH_SESSION=s;
      const user=cachedAuthIdentity(s);
      unlockAuthenticatedApp(user,{offline:true});
      resolve(user);
    };
+
    if(passkeyBtn)passkeyBtn.onclick=async()=>{
      const err=document.getElementById("authError");
-     if(!navigator.onLine){err.textContent="Internet is required for passkey sign-in.";err.style.display="block";return}
-     passkeyBtn.disabled=true;passkeyBtn.textContent="Waiting for Passkey…";err.style.display="none";
+     if(!navigator.onLine){
+       if(err){err.textContent="Internet is required for passkey sign-in.";err.style.display="block"}
+       return;
+     }
+     passkeyBtn.disabled=true;passkeyBtn.textContent="Waiting for Passkey…";
+     if(err)err.style.display="none";
      try{const user=await supabasePasskeyLogin();resolve(user)}
-     catch(ex){err.textContent=ex?.name==="NotAllowedError"?"Passkey request was cancelled or timed out.":(ex.message||"Unable to sign in with passkey.");err.style.display="block"}
-     finally{passkeyBtn.disabled=!passkeyEnvironmentOK();passkeyBtn.textContent="🔐 Sign In with Passkey / Biometric"}
+     catch(ex){
+       if(err){err.textContent=ex?.name==="NotAllowedError"?"Passkey request was cancelled or timed out.":(ex?.message||"Unable to sign in with passkey.");err.style.display="block"}
+     }finally{
+       passkeyBtn.disabled=!passkeyEnvironmentOK();
+       passkeyBtn.textContent="🔐 Sign In with Passkey / Biometric";
+     }
    };
  });
 }
 async function ensureFreshAuthToken(){
   if(!AUTH_SESSION)AUTH_SESSION=loadAuthSession();
   if(!AUTH_SESSION)throw new Error("Not authenticated.");
-  if(authExpiresSoon(AUTH_SESSION))await refreshAuthSession();
+  if(authExpiresSoon(AUTH_SESSION)){
+    try{await refreshAuthSession()}
+    catch(e){
+      if(isNetworkAuthError(e))throw e;
+      saveAuthSession(null);
+      throw new Error("Your sign-in session expired. Please sign in again.");
+    }
+  }
+  if(!AUTH_SESSION?.access_token)throw new Error("Your sign-in session is incomplete. Please sign in again.");
   return AUTH_SESSION.access_token;
 }
 async function rest(table,method="GET",body=null,query=""){
@@ -6679,6 +6807,7 @@ async function deleteAllRowsFromSupabaseTable(table){
  await purgeTombstonedLocalRows();
 
  const user=await requireAuthentication();
+try{await runStartupSelfCheck()}catch(e){console.warn("Startup self-check skipped:",e)}
  cleanupDeleteTombstones();
  try{await migratePreviousFarmerStoreIds()}catch(e){console.warn("Local ID migration:",e)}
 
