@@ -1886,7 +1886,7 @@ button[onclick*="changeFarmerPage("],button[onclick*="changeFarmerCombinedPage("
   <div class="card metric"><div class="lab">Account</div><div class="val">₹<span id="sAccountBalance">0.00</span></div><div class="mini">UPI / bank received − UPI / bank paid</div></div>
  </div>
  <div style="height:12px"></div>
- <div class="hero"><div class="sub">Remaining Due to Singke</div><div class="val">₹<span id="sRemain">0.00</span></div><div class="sub">Previous Due + All Farmer Lifting Payable − Wangkhei Sale Adjustment + Wangkhei Payments Received by MPF − Settlements Paid to Singke</div></div>
+ <div class="hero"><div class="sub">Remaining Due to Singke</div><div class="val">₹<span id="sRemain">0.00</span></div><div class="sub">Previous Due + Singke-payable Farmer Liftings (excluding Satrajit & Domen Khomba) − All Wangkhei Sale Adjustments + Wangkhei Payments Received by MPF − Settlements Paid to Singke</div></div>
  <div style="height:12px"></div>
  <div class="card"><b>Money Accounts</b><div class="sub" style="margin-top:6px"><b>Cash in Hand</b> records only direct Cash receipts and Cash payments. <b>Account</b> records UPI / Bank receipts and UPI / Bank payments. Credit sales do not increase either balance until payment is actually received.</div></div>
  <div style="height:12px"></div>
@@ -3723,25 +3723,241 @@ function clearSingkeFilter(){
 }
 
 async function buildSingkeLedgerPdf(){
-  const s=await singkeAccountingData();
-  const farmerMap=new Map((await txAll("farmers")).map(f=>[String(f.id),f.name]));
-  let ev=[
-    ...s.liftUsed.map(x=>({date:x.liftingDate||"",type:x.farmerName||farmerMap.get(String(x.farmerId))||"Farmer Lifting",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,debit:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,credit:0,remarks:x.remarks||""})),
-    ...s.wangSales.map(x=>({date:x.saleDate||"",type:"Wangkhei Adjustment",ref:x.invoiceNumber||x.id,kg:Number(x.netWeight??x.weight??x.totalWeight)||0,debit:0,credit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,remarks:x.remarks||""})),
-    ...s.setsUsed.map(x=>({date:x.date||x.paymentDate||"",type:"Settlement",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,debit:0,credit:Number(x.amount)||0,remarks:x.remarks||""})),
-    ...s.farmerUsed.map(x=>({date:x.paymentDate||"",type:"Farmer Payment",ref:x.id||x._settingKey||"Payment",kg:0,debit:0,credit:Number(x.amount)||0,remarks:x.remarks||""}))
-  ].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
-  const from=document.getElementById("singkeFrom")?.value||"",to=document.getElementById("singkeTo")?.value||"";
-  let bal=Number(s.p?.amount)||0;
-  if(from){for(const e of ev){if(e.date&&e.date<from)bal=money2(bal+e.debit-e.credit)}}
-  const filtered=ev.filter(e=>(!from||e.date>=from)&&(!to||e.date<=to)),rows=[];
-  for(const e of filtered){bal=money2(bal+e.debit-e.credit);rows.push([e.date,e.type,e.ref,e.kg,e.debit,e.credit,bal,e.remarks||""])}
-  const period=from||to?`${from||"Beginning"} to ${to||"Latest"}`:"All Transactions";
-  const cash=await fundsSummary();
-  const summary=[["Previous Due",Number(s.p?.amount)||0],["Lifting Payable",s.liftingPayable],["Wangkhei Adjustments",s.wang],["Settlements",s.sett],["Farmer Payments",s.farmerPaid],["Current Remaining Due",s.remain],["Cash in Hand",cash.cashInHand],["Account Balance",cash.accountBalance]];
-  return {blob:buildAccountingTablePdf({title:"MPF / SINGKE RECONCILIATION LEDGER",subtitle:`Period: ${period} | Generated: ${new Date().toLocaleString("en-IN")}`,headers:["Date","Transaction","Reference","Kg","Debit","Credit","Running Due","Remarks"],rows,summary}),fileName:`PSM_Singke_Reconciliation_${from||"All"}_${to||today()}.pdf`};
+ const s=await singkeAccountingData();
+ const farmerMap=new Map((await txAll("farmers")).map(f=>[String(f.id),f.name]));
+ const wangSaleIds=new Set(s.wangSales.map(x=>String(x.id)));
+
+ // One professional portrait ledger: every eligible farmer lifting, MPF-paid farmer lifting,
+ // Wangkhei sale adjustment, Wangkhei payment received by MPF, and Singke settlement.
+ let ev=[
+  ...s.liftUsed.map(x=>({
+    date:x.liftingDate||"",
+    farmer:x.farmerName||farmerMap.get(String(x.farmerId))||"Farmer",
+    transaction:"Farmer Lifting",
+    ref:x.invoiceNumber||x.id,
+    kg:Number(x.totalWeight)||0,
+    debit:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,
+    credit:0,
+    remarks:"Payable by Singke"+(x.remarks?" | "+x.remarks:"")
+  })),
+  ...s.mpfPaidLiftings.map(x=>({
+    date:x.liftingDate||"",
+    farmer:x.farmerName||farmerMap.get(String(x.farmerId))||"Farmer",
+    transaction:"MPF-paid Lifting",
+    ref:x.invoiceNumber||x.id,
+    kg:Number(x.totalWeight)||0,
+    debit:0,
+    credit:0,
+    remarks:`Lifting Rs. ${fmt(Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0)} paid from MPF side; excluded from Singke payable`
+  })),
+  ...s.farmerUsed.map(x=>({
+    date:x.paymentDate||x.date||"",
+    farmer:x.farmerName||farmerMap.get(String(x.farmerId))||"Farmer",
+    transaction:"Direct Farmer Payment",
+    ref:x.receiptNumber||x.referenceNumber||x.id,
+    kg:0,
+    debit:0,
+    credit:Number(x.amount)||0,
+    remarks:"Paid directly by MPF to farmer; reduces Due to Singke"+(x.remarks?" | "+x.remarks:"")
+  })),
+  ...s.wangSales.map(x=>({
+    date:x.saleDate||"",
+    farmer:x.farmerName||farmerMap.get(String(x.farmerId))||"-",
+    transaction:"Wangkhei Adjustment",
+    ref:x.invoiceNumber||x.id,
+    kg:Number(x.netWeight??x.weight??x.totalWeight)||0,
+    debit:0,
+    credit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,
+    remarks:"Cage sold to Wangkhei; reduces Due to Singke"+(x.remarks?" | "+x.remarks:"")
+  })),
+  ...s.wangSales.filter(x=>Number(x.paymentReceivedAtInvoice??x.paidAmount)>0).map(x=>({
+    date:x.saleDate||"",
+    farmer:x.farmerName||farmerMap.get(String(x.farmerId))||"-",
+    transaction:"Wangkhei Payment",
+    ref:x.invoiceNumber||x.id,
+    kg:0,
+    debit:Number(x.paymentReceivedAtInvoice??x.paidAmount)||0,
+    credit:0,
+    remarks:"Payment received by MPF from Wangkhei; adds to Due to Singke"
+  })),
+  ...s.wangLaterPayments.filter(x=>!(x.linkedSaleId&&wangSaleIds.has(String(x.linkedSaleId))&&String(x.remarks||"").includes("Excess received on invoice"))).map(x=>({
+    date:x.paymentDate||"",
+    farmer:"-",
+    transaction:"Wangkhei Payment",
+    ref:x.receiptNumber||x.id,
+    kg:0,
+    debit:Number(x.amount)||0,
+    credit:0,
+    remarks:"Later payment received by MPF from Wangkhei; adds to Due to Singke"+(x.remarks?" | "+x.remarks:"")
+  })),
+  ...s.setsUsed.map(x=>({
+    date:x.date||x.paymentDate||"",
+    farmer:"-",
+    transaction:"Payment to Singke",
+    ref:x.receiptNumber||x.referenceNumber||x.id,
+    kg:0,
+    debit:0,
+    credit:Number(x.amount)||0,
+    remarks:(x.paymentMethod?`Mode: ${x.paymentMethod}`:"")+(x.remarks?`${x.paymentMethod?" | ":""}${x.remarks}`:"")
+  }))
+ ].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.ref).localeCompare(String(b.ref)));
+
+ const from=document.getElementById("singkeFrom")?.value||"",to=document.getElementById("singkeTo")?.value||"";
+ let bal=Number(s.p?.amount)||0;
+ if(from){
+  for(const x of ev){
+   if(x.date&&x.date<from)bal=money2(bal+x.debit-x.credit);
+  }
+ }
+ const filtered=ev.filter(x=>(!from||x.date>=from)&&(!to||x.date<=to));
+ const rows=[];
+ for(const x of filtered){
+  bal=money2(bal+x.debit-x.credit);
+  rows.push([
+   x.date,
+   x.farmer,
+   x.transaction,
+   x.ref,
+   x.kg?fmt(x.kg):"-",
+   x.debit?fmt(x.debit):"-",
+   x.credit?fmt(x.credit):"-",
+   fmt(bal),
+   x.remarks||""
+  ]);
+ }
+
+ const period=from||to?`${from||"Beginning"} to ${to||"Latest"}`:"All Transactions";
+ const cash=await fundsSummary();
+
+ // Portrait-specific PDF: narrower columns, wrapped remarks, clear accounting legend and totals.
+ return {
+  blob:buildSingkePortraitPdf({
+   title:"MPF / SINGKE ACCOUNT LEDGER",
+   subtitle:`Period: ${period} | Generated: ${new Date().toLocaleString("en-IN")}`,
+   rows,
+   summary:[
+    ["Opening / Previous Due",Number(s.p?.amount)||0],
+    ["Singke Farmer Lifting",s.liftingPayable],
+    ["Wangkhei Adjustment",s.wang],
+    ["Wangkhei Payment to MPF",s.wangReceived],
+    ["Paid to Singke",s.sett],
+    ["Direct Farmer Payments",s.farmerPaid],
+    ["Current Due to Singke",s.remain]
+   ],
+   cashSummary:[["MPF Cash in Hand",cash.cashInHand],["MPF Account Balance",cash.accountBalance]]
+  }),
+  fileName:`PSM_MPF_Singke_Ledger_${from||"All"}_${to||today()}.pdf`
+ };
 }
 
+function buildSingkePortraitPdf({title,subtitle,rows,summary,cashSummary}){
+ const W=595,H=842,left=24,right=24,bottom=34,pw=W-left-right;
+ const objs=[null],add=o=>{objs.push(o);return objs.length-1};
+ const f1=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+ const f2=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+ const logoBytes=Uint8Array.from(atob(PSM_LOGO_JPEG_BASE64),c=>c.charCodeAt(0)&255);
+ const logoHex=Array.from(logoBytes,b=>b.toString(16).padStart(2,"0")).join("").toUpperCase()+">";
+ const imgObj=add(`<< /Type /XObject /Subtype /Image /Width ${PSM_LOGO_JPEG_WIDTH} /Height ${PSM_LOGO_JPEG_HEIGHT} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter [/ASCIIHexDecode /DCTDecode] /Length ${logoHex.length} >>\nstream\n${logoHex}\nendstream`);
+ const esc=v=>pdfSafeText(v).replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)");
+ const txt=(c,x,y,v,size=6,b=false,col="0.08 0.10 0.09")=>c.push(`BT /${b?"F2":"F1"} ${size} Tf ${col} rg 1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm (${esc(v)}) Tj ET`);
+ const fill=(c,x,y,w,h,r,g,b)=>c.push(`${r} ${g} ${b} rg ${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re f`);
+ const line=(c,x1,y1,x2,y2,w=.35)=>c.push(`0.72 0.76 0.73 RG ${w} w ${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`);
+ const clean=v=>accountingCellText(v);
+ const wrap=(v,width,size=5.4,maxLines=2)=>{
+  const text=clean(v),max=Math.max(5,Math.floor(width/(size*.52))),words=text.split(/\s+/),out=[];let cur="";
+  for(const w of words){
+   const n=cur?cur+" "+w:w;
+   if(n.length<=max)cur=n;
+   else{if(cur)out.push(cur);cur=w;if(out.length>=maxLines-1)break}
+  }
+  if(cur&&out.length<maxLines)out.push(cur);
+  if(out.join(" ").length<text.length&&out.length)out[out.length-1]=out[out.length-1].replace(/\.{0,3}$/,"")+"...";
+  return out.length?out:[""];
+ };
+ const cols=[
+  ["Date",52],["Farmer",72],["Transaction",74],["Ref",58],["Kg",40],
+  ["Debit",55],["Credit",55],["Due",55],["Remarks",86]
+ ];
+ // Scale exactly to portrait width.
+ const raw=cols.reduce((a,x)=>a+x[1],0),scale=pw/raw,widths=cols.map(x=>x[1]*scale);
+ const pageIds=[],contentIds=[];let c=[],y=0,pageNo=0;
+
+ function header(){
+  c=[];pageNo++;fill(c,0,0,W,H,1,1,1);
+  fill(c,left,H-98,pw,68,.96,.985,.97);
+  c.push(`q 66 0 0 44 ${left+8} ${H-87} cm /Im1 Do Q`);
+  txt(c,left+84,H-52,"PSM BROILER DISTRIBUTOR",14,true,"0.05 0.29 0.14");
+  txt(c,left+84,H-70,title,10.5,true);
+  txt(c,left+84,H-84,subtitle,5.8,false,"0.30 0.35 0.32");
+  y=H-116;
+  if(pageNo===1){
+   const gap=6,bw=(pw-gap*2)/3,bh=38;
+   summary.slice(0,6).forEach((it,i)=>{
+    const r=Math.floor(i/3),col=i%3,bx=left+col*(bw+gap),by=y-r*(bh+6);
+    fill(c,bx,by-bh,bw,bh,.965,.985,.972);
+    c.push(`0.43 0.68 0.52 RG .65 w ${bx.toFixed(2)} ${(by-bh).toFixed(2)} ${bw.toFixed(2)} ${bh.toFixed(2)} re S`);
+    txt(c,bx+5,by-13,it[0],6.1,true,"0.16 0.33 0.23");
+    txt(c,bx+5,by-29,"Rs. "+fmt(it[1]),10,true,"0.03 0.22 0.11");
+   });
+   y-=2*(bh+6)+5;
+   fill(c,left,y-28,pw,28,.94,.97,.95);
+   txt(c,left+7,y-11,"ACCOUNTING RULE",6.4,true,"0.05 0.29 0.14");
+   txt(c,left+7,y-22,"Debit adds Due | Credit reduces Due | Wangkhei sale = Credit | Direct farmer payment = Credit",5.4,false);
+   y-=36;
+  }
+  fill(c,left,y-22,pw,22,.90,.95,.92);
+  let x=left;
+  cols.forEach((co,i)=>{line(c,x,y,x,y-22);txt(c,x+2,y-14,co[0],5.5,true);x+=widths[i]});
+  line(c,left+pw,y,left+pw,y-22);line(c,left,y,left+pw,y);line(c,left,y-22,left+pw,y-22);y-=22;
+ }
+ function finish(){
+  line(c,left,bottom+11,left+pw,bottom+11,.4);
+  txt(c,left,bottom-1,"MPF / Singke reconciliation - portrait ledger",5.5,false,"0.35 0.40 0.38");
+  txt(c,W-right-100,bottom-1,`Page ${pageNo}`,5.5,false,"0.35 0.40 0.38");
+  const stream=c.join("\n"),cid=add(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+  contentIds.push(cid);pageIds.push(add(""));
+ }
+
+ header();
+ if(!rows.length){txt(c,left+6,y-15,"No transactions for selected period.",6.5);y-=22}
+ rows.forEach((r,ri)=>{
+  const remarkLines=wrap(r[8],widths[8]-4,5.0,2);
+  const farmerLines=wrap(r[1],widths[1]-4,5.2,2);
+  const txLines=wrap(r[2],widths[2]-4,5.2,2);
+  const lines=Math.max(remarkLines.length,farmerLines.length,txLines.length);
+  const rh=Math.max(20,8+lines*7);
+  if(y-rh<bottom+18){finish();header()}
+  if(ri%2)fill(c,left,y-rh,pw,rh,.987,.992,.988);
+  let x=left;line(c,left,y-rh,left+pw,y-rh,.28);
+  const cells=[wrap(r[0],widths[0]-4,5.1,1),farmerLines,txLines,wrap(r[3],widths[3]-4,5.0,2),wrap(r[4],widths[4]-4,5.0,1),wrap(r[5],widths[5]-4,5.0,1),wrap(r[6],widths[6]-4,5.0,1),wrap(r[7],widths[7]-4,5.0,1),remarkLines];
+  cells.forEach((ls,i)=>{
+   line(c,x,y,x,y-rh,.28);
+   ls.forEach((v,j)=>txt(c,x+2,y-11-j*7,v,5.0,i===7));
+   x+=widths[i];
+  });
+  line(c,left+pw,y,left+pw,y-rh,.28);y-=rh;
+ });
+
+ // Totals at end, without forcing a separate page when space exists.
+ const totalDebit=rows.reduce((a,r)=>a+(Number(String(r[5]).replace(/,/g,""))||0),0);
+ const totalCredit=rows.reduce((a,r)=>a+(Number(String(r[6]).replace(/,/g,""))||0),0);
+ if(y-58<bottom+18){finish();header()}
+ y-=8;fill(c,left,y-46,pw,46,.955,.98,.965);
+ txt(c,left+7,y-13,"LEDGER TOTALS",7,true,"0.05 0.29 0.14");
+ txt(c,left+7,y-29,`Total Debit: Rs. ${fmt(totalDebit)}     Total Credit: Rs. ${fmt(totalCredit)}     Closing Due to Singke: Rs. ${fmt((summary.find(x=>x[0]==="Current Due to Singke")||["",0])[1])}`,7.2,true);
+ txt(c,left+7,y-41,`MPF Cash in Hand: Rs. ${fmt(cashSummary?.[0]?.[1]||0)}     MPF Account Balance: Rs. ${fmt(cashSummary?.[1]?.[1]||0)}`,6.2,false);
+ finish();
+
+ const pagesId=add(""),catalog=add(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`);
+ pageIds.forEach((pid,i)=>objs[pid]=`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 ${f1} 0 R /F2 ${f2} 0 R >> /XObject << /Im1 ${imgObj} 0 R >> >> /Contents ${contentIds[i]} 0 R >>`);
+ objs[pagesId]=`<< /Type /Pages /Kids [${pageIds.map(x=>x+" 0 R").join(" ")}] /Count ${pageIds.length} >>`;
+ let out="%PDF-1.4\n",offs=[0];
+ for(let i=1;i<objs.length;i++){offs[i]=out.length;out+=`${i} 0 obj\n${objs[i]}\nendobj\n`}
+ const xref=out.length;out+=`xref\n0 ${objs.length}\n0000000000 65535 f \n`;
+ for(let i=1;i<objs.length;i++)out+=String(offs[i]).padStart(10,"0")+" 00000 n \n";
+ out+=`trailer\n<< /Size ${objs.length} /Root ${catalog} 0 R >>\nstartxref\n${xref}\n%%EOF`;
+ return new Blob([Uint8Array.from(out,ch=>ch.charCodeAt(0)&255)],{type:"application/pdf"});
+}
 async function downloadSingkeLedgerPdf(){
   try{
     const {blob,fileName}=await buildSingkeLedgerPdf();
@@ -4902,35 +5118,42 @@ async function editSale(id){
  <div class="field"><label>Billed Weight kg (Editable)</label><input id="esaWeight" type="number" step="0.01" value="${s.weight??s.netWeight??0}"></div>
  <div class="field"><label>Sales Rate ₹/kg</label><input id="esaRate" type="number" step="0.01" value="${s.salesRate??s.ratePerKg??0}"></div>
  <div class="field"><label>Payment Status</label><select id="esaMode" onchange="handleEditSalePaymentModeChange()"><option value="Credit" ${String(s.salePaymentStatus||s.paymentMethod||"").toLowerCase()==="credit"?"selected":""}>Credit</option><option value="Paid" ${String(s.salePaymentStatus||s.paymentMethod||"").toLowerCase()!=="credit"?"selected":""}>Paid at Invoice</option></select></div>
- <div class="field" id="esaPaidField"><label>Paid Amount at Invoice ₹</label><input id="esaPaid" type="number" step="0.01" min="0.01" value="${String(s.salePaymentStatus||s.paymentMethod||"").toLowerCase()==="credit"?"":(s.paidAmount??0)}"></div>
- <div class="field"><label>Payment Mode</label><select id="esaPaidMode">${["Cash","UPI","Bank","Cheque"].map(x=>`<option ${String(s.paymentMethod||"")===x?"selected":""}>${x}</option>`).join("")}</select></div>
+ ${(()=>{const q=(s.receiptCashAmount!==undefined||s.receiptAccountAmount!==undefined)?{cash:money2(Number(s.receiptCashAmount)||0),account:money2(Number(s.receiptAccountAmount)||0)}:paymentChannelParts(s,"paymentMethod","paidAmount");return `<div class="field" id="esaPaidField"><label>Cash Received at Invoice ₹</label><input id="esaCashPaid" type="number" step="0.01" min="0" value="${q.cash}" oninput="updateEditSaleSplitTotal()"></div><div class="field" id="esaAccountPaidField"><label>Account / UPI Received at Invoice ₹</label><input id="esaAccountPaid" type="number" step="0.01" min="0" value="${q.account}" oninput="updateEditSaleSplitTotal()"></div><div class="field"><label>Total Received ₹</label><input id="esaPaid" disabled value="${fmt(money2(q.cash+q.account))}"></div>`})()}
  <div class="field"><label>Remarks</label><input id="esaRem" value="${esc(s.remarks||"")}"></div></div>
  ${multi?`<div class="sub" style="margin-top:8px">This sale contains ${s.cageIds.length} cages. Actual cage weight is fixed; Billed Weight remains editable.</div>`:""}
  <div style="height:12px"></div><button class="btn primary" onclick="saveEditedSale('${id}')">Update Sale</button>`);
  handleEditSalePaymentModeChange();
 }
+function updateEditSaleSplitTotal(){
+ const cash=Number(document.getElementById("esaCashPaid")?.value)||0,account=Number(document.getElementById("esaAccountPaid")?.value)||0,total=document.getElementById("esaPaid");
+ if(total)total.value=fmt(money2(cash+account));
+}
 function handleEditSalePaymentModeChange(){
- const status=document.getElementById("esaMode")?.value||"Credit",paid=document.getElementById("esaPaid"),field=document.getElementById("esaPaidField"),mode=document.getElementById("esaPaidMode");
+ const status=document.getElementById("esaMode")?.value||"Credit",cash=document.getElementById("esaCashPaid"),account=document.getElementById("esaAccountPaid"),cf=document.getElementById("esaPaidField"),af=document.getElementById("esaAccountPaidField");
  const isCredit=String(status).toLowerCase()==="credit";
- if(field)field.style.display=isCredit?"none":"";
- if(paid){if(isCredit){paid.value="";paid.disabled=true}else paid.disabled=false}
- if(mode)mode.disabled=isCredit;
+ if(cf)cf.style.display=isCredit?"none":"";if(af)af.style.display=isCredit?"none":"";
+ if(isCredit){if(cash)cash.value="0";if(account)account.value="0"}
+ updateEditSaleSplitTotal();
 }
 async function saveEditedSale(id){
-  let s=await txGet("sales",id);if(!s)return;
-  if(s.excessPaymentId)return toast("This invoice has a linked excess-payment receipt. Editing is blocked to prevent ledger mismatch; reconcile the linked receipt first.");
-  const weight=Number(document.getElementById("esaWeight").value),rate=Number(document.getElementById("esaRate").value),status=document.getElementById("esaMode")?.value||"Credit";
-  const isCredit=String(status).toLowerCase()==="credit",paymentMethod=isCredit?"Credit":(document.getElementById("esaPaidMode")?.value||"Cash");
-  const paid=isCredit?0:money2(document.getElementById("esaPaid")?.value);
-  if(weight<=0||rate<=0)return toast("Weight and rate required.");
-  const exactAmount=Math.round(weight*rate*100)/100,rr=invoiceRound(exactAmount),netAmount=rr.rounded;
-  if(!isCredit&&paid<=0)return toast("Enter the amount received at invoice time.");
-  if(paid>netAmount)return toast("Paid Amount cannot be more than the Sales Total Amount.");
-  s.saleDate=document.getElementById("esaDate").value||s.saleDate;
-  s.weight=weight;s.netWeight=weight;s.totalWeight=weight;s.salesRate=rate;s.ratePerKg=rate;s.saleAmount=exactAmount;s.totalAmount=exactAmount;s.roundOff=rr.roundOff;s.netAmount=netAmount;s.invoiceNetAmount=netAmount;s.paidAmount=paid;s.paymentMethod=paymentMethod;s.salePaymentStatus=isCredit?"Credit":"Paid";
-  s.outstanding=money2((Number(s.previousDue)||0)+netAmount-paid);
-  s.remarks=document.getElementById("esaRem").value.trim();s.updatedAt=iso();
-  await txPut("sales",s);queueCloud("sales","UPSERT",s);audit("sales","UPDATE",id);clearCurrentFormDraft();closeModal();await refreshAll();
+ let s=await txGet("sales",id);if(!s)return;
+ if(s.excessPaymentId)return toast("This invoice has a linked excess-payment receipt. Editing is blocked to prevent ledger mismatch; reconcile the linked receipt first.");
+ const weight=Number(document.getElementById("esaWeight").value),rate=Number(document.getElementById("esaRate").value),status=document.getElementById("esaMode")?.value||"Credit";
+ const isCredit=String(status).toLowerCase()==="credit";
+ const split=isCredit?{cash:0,account:0,total:0,mode:"Credit"}:readSplitPayment("esaCashPaid","esaAccountPaid","Edited invoice payment");
+ if(!isCredit&&!split)return;
+ const cashReceived=isCredit?0:split.cash,accountReceived=isCredit?0:split.account,paid=isCredit?0:split.total,paymentMethod=isCredit?"Credit":split.mode;
+ if(weight<=0||rate<=0)return toast("Weight and rate required.");
+ const exactAmount=Math.round(weight*rate*100)/100,rr=invoiceRound(exactAmount),netAmount=rr.rounded;
+ if(!isCredit&&paid<=0)return toast("Enter the amount received at invoice time.");
+ if(paid>netAmount)return toast("For an edited invoice, Total Received cannot exceed Sales Total. Use Store Payment for additional payment.");
+ s.saleDate=document.getElementById("esaDate").value||s.saleDate;
+ s.weight=weight;s.netWeight=weight;s.totalWeight=weight;s.salesRate=rate;s.ratePerKg=rate;s.saleAmount=exactAmount;s.totalAmount=exactAmount;s.roundOff=rr.roundOff;s.netAmount=netAmount;s.invoiceNetAmount=netAmount;
+ s.paidAmount=money2(paid);s.paymentReceivedAtInvoice=money2(paid);s.receiptCashAmount=money2(cashReceived);s.receiptAccountAmount=money2(accountReceived);
+ s.paymentMethod=paymentMethod;s.salePaymentStatus=isCredit?"Credit":"Paid";
+ s.outstanding=money2((Number(s.previousDue)||0)+netAmount-paid);
+ s.remarks=document.getElementById("esaRem").value.trim();s.updatedAt=iso();
+ await txPut("sales",s);queueCloud("sales","UPSERT",s);audit("sales","UPDATE",id);clearCurrentFormDraft();closeModal();await refreshAll();
 }
 async function deleteSale(id){
  requireAdmin();
@@ -5134,6 +5357,11 @@ async function fundsSummary(){
 }
 async function cashInHandSummary(){return fundsSummary()}
 
+function isMpfPaidFarmerName(name){
+ const n=String(name||"").trim().toLowerCase().replace(/\s+/g," ");
+ return n==="satrajit"||n==="domen khomba";
+}
+
 async function singkeAccountingData(){
  const p=await setting("singke_previous_due",{amount:0});
  const lift=await txAll("liftings"),sales=await txAll("sales"),stores=await txAll("stores"),sets=await txAll("singke_settlements"),payments=await txAll("payments");
@@ -5142,7 +5370,17 @@ async function singkeAccountingData(){
  const afterOpening=d=>!cutoff?true:(!!d&&String(d)>cutoff);
 
  // Singke settles EVERY farmer lifting, regardless of which store later buys the birds.
- const liftUsed=lift.filter(x=>afterOpening(x.liftingDate));
+ const farmerNameById=new Map((await txAll("farmers")).map(f=>[String(f.id),String(f.name||f.farmerName||"")]));
+ const liftUsed=lift.filter(x=>{
+   if(!afterOpening(x.liftingDate))return false;
+   const farmerName=String(x.farmerName||farmerNameById.get(String(x.farmerId))||"");
+   return !isMpfPaidFarmerName(farmerName);
+ });
+ const mpfPaidLiftings=lift.filter(x=>{
+   if(!afterOpening(x.liftingDate))return false;
+   const farmerName=String(x.farmerName||farmerNameById.get(String(x.farmerId))||"");
+   return isMpfPaidFarmerName(farmerName);
+ });
 
  // Wangkhei is Singke's shop:
  // 1) Wangkhei sale value reduces MPF's Due to Singke.
@@ -5171,17 +5409,24 @@ async function singkeAccountingData(){
  const wangReceived=money2(wangInvoiceReceipts+wangLaterReceipts);
 
  const setsUsed=sets.filter(x=>afterOpening(x.date||x.paymentDate));
+ const farmerPayments=await getFarmerPayments();
+ const farmerUsed=farmerPayments.filter(x=>{
+   if(!afterOpening(x.paymentDate||x.date))return false;
+   const farmerName=String(x.farmerName||farmerNameById.get(String(x.farmerId))||"");
+   return !isMpfPaidFarmerName(farmerName);
+ });
  const liftingPayable=money2(liftUsed.reduce((a,l)=>a+(Number(l.netAmount??l.payableAmount??l.liftingAmount??l.totalAmount)||0),0));
  const wang=money2(wangSales.reduce((a,x)=>a+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0));
  const wangKg=money2(wangSales.reduce((a,x)=>a+(Number(x.netWeight??x.weight??x.totalWeight)||0),0));
  const sett=money2(setsUsed.reduce((a,x)=>a+(Number(x.amount)||0),0));
+ const farmerPaid=money2(farmerUsed.reduce((a,x)=>a+(Number(x.amount)||0),0));
 
  // Correct rule:
  // Opening Due + all farmer lifting payable - Wangkhei sale value
  // + money received by MPF from Wangkhei - settlements MPF paid to Singke.
  // Other-store sales do not enter this reconciliation.
- const remain=money2((Number(p?.amount)||0)+liftingPayable-wang+wangReceived-sett);
- return {p,cutoff,liftUsed,wangSales,wangLaterPayments,setsUsed,liftingPayable,wang,wangKg,wangInvoiceReceipts,wangLaterReceipts,wangReceived,sett,farmerPaid:0,farmerUsed:[],remain};
+ const remain=money2((Number(p?.amount)||0)+liftingPayable-wang+wangReceived-sett-farmerPaid);
+ return {p,cutoff,liftUsed,mpfPaidLiftings,wangSales,wangLaterPayments,setsUsed,farmerUsed,liftingPayable,wang,wangKg,wangInvoiceReceipts,wangLaterReceipts,wangReceived,sett,farmerPaid,remain};
 }
 async function singkeSummary(){return singkeAccountingData()}
 
@@ -5203,6 +5448,8 @@ async function renderSingke(){
   const farmerMap=new Map((await txAll("farmers")).map(f=>[String(f.id),f.name]));
   let ev=[
     ...acc.liftUsed.map(x=>({date:x.liftingDate||"",type:x.farmerName||farmerMap.get(String(x.farmerId))||"Farmer Lifting",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,debit:Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0,credit:0,remarks:"Farmer settlement payable by Singke"+(x.remarks?" | "+x.remarks:"")})),
+    ...acc.mpfPaidLiftings.map(x=>({date:x.liftingDate||"",type:x.farmerName||farmerMap.get(String(x.farmerId))||"MPF-paid Farmer",ref:x.invoiceNumber||x.id,kg:Number(x.totalWeight)||0,debit:0,credit:0,remarks:`MPF-paid farmer lifting Rs. ${fmt(Number(x.netAmount??x.payableAmount??x.liftingAmount??x.totalAmount)||0)} — excluded from Singke lifting payable`})),
+    ...acc.farmerUsed.map(x=>({date:x.paymentDate||x.date||"",type:x.farmerName||farmerMap.get(String(x.farmerId))||"Farmer Payment",ref:x.receiptNumber||x.referenceNumber||x.id,kg:0,debit:0,credit:Number(x.amount)||0,remarks:"Paid directly by MPF to farmer; reduces Due to Singke"+(x.remarks?" | "+x.remarks:"")})),
     ...acc.wangSales.map(x=>({date:x.saleDate||"",type:"Wangkhei Sale Adjustment",ref:x.invoiceNumber||x.id,kg:Number(x.netWeight??x.weight??x.totalWeight)||0,debit:0,credit:Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0,remarks:"Wangkhei sale reduces Due to Singke"+(x.remarks?" | "+x.remarks:"")})),
     ...acc.wangSales.filter(x=>Number(x.paymentReceivedAtInvoice??x.paidAmount)>0).map(x=>({date:x.saleDate||"",type:"Wangkhei Payment to MPF",ref:x.invoiceNumber||x.id,kg:0,debit:Number(x.paymentReceivedAtInvoice??x.paidAmount)||0,credit:0,remarks:"Received by MPF; added back to Due to Singke"})),
     ...acc.wangLaterPayments.filter(x=>!(x.linkedSaleId&&String(x.remarks||"").includes("Excess received on invoice"))).map(x=>({date:x.paymentDate||"",type:"Wangkhei Payment to MPF",ref:x.receiptNumber||x.id,kg:0,debit:Number(x.amount)||0,credit:0,remarks:"Later store payment received by MPF; added to Due to Singke"+(x.remarks?" | "+x.remarks:"")})),
