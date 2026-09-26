@@ -1610,12 +1610,7 @@ button[onclick*="changeFarmerPage("],button[onclick*="changeFarmerCombinedPage("
 }
 </style>
 </head>
-<body><div id="psmReliabilityStatus" style="display:none">
-<span id="syncBadge"></span><span id="syncDetail"></span><span id="syncLastSuccess"></span>
-<span id="syncNetwork"></span><span id="syncPendingDeletes"></span><span id="syncPendingSaves"></span>
-<span id="autoBackupStatus"></span><span id="cleanStartBanner"></span><span id="cleanStartText"></span>
-</div>
-
+<body>
 <div id="authScreen" class="auth-screen">
   <div class="auth-card">
     <div class="auth-brand">
@@ -2387,20 +2382,6 @@ async function openFarmerDetails(fid){
  ],`<button class="btn primary" onclick="closeModal();openFarmerById('${f.id}')">Edit</button><button class="btn ok" onclick="closeModal();openFarmerPayment('${f.id}')">Payment</button><button class="btn" onclick="closeModal();goToView('ledger');setTimeout(()=>{const s=document.getElementById('farmerLedgerFarmer');if(s){s.value='${f.id}';renderFarmerLedger()}},80)">Farmer Ledger</button>${S.role==="admin"?`<button class="btn danger" onclick="closeModal();deleteFarmer('${f.id}')">Delete</button>`:""}`);
 }
 async function openFarmerById(fid){const f=await txGet("farmers",fid);if(f)openFarmer(f)}
-
-async function storeSummary(storeId){
- const store=await txGet("stores",storeId);
- const sales=(await txAll("sales")).filter(x=>String(x.storeId)===String(storeId));
- const payments=(await txAll("payments")).filter(x=>String(x.storeId)===String(storeId));
- const opening=money2(store?.openingDue);
- const totalSales=money2(sales.reduce((a,x)=>a+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0));
- const salePaid=money2(sales.reduce((a,x)=>a+(Number(x.paidAmount)||0),0));
- const directPaid=money2(payments.reduce((a,x)=>a+(Number(x.amount)||0),0));
- const totalPaid=money2(salePaid+directPaid);
- const outstanding=money2(opening+totalSales-totalPaid);
- return {opening,totalSales,salePaid,directPaid,totalPaid,outstanding};
-}
-
 async function openStoreDetails(storeId){
  const s=await txGet("stores",storeId);if(!s)return toast("Store not found.");
  const f=await storeSummary(storeId),wang=!!(s.isWangkhei||String(s.name||"").toLowerCase().includes("wangkhei"));
@@ -3200,7 +3181,6 @@ async function openPayment(preselectStoreId=""){
   <div class="field"><label>Cash Received ₹</label><input id="pCash" type="number" step="0.01" min="0" value="0" oninput="updatePaymentRemainingPreview()"></div>
   <div class="field"><label>Account / UPI Received ₹</label><input id="pAccount" type="number" step="0.01" min="0" value="0" oninput="updatePaymentRemainingPreview()"></div>
   <div class="field"><label>Total Received ₹</label><input id="pAmt" disabled value="0.00"></div>
-  <div class="field"><label>Payment Split</label><input disabled value="Cash + Account / UPI"></div>
   <div class="field"><label>Sales Due After Payment ₹</label><input id="pRemainingDue" disabled value="0.00"></div>
   <div class="field"><label>Reference</label><input id="pRef"></div>
   <div class="field"><label>Remarks</label><input id="pRem"></div>
@@ -3262,10 +3242,10 @@ async function updatePaymentStoreDue(){
 }
 function updatePaymentRemainingPreview(){
  const due=Number(document.getElementById("pCurrentDue")?.dataset?.value)||0;
- const cash=money2(document.getElementById("pCash")?.value),account=money2(document.getElementById("pAccount")?.value),paid=money2(cash+account);
- const total=document.getElementById("pAmt"),el=document.getElementById("pRemainingDue");
- if(total)total.value=fmt(paid);
- if(el)el.value=fmt(due-paid);
+ const cash=Number(document.getElementById("pCash")?.value)||0,account=Number(document.getElementById("pAccount")?.value)||0,paid=money2(cash+account);
+ const amt=document.getElementById("pAmt");if(amt)amt.value=fmt(paid);
+ const el=document.getElementById("pRemainingDue");
+ if(el)el.value=fmt(money2(due-paid));
 }
 async function shareStorePaymentWhatsApp(paymentId){
  try{
@@ -3406,18 +3386,15 @@ async function salePaymentStatus(sale){
 }
 
 async function savePayment(){
- const date=document.getElementById("pDate").value,storeId=document.getElementById("pStore").value;
- const pv=validateSplitAmounts(document.getElementById("pCash")?.value,document.getElementById("pAccount")?.value,{label:"Store payment"});
- if(!pv.ok)return toast(pv.message);
- const {cash:cashAmount,account:accountAmount,total:amount}=pv;
- if(!date||!storeId)return toast("Valid store and date required.");
+ const date=document.getElementById("pDate").value,storeId=document.getElementById("pStore").value,split=readSplitPayment("pCash","pAccount","Store payment");
+ if(!split||!date||!storeId)return !date||!storeId?toast("Valid store and date required."):undefined;
+ const {cash:cashAmount,account:accountAmount,total:amount,mode:paymentMode}=split;
  const s=await txGet("stores",storeId);if(!s)return toast("Store not found.");
  const before=await storeSummary(storeId);
  const previousDue=money2(before.outstanding),remainingDue=money2(previousDue-amount);
  const allocation=await allocateStorePaymentToSales(storeId,date,amount);
- const paymentMode=cashAmount>0&&accountAmount>0?"Split":cashAmount>0?"Cash":"Account";
- const r={id:id("PAY"),receiptNumber:await nextSequentialNumber("payment",date),storeId,paymentDate:date,amount,cashAmount,accountAmount,
-   paymentMode,referenceNumber:document.getElementById("pRef").value.trim(),
+ const r={id:id("PAY"),receiptNumber:await nextSequentialNumber("payment",date),storeId,paymentDate:date,amount,
+   paymentMode,cashAmount,accountAmount,referenceNumber:document.getElementById("pRef").value.trim(),
    remarks:document.getElementById("pRem").value.trim(),storeName:s.name||"",storePhone:s.phone||"",
    previousDue,remainingDue,saleAllocations:allocation.allocations,unallocatedAmount:allocation.unallocated,createdAt:iso(),updatedAt:iso()};
  const payDup=(await txAll("payments")).find(x=>x.storeId===r.storeId&&x.paymentDate===r.paymentDate&&Math.abs(Number(x.amount)-r.amount)<0.01&&String(x.paymentMode||"")===String(r.paymentMode||"")&&String(x.referenceNumber||"")===String(r.referenceNumber||""));
@@ -3435,8 +3412,7 @@ async function editStorePayment(paymentId){
   <div class="field"><label>Receipt</label><input value="${esc(p.receiptNumber||p.id)}" disabled></div>
   <div class="field"><label>Store</label><select id="epStore">${stores.map(s=>`<option value="${s.id}" ${String(s.id)===String(p.storeId)?"selected":""}>${esc(s.name)}</option>`).join("")}</select></div>
   <div class="field"><label>Date</label><input id="epDate" type="date" value="${esc(p.paymentDate||today())}"></div>
-  <div class="field"><label>Amount Received ₹</label><input id="epAmt" type="number" step="0.01" min="0.01" value="${Number(p.amount)||0}"></div>
-  <div class="field"><label>Mode</label><select id="epMode">${["Cash","UPI","Bank","Cheque"].map(x=>`<option ${String(p.paymentMode||"")===x?"selected":""}>${x}</option>`).join("")}</select></div>
+  ${(()=>{const q=paymentChannelParts(p,"paymentMode","amount");return `<div class="field"><label>Cash Received ₹</label><input id="epCash" type="number" step="0.01" min="0" value="${q.cash}"></div><div class="field"><label>Account / UPI Received ₹</label><input id="epAccount" type="number" step="0.01" min="0" value="${q.account}"></div>`})()}
   <div class="field"><label>Reference</label><input id="epRef" value="${esc(p.referenceNumber||"")}"></div>
   <div class="field" style="grid-column:1/-1"><label>Remarks</label><input id="epRem" value="${esc(p.remarks||"")}"></div>
  </div>
@@ -3448,8 +3424,9 @@ async function editStorePayment(paymentId){
 }
 async function saveEditedStorePayment(paymentId){
  const old=await txGet("payments",paymentId);if(!old)return toast("Payment not found.");
- const storeId=document.getElementById("epStore")?.value,date=document.getElementById("epDate")?.value,amount=Number(document.getElementById("epAmt")?.value)||0;
- if(!storeId||!date||amount<=0)return toast("Valid store, date and amount required.");
+ const storeId=document.getElementById("epStore")?.value,date=document.getElementById("epDate")?.value,split=readSplitPayment("epCash","epAccount","Store payment");
+ if(!split||!storeId||!date)return !storeId||!date?toast("Valid store and date required."):undefined;
+ const {cash:cashAmount,account:accountAmount,total:amount,mode:paymentMode}=split;
  const st=await txGet("stores",storeId);if(!st)return toast("Store not found.");
  // Calculate due without this payment so the edited record is not counted twice.
  const allPays=await txAll("payments"),otherPays=allPays.filter(x=>String(x.id)!==String(paymentId)&&String(x.storeId)===String(storeId));
@@ -3458,7 +3435,7 @@ async function saveEditedStorePayment(paymentId){
  const salePaid=money2(sales.reduce((a,x)=>a+(Number(x.paidAmount)||0),0)),otherDirect=money2(otherPays.reduce((a,x)=>a+(Number(x.amount)||0),0));
  const previousDue=money2(opening+totalSales-salePaid-otherDirect),remainingDue=money2(previousDue-amount);
  const updated={...old,storeId,storeName:st.name||"",storePhone:st.phone||"",paymentDate:date,amount:money2(amount),
-   paymentMode:document.getElementById("epMode")?.value||old.paymentMode,referenceNumber:document.getElementById("epRef")?.value.trim()||"",
+   paymentMode,cashAmount,accountAmount,referenceNumber:document.getElementById("epRef")?.value.trim()||"",
    remarks:document.getElementById("epRem")?.value.trim()||"",previousDue,remainingDue,
    saleAllocations:[],unallocatedAmount:0,updatedAt:iso()};
  await txPut("payments",updated);queueCloud("payments","UPSERT",updated);
@@ -3476,8 +3453,7 @@ async function deleteStorePayment(paymentId){
   if(await txGet("payments",paymentId))throw new Error("Local payment deletion could not be verified.");
   queueCloud("payments","DELETE",paymentId);
   audit("payments","DELETE",paymentId,`₹${fmt(p.amount)}`);
-  closeModal();await refreshAll();
- schedulePostTransactionChecks();toast("Store payment deleted. Store outstanding and invoice balances recalculated.");
+  closeModal();await refreshAll();toast("Store payment deleted. Store outstanding and invoice balances recalculated.");
  }catch(e){console.error("Delete store payment:",e);toast(e?.message||"Unable to delete store payment.");}
 }
 
@@ -3505,9 +3481,9 @@ async function openSale(){
    <div class="field"><label>Total Birds</label><input id="saBirds" disabled value="0"></div>
    <div class="field sale-total-amount-field"><label>Sales Total Amount (Net) ₹</label><input id="saTotalAmount" disabled value="₹0.00"></div>
    <div class="field"><label>Payment Status</label><select id="saMode" onchange="handleSalePaymentModeChange()"><option value="Credit">Credit</option><option value="Paid">Paid at Invoice</option></select></div>
-   <div class="field" id="saPaidField" style="display:none"><label>Cash Received ₹</label><input id="saCashPaid" type="number" step="0.01" min="0" value="0" oninput="updateSaleSplitPayment()"></div>
-   <div class="field" id="saAccountPaidField" style="display:none"><label>Account / UPI Received ₹</label><input id="saAccountPaid" type="number" step="0.01" min="0" value="0" oninput="updateSaleSplitPayment()"></div>
-   <div class="field"><label>Total Received ₹</label><input id="saPaid" disabled value="0.00"><div class="sub">Excess clears store outstanding; remainder becomes advance.</div></div>
+   <div class="field" id="saPaidField" style="display:none"><label>Cash Received ₹</label><input id="saCashPaid" type="number" step="0.01" min="0" value="0" oninput="updateSaleSplitTotal()"><div class="sub">Cash received at invoice time.</div></div>
+   <div class="field" id="saAccountPaidField" style="display:none"><label>Account / UPI Received ₹</label><input id="saAccountPaid" type="number" step="0.01" min="0" value="0" oninput="updateSaleSplitTotal()"><div class="sub">UPI / bank received at invoice time.</div></div>
+   <div class="field"><label>Total Received ₹</label><input id="saPaid" disabled value="0.00"><div class="sub" id="saPaidModeHint">Not required for Credit.</div></div>
    <div class="field"><label>Remarks</label><input id="saRem"></div>
   </div>
   <div style="height:12px"></div><button class="btn primary" onclick="saveSale()">Save Sale</button>`);
@@ -3541,7 +3517,7 @@ async function openSaleCageSelectionPage(){
    weight:document.getElementById("saWeight")?.value||"",
    paid:document.getElementById("saPaid")?.value||"",
    mode:document.getElementById("saMode")?.value||"Credit",
-   cashPaid:document.getElementById("saCashPaid")?.value||"0",accountPaid:document.getElementById("saAccountPaid")?.value||"0",
+   paidMode:document.getElementById("saPaidMode")?.value||"Cash",
    remarks:document.getElementById("saRem")?.value||""
  };
  closeModal();
@@ -3600,7 +3576,7 @@ async function reopenSaleModalFromDraft(){
  const date=document.getElementById("saDate");if(date)date.value=d.date||today();
  const store=document.getElementById("saStore");if(store&&d.storeId)store.value=d.storeId;
  const rate=document.getElementById("saRate");if(rate)rate.value=d.rate||"";
- const cp=document.getElementById("saCashPaid");if(cp)cp.value=d.cashPaid||"0";const ap=document.getElementById("saAccountPaid");if(ap)ap.value=d.accountPaid||"0";
+ const paid=document.getElementById("saPaid");if(paid)paid.value=d.paid||"0";
  const mode=document.getElementById("saMode");if(mode&&d.mode)mode.value=d.mode;
  const rem=document.getElementById("saRem");if(rem)rem.value=d.remarks||"";
  window._saleSelectedCageIds=selected;
@@ -3628,28 +3604,53 @@ async function updateMultiCageSaleSummary(){
  if(s)s.innerHTML=chosen.length?`<b>${chosen.length} cage${chosen.length===1?"":"s"} selected</b> · ${fmt(weight)} kg · ${birds} birds<br>${chosen.map(c=>`Cage ${esc(c.cageNumber||c.id)}`).join(", ")}`:"No cages selected.";
  updateSaleAmountPreview();
 }
-function updateSaleSplitPayment(){const c=money2(document.getElementById("saCashPaid")?.value),a=money2(document.getElementById("saAccountPaid")?.value),t=document.getElementById("saPaid");if(t)t.value=fmt(money2(c+a));updateSaleAmountPreview()}
-function handleSalePaymentModeChange(){const isCredit=String(document.getElementById("saMode")?.value||"Credit").toLowerCase()==="credit";const c=document.getElementById("saPaidField"),a=document.getElementById("saAccountPaidField");if(c)c.style.display=isCredit?"none":"";if(a)a.style.display=isCredit?"none":"";if(isCredit){const x=document.getElementById("saCashPaid"),y=document.getElementById("saAccountPaid");if(x)x.value="0";if(y)y.value="0"}updateSaleSplitPayment()}
+function handleSalePaymentModeChange(){
+ const credit=String(document.getElementById("saMode")?.value||"Credit").toLowerCase()==="credit";
+ const f=document.getElementById("saPaidField"),af=document.getElementById("saAccountPaidField"),hint=document.getElementById("saPaidModeHint");
+ if(f)f.style.display=credit?"none":"flex";if(af)af.style.display=credit?"none":"flex";
+ if(credit){
+   const c=document.getElementById("saCashPaid"),a=document.getElementById("saAccountPaid"),t=document.getElementById("saPaid");
+   if(c)c.value="0";if(a)a.value="0";if(t)t.value="0.00";
+ }
+ if(hint)hint.textContent=credit?"Not required for Credit.":"Cash + Account / UPI received at invoice time.";
+}
+function updateSaleSplitTotal(){
+ const c=Number(document.getElementById("saCashPaid")?.value)||0,a=Number(document.getElementById("saAccountPaid")?.value)||0,t=document.getElementById("saPaid");
+ if(t)t.value=fmt(money2(c+a));
+}
+function updateSaleAmountPreview(){
+ const weight=Number(document.getElementById("saWeight")?.value)||0;
+ const rate=Number(document.getElementById("saRate")?.value)||0;
+ const exact=money2(weight*rate),net=invoiceRound(exact).rounded;
+ const el=document.getElementById("saTotalAmount");
+ if(el){el.value=`₹${fmt(net)}`;el.title=`Exact ₹${fmt(exact)} before invoice rounding`;}
+}
+function fillSaleWeight(){updateMultiCageSaleSummary()}
+async function updateSaleStoreOutstanding(){
+  const storeId=document.getElementById("saStore")?.value,el=document.getElementById("saOutstanding");if(!storeId||!el)return;
+  const st=await txGet("stores",storeId);
+  if(st?.isWangkhei||String(st?.name||"").toLowerCase().includes("wangkhei")){el.value="N/A - MPF A/C settlement";return}
+  const f=await storeSummary(storeId);el.value=`₹${fmt(f.outstanding)}`;
+}
+async function storeSummary(storeId){
+  let s=await txGet("stores",storeId),sales=(await txAll("sales")).filter(x=>String(x.storeId)===String(storeId)),pays=(await txAll("payments")).filter(x=>String(x.storeId)===String(storeId)),opening=money2(s?.openingDue);
+  const totalSales=money2(sales.reduce((a,x)=>a+(Number(x.netAmount??x.invoiceNetAmount??x.saleAmount??x.totalAmount)||0),0));
+  const salePaid=money2(sales.reduce((a,x)=>a+(Number(x.paidAmount)||0),0));
+  const direct=money2(pays.reduce((a,x)=>a+(Number(x.amount)||0),0));
+  const totalPaid=money2(salePaid+direct);
+  return {opening,totalSales,totalPaid,outstanding:money2(opening+totalSales-totalPaid)}
+}
 async function saveSale(){
- if(window._psmSaleSaving)return toast("Sale is already being saved.");
- window._psmSaleSaving=true;
- const saveBtn=[...document.querySelectorAll("button")].find(b=>b.getAttribute("onclick")==="saveSale()");
- if(saveBtn){saveBtn.disabled=true;saveBtn.dataset.oldText=saveBtn.textContent;saveBtn.textContent="Saving...";}
- try{
  const storeId=document.getElementById("saStore").value,date=document.getElementById("saDate").value,rate=Number(document.getElementById("saRate").value),salePaymentStatus=document.getElementById("saMode").value||"Credit";
  const isCredit=String(salePaymentStatus).toLowerCase()==="credit";
- const saleSplit=isCredit?{ok:true,cash:0,account:0,total:0}:validateSplitAmounts(document.getElementById("saCashPaid")?.value,document.getElementById("saAccountPaid")?.value,{label:"Invoice payment"});
- if(!saleSplit.ok)return toast(saleSplit.message);
- const cashReceived=saleSplit.cash,accountReceived=saleSplit.account,paid=saleSplit.total;
- const paymentMethod=isCredit?"Credit":cashReceived>0&&accountReceived>0?"Split":cashReceived>0?"Cash":"Account";
+ const saleSplit=isCredit?{cash:0,account:0,total:0,mode:"Credit"}:readSplitPayment("saCashPaid","saAccountPaid","Invoice payment");
+ if(!isCredit&&!saleSplit)return;
+ const cashReceived=isCredit?0:saleSplit.cash,accountReceived=isCredit?0:saleSplit.account,paid=isCredit?0:saleSplit.total;
+ const paymentMethod=isCredit?"Credit":saleSplit.mode;
  let cageIds=selectedSaleCageIds();
  if(!date||!storeId||rate<=0)return toast("Date, store and sales rate are required.");
  if(!cageIds.length)return toast("Select at least one cage.");
- // Save Sale must never wait indefinitely for network synchronization.
- // Cloud synchronization continues in the background; the local sale transaction remains atomic.
- if(navigator.onLine&&AUTH_SESSION){
-   backgroundBidirectionalSync({force:true}).catch(e=>console.warn("Pre-sale background sync skipped:",e));
- }
+ if(navigator.onLine&&AUTH_SESSION)await backgroundBidirectionalSync({force:true});
  await reconcileCageInventoryState({sync:false});
  const current=[];
  for(const cid of cageIds){
@@ -3679,14 +3680,13 @@ async function saveSale(){
    cageId:current[0].id,cageIds:current.map(c=>c.id),cageNumber:current.map(c=>c.cageNumber||c.id).join(", "),cageNumbers:current.map(c=>c.cageNumber||c.id),cageDetails,
    birdsCount:birds,totalBirds:birds,originalCageWeight:cageWeight,netWeight:weight,weight,totalWeight:weight,salesRate:rate,ratePerKg:rate,
    saleAmount:exactAmount,totalAmount:exactAmount,roundOff:rr.roundOff,netAmount,invoiceNetAmount:netAmount,paidAmount:invoicePaid,
-   paymentReceivedAtInvoice:paid,excessStorePayment:excess,
+   paymentReceivedAtInvoice:paid,receiptCashAmount:cashReceived,receiptAccountAmount:accountReceived,excessStorePayment:excess,
    previousDue:money2(fin.outstanding),outstanding:money2(fin.outstanding+netAmount-paid),
-   cashAmount:money2(Math.min(cashReceived,invoicePaid)),accountAmount:money2(invoicePaid-Math.min(cashReceived,invoicePaid)),paymentMethod,salePaymentStatus:isCredit?"Credit":"Paid",remarks:document.getElementById("saRem").value.trim(),isWangkheiSale:!!store.isWangkhei,
+   paymentMethod,salePaymentStatus:isCredit?"Credit":"Paid",remarks:document.getElementById("saRem").value.trim(),isWangkheiSale:!!store.isWangkhei,
    createdAt:iso(),updatedAt:iso()};
- const invoiceCash=money2(Math.min(cashReceived,invoicePaid)),invoiceAccount=money2(invoicePaid-invoiceCash),excessCash=money2(Math.max(0,cashReceived-invoiceCash)),excessAccount=money2(Math.max(0,accountReceived-invoiceAccount));
  const excessPayment=excess>0?{
-   id:id("PAY"),receiptNumber:await nextSequentialNumber("payment",date),storeId,paymentDate:date,amount:excess,cashAmount:excessCash,accountAmount:excessAccount,
-   paymentMode:excessCash>0&&excessAccount>0?"Split":excessCash>0?"Cash":"Account",referenceNumber:inv,remarks:`Excess received on invoice ${inv}; adjust existing store outstanding, then advance`,
+   id:id("PAY"),receiptNumber:await nextSequentialNumber("payment",date),storeId,paymentDate:date,amount:excess,
+   paymentMode,cashAmount:0,accountAmount:0,referenceNumber:inv,remarks:`Excess received on invoice ${inv}; adjust existing store outstanding, then advance`,
    storeName:store.name||"",storePhone:store.phone||"",linkedSaleId:sid,
    previousDue:money2(fin.outstanding),remainingDue:money2(fin.outstanding-excess),
    createdAt:iso(),updatedAt:iso()
@@ -3713,16 +3713,7 @@ async function saveSale(){
    queueCloud("settings","UPSERT",{key:"cage_state_"+c.id,value:{isSold:true,saleId:sid,updatedAt:r.updatedAt},updatedAt:r.updatedAt});
  }
  audit("sales","CREATE",sid,`${inv} | ${current.length} cages`);
- clearCurrentFormDraft();window._saleModalDraft=null;closeModal();await refreshAll();
- schedulePostTransactionChecks();await previewStoreInvoice(sid);
- }catch(e){
-   console.error("Save Sale failed:",e);
-   toast("Unable to save sale: "+(e?.message||"Unexpected error"));
- }finally{
-   window._psmSaleSaving=false;
-   const b=[...document.querySelectorAll("button")].find(x=>x.getAttribute("onclick")==="saveSale()");
-   if(b){b.disabled=false;b.textContent=b.dataset.oldText||"Save Sale";}
- }
+ clearCurrentFormDraft();window._saleModalDraft=null;closeModal();await refreshAll();await previewStoreInvoice(sid);
 }
 
 function clearSingkeFilter(){
@@ -3759,13 +3750,12 @@ async function downloadSingkeLedgerPdf(){
   }catch(e){toast(e.message)}
 }
 
-async function openSettlement(){openModal(`<h3>Record Payout to Singke</h3><div class="grid g2"><div class="field"><label>Date</label><input id="ssDate" type="date" value="${today()}"></div><div class="field"><label>Cash Payment ₹</label><input id="ssCash" type="number" min="0" step="0.01" value="0" oninput="updateSettlementSplitTotal()"></div><div class="field"><label>Account / UPI Payment ₹</label><input id="ssAccount" type="number" min="0" step="0.01" value="0" oninput="updateSettlementSplitTotal()"></div><div class="field"><label>Total Settlement ₹</label><input id="ssAmt" disabled value="0.00"></div><div class="field"><label>Reference</label><input id="ssRef"></div></div><div class="field" style="margin-top:8px"><label>Remarks</label><input id="ssRem"></div><div style="height:12px"></div><button class="btn primary" onclick="saveSettlement()">Save Settlement</button>`)}
-function updateSettlementSplitTotal(){const c=money2(document.getElementById("ssCash")?.value),a=money2(document.getElementById("ssAccount")?.value),t=document.getElementById("ssAmt");if(t)t.value=fmt(money2(c+a))}
+async function openSettlement(){openModal(`<h3>Record Payout to Singke</h3><div class="grid g2"><div class="field"><label>Date</label><input id="ssDate" type="date" value="${today()}"></div><div class="field"><label>Cash Payment ₹</label><input id="ssCash" type="number" step="0.01" min="0" value="0"></div><div class="field"><label>Account / UPI Payment ₹</label><input id="ssAccount" type="number" step="0.01" min="0" value="0"></div><div class="field"><label>Reference</label><input id="ssRef"></div></div><div class="field" style="margin-top:8px"><label>Remarks</label><input id="ssRem"></div><div style="height:12px"></div><button class="btn primary" onclick="saveSettlement()">Save Settlement</button>`)}
 async function saveSettlement(){
- let date=document.getElementById("ssDate").value,sv=validateSplitAmounts(document.getElementById("ssCash")?.value,document.getElementById("ssAccount")?.value,{label:"Singke settlement"});
- if(!sv.ok)return toast(sv.message);
- const {cash:cashAmount,account:accountAmount,total:amount}=sv;
- let r={id:id("SSET"),receiptNumber:await nextSequentialNumber("settlement",date),date,amount,cashAmount,accountAmount,paymentMethod:cashAmount>0&&accountAmount>0?"Split":cashAmount>0?"Cash":"Account",referenceNumber:document.getElementById("ssRef").value.trim(),remarks:document.getElementById("ssRem").value.trim(),createdAt:iso(),updatedAt:iso()};
+ let date=document.getElementById("ssDate").value,split=readSplitPayment("ssCash","ssAccount","Singke settlement");
+ if(!split||!date)return !date?toast("Valid date required."):undefined;
+ const {cash:cashAmount,account:accountAmount,total:amount,mode:paymentMethod}=split;
+ let r={id:id("SSET"),receiptNumber:await nextSequentialNumber("settlement",date),date,amount,paymentMethod,cashAmount,accountAmount,referenceNumber:document.getElementById("ssRef").value.trim(),remarks:document.getElementById("ssRem").value.trim(),createdAt:iso(),updatedAt:iso()};
  if(!r.date||r.amount<=0)return toast("Valid date and amount required.");
  if((await txAll("singke_settlements")).some(x=>x.receiptNumber===r.receiptNumber))return toast("Receipt number conflict. Please retry.");
  await txPut("singke_settlements",r);queueCloud("singke_settlements","UPSERT",r);audit("singke","SETTLEMENT",r.id,r.receiptNumber);closeModal();refreshAll()
@@ -3836,88 +3826,123 @@ function accountingCellText(v){
  return pdfSafeText(v);
 }
 function buildAccountingTablePdf({title,subtitle="",headers=[],rows=[],summary=[]}){
- // Professional A4 portrait statement/ledger generator with embedded PSM logo.
- const W=595,H=842,left=28,right=28,top=706,bottom=40;
- const pageWidth=W-left-right,rowH=20,headerH=25;
- const cols=Math.max(1,headers.length);
- const weightFor=(h)=>{
-   const x=String(h||"").toLowerCase();
-   if(/description|farmer|store|name|reference|invoice|remarks/.test(x))return 1.55;
-   if(/date|type|mode|cage/.test(x))return 1.10;
-   if(/amount|debit|credit|balance|rate|kg|birds|payment|sales|payable|profit/.test(x))return .92;
-   return 1;
- };
- const weights=headers.map(weightFor),ws=weights.reduce((a,b)=>a+b,0);
- const widths=weights.map(w=>pageWidth*w/ws);
- const available=top-72-bottom;
- const rowsPerPage=Math.max(12,Math.floor((available-headerH)/rowH));
- const rowPages=[];for(let i=0;i<rows.length;i+=rowsPerPage)rowPages.push(rows.slice(i,i+rowsPerPage));if(!rowPages.length)rowPages.push([]);
+ // Unified clean statement format based on the Farmer Ledger PDF.
+ // Portrait for normal statements; landscape automatically for wide tables.
+ const wide=headers.length>7;
+ const W=wide?842:595,H=wide?595:842,left=28,right=28,bottom=40,pageWidth=W-left-right,rowH=20,headH=24;
  const objs=[null],add=o=>{objs.push(o);return objs.length-1};
  const f1=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
  const f2=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
  const logoBytes=Uint8Array.from(atob(PSM_LOGO_JPEG_BASE64),c=>c.charCodeAt(0)&255);
  const logoHex=Array.from(logoBytes,b=>b.toString(16).padStart(2,"0")).join("").toUpperCase()+">";
  const imgObj=add(`<< /Type /XObject /Subtype /Image /Width ${PSM_LOGO_JPEG_WIDTH} /Height ${PSM_LOGO_JPEG_HEIGHT} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter [/ASCIIHexDecode /DCTDecode] /Length ${logoHex.length} >>\nstream\n${logoHex}\nendstream`);
+ const esc=v=>pdfSafeText(v).replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)");
+ const txt=(c,x,y,v,size=7,b=false,col="0.08 0.10 0.09")=>c.push(`BT /${b?"F2":"F1"} ${size} Tf ${col} rg 1 0 0 1 ${Number(x).toFixed(2)} ${Number(y).toFixed(2)} Tm (${esc(v)}) Tj ET`);
+ const fill=(c,x,y,w,h,r,g,b)=>c.push(`${r} ${g} ${b} rg ${Number(x).toFixed(2)} ${Number(y).toFixed(2)} ${Number(w).toFixed(2)} ${Number(h).toFixed(2)} re f`);
+ const line=(c,x1,y1,x2,y2,w=.4)=>c.push(`0.70 0.75 0.72 RG ${w} w ${Number(x1).toFixed(2)} ${Number(y1).toFixed(2)} m ${Number(x2).toFixed(2)} ${Number(y2).toFixed(2)} l S`);
+ const clean=v=>accountingCellText(v);
+ const trunc=(v,w,size=6.25)=>{const t=clean(v),m=Math.max(3,Math.floor(w/(size*.56)));return t.length>m?t.slice(0,Math.max(1,m-3))+"...":t};
+
+ const weightFor=(hh)=>{
+   const x=String(hh||"").toLowerCase();
+   if(/remarks|description/.test(x))return 1.85;
+   if(/farmer|store|name/.test(x))return 1.55;
+   if(/reference|invoice|receipt/.test(x))return 1.35;
+   if(/date|type|mode|cage/.test(x))return 1.08;
+   if(/amount|debit|credit|balance|outstanding|rate|kg|birds|payment|sales|payable|profit|cost|due/.test(x))return .98;
+   return 1;
+ };
+ const weights=headers.map(weightFor),weightTotal=weights.reduce((a,b)=>a+b,0)||1;
+ const widths=weights.map(w=>pageWidth*w/weightTotal);
+
+ // Keep useful statement totals as clean cards, up to 8 cards (two rows if needed).
+ const useful=(summary||[]).filter(x=>Array.isArray(x)&&x.length>=2);
+ const cards=useful.slice(0,8);
  const pageIds=[],contentIds=[];
- const esc=s=>pdfSafeText(s).replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)");
- const txt=(cmd,x,y,s,size=6.6,b=false,color="0.08 0.10 0.09")=>cmd.push(`BT /${b?"F2":"F1"} ${size} Tf ${color} rg 1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm (${esc(s)}) Tj ET`);
- const line=(cmd,x1,y1,x2,y2,w=.4)=>cmd.push(`0.70 0.75 0.72 RG ${w} w ${x1.toFixed(2)} ${y1.toFixed(2)} m ${x2.toFixed(2)} ${y2.toFixed(2)} l S`);
- const fill=(cmd,x,y,w,h,r,g,b)=>cmd.push(`${r} ${g} ${b} rg ${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re f`);
- const truncate=(v,w)=>{const t=accountingCellText(v),max=Math.max(3,Math.floor(w/3.7));return t.length>max?t.slice(0,Math.max(1,max-1))+"…":t};
- rowPages.forEach((pageRows,pi)=>{
-   const c=[];fill(c,0,0,W,H,1,1,1);
-   // Header band + actual company logo.
+ let c=[],y=0,pageNo=0;
+
+ const startPage=()=>{
+   c=[];pageNo++;
+   fill(c,0,0,W,H,1,1,1);
    fill(c,left,H-102,pageWidth,74,.965,.985,.972);
-   c.push(`q 76 0 0 51 ${left+8} ${H-91} cm /Im1 Do Q`);
-   txt(c,left+94,H-55,"PSM BROILER DISTRIBUTOR",15,true,"0.06 0.28 0.14");
-   txt(c,left+94,H-73,title,10.5,true);
-   txt(c,left+94,H-88,subtitle||`Generated: ${new Date().toLocaleString("en-IN")}`,6.6,false,"0.28 0.34 0.31");
-   if(summary.length){
-     const isFarmerLedger=String(title||"").toUpperCase().includes("FARMER LIFTING & PAYMENT LEDGER");
-     if(isFarmerLedger){
-       const wanted=["Total Kg","Lifting Amount","Payment Received","Outstanding"];
-       const items=wanted.map(k=>summary.find(x=>String(x?.[0]||"")===k)).filter(Boolean);
-       const gap=7, boxW=(pageWidth-gap*3)/4, boxY=H-143, boxH=34;
-       items.forEach((it,i)=>{
-         const bx=left+i*(boxW+gap);
-         fill(c,bx,boxY,boxW,boxH,.965,.985,.972);
-         c.push(`0.46 0.70 0.54 RG 0.75 w ${bx.toFixed(2)} ${boxY.toFixed(2)} ${boxW.toFixed(2)} ${boxH.toFixed(2)} re S`);
-         txt(c,bx+6,boxY+22,String(it[0]),6.7,true,"0.18 0.34 0.24");
-         let value=accountingCellText(it[1]);
-         if(String(it[0])==="Total Kg") value=value+" kg";
-         else if(!/^Rs\.|^₹/.test(value)) value="Rs. "+value;
-         txt(c,bx+6,boxY+7,truncate(value,boxW-12),10.2,true,"0.04 0.22 0.11");
+   const logoW=wide?70:76,logoH=wide?47:51;
+   c.push(`q ${logoW} 0 0 ${logoH} ${left+8} ${H-91} cm /Im1 Do Q`);
+   txt(c,left+94,H-55,"PSM BROILER DISTRIBUTOR",wide?14:15,true,"0.06 0.28 0.14");
+   txt(c,left+94,H-73,title,wide?10:10.5,true);
+   txt(c,left+94,H-88,subtitle||`Generated: ${new Date().toLocaleString("en-IN")}`,6.4,false,"0.28 0.34 0.31");
+   y=H-143;
+
+   if(pageNo===1&&cards.length){
+     const perRow=Math.min(4,cards.length),gap=7,boxH=34;
+     const rowsOfCards=Math.ceil(cards.length/perRow);
+     for(let r=0;r<rowsOfCards;r++){
+       const rowItems=cards.slice(r*perRow,(r+1)*perRow);
+       const boxW=(pageWidth-gap*(rowItems.length-1))/rowItems.length;
+       rowItems.forEach((it,i)=>{
+         const bx=left+i*(boxW+gap),by=y-r*(boxH+7);
+         fill(c,bx,by,boxW,boxH,.965,.985,.972);
+         c.push(`0.46 0.70 0.54 RG .75 w ${bx.toFixed(2)} ${by.toFixed(2)} ${boxW.toFixed(2)} ${boxH.toFixed(2)} re S`);
+         txt(c,bx+6,by+22,trunc(it[0],boxW-12,6.7),6.7,true,"0.18 0.34 0.24");
+         let val=clean(it[1]);
+         const key=String(it[0]||"").toLowerCase();
+         if(/kg|weight/.test(key)&&!/\bkg\b/i.test(val)) val+=" kg";
+         else if(/amount|sales|payable|payment|profit|cost|due|balance|outstanding|settlement|credit|cash|account|adjustment/.test(key)&&!/^Rs\./i.test(val)) val="Rs. "+val;
+         txt(c,bx+6,by+7,trunc(val,boxW-12,9.6),9.6,true,"0.04 0.22 0.11");
        });
-     }else{
-       const sm=summary.map(([k,v])=>`${k}: ${accountingCellText(v)}`).join("   |   ");
-       txt(c,left+8,H-116,truncate(sm,pageWidth-16),6.5,true,"0.12 0.35 0.20");
      }
+     y-=rowsOfCards*(boxH+7)+9;
    }
-   let y=String(title||"").toUpperCase().includes("FARMER LIFTING & PAYMENT LEDGER")?top-74:top-44;
-   fill(c,left,y-headerH,pageWidth,headerH,.89,.95,.91);
-   let x=left;line(c,left,y,left+pageWidth,y,.65);line(c,left,y-headerH,left+pageWidth,y-headerH,.65);
-   for(let i=0;i<cols;i++){line(c,x,y,x,y-headerH,.45);txt(c,x+3,y-16,truncate(headers[i],widths[i]-6),6.35,true);x+=widths[i]}
-   line(c,left+pageWidth,y,left+pageWidth,y-headerH,.45);y-=headerH;
-   pageRows.forEach((row,ri)=>{
-     if(ri%2===1)fill(c,left,y-rowH,pageWidth,rowH,.982,.989,.984);
-     x=left;line(c,left,y-rowH,left+pageWidth,y-rowH,.32);
-     for(let i=0;i<cols;i++){line(c,x,y,x,y-rowH,.32);txt(c,x+3,y-13,truncate(row[i],widths[i]-6),6.15,false);x+=widths[i]}
-     line(c,left+pageWidth,y,left+pageWidth,y-rowH,.32);y-=rowH;
-   });
+ };
+
+ const finishPage=()=>{
    line(c,left,bottom+12,left+pageWidth,bottom+12,.45);
-   txt(c,left,bottom-2,`Page ${pi+1} of ${rowPages.length}`,6.5,false,"0.35 0.40 0.38");
-   txt(c,W-right-205,bottom-2,"Computer-generated PSM accounting statement",6.5,false,"0.35 0.40 0.38");
-   const stream=c.join("\n"),cid=add(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);contentIds.push(cid);pageIds.push(add(""));
- });
+   txt(c,left,bottom-2,trunc(title,260,6.2),6.2,false,"0.35 0.40 0.38");
+   txt(c,W-right-205,bottom-2,`PSM accounting statement | Page ${pageNo}`,6.2,false,"0.35 0.40 0.38");
+   const stream=c.join("\n");
+   const cid=add(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+   contentIds.push(cid);pageIds.push(add(""));
+ };
+
+ const drawSectionTitle=(continued=false)=>{
+   fill(c,left,y-28,pageWidth,28,.90,.96,.92);
+   txt(c,left+8,y-18,continued?"STATEMENT DETAILS (continued)":"STATEMENT DETAILS",10,true,"0.05 0.30 0.15");
+   y-=36;
+ };
+ const drawHeader=()=>{
+   fill(c,left,y-headH,pageWidth,headH,.94,.97,.95);
+   let x=left;line(c,left,y,left+pageWidth,y,.6);
+   headers.forEach((hh,i)=>{line(c,x,y,x,y-headH);txt(c,x+4,y-16,trunc(hh,widths[i]-8,6.35),6.35,true);x+=widths[i]});
+   line(c,left+pageWidth,y,left+pageWidth,y-headH);line(c,left,y-headH,left+pageWidth,y-headH);y-=headH;
+ };
+
+ startPage();drawSectionTitle(false);drawHeader();
+ if(!rows.length){txt(c,left+8,y-13,"No records",7,false,"0.35 0.40 0.38");y-=rowH;}
+ for(let ri=0;ri<rows.length;ri++){
+   if(y-rowH<bottom+18){
+     finishPage();startPage();drawSectionTitle(true);drawHeader();
+   }
+   if(ri%2)fill(c,left,y-rowH,pageWidth,rowH,.985,.991,.987);
+   let x=left;line(c,left,y-rowH,left+pageWidth,y-rowH,.3);
+   for(let i=0;i<headers.length;i++){
+     line(c,x,y,x,y-rowH,.3);
+     const v=rows[ri]?.[i]??"";
+     txt(c,x+4,y-13,trunc(v,widths[i]-8,wide?5.85:6.25),wide?5.85:6.25);
+     x+=widths[i];
+   }
+   line(c,left+pageWidth,y,left+pageWidth,y-rowH,.3);y-=rowH;
+ }
+ finishPage();
+
  const pagesId=add(""),catalog=add(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`);
  pageIds.forEach((pid,i)=>objs[pid]=`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 ${f1} 0 R /F2 ${f2} 0 R >> /XObject << /Im1 ${imgObj} 0 R >> >> /Contents ${contentIds[i]} 0 R >>`);
  objs[pagesId]=`<< /Type /Pages /Kids [${pageIds.map(x=>x+" 0 R").join(" ")}] /Count ${pageIds.length} >>`;
- let out="%PDF-1.4\n",offs=[0];for(let i=1;i<objs.length;i++){offs[i]=out.length;out+=`${i} 0 obj\n${objs[i]}\nendobj\n`}
- const xref=out.length;out+=`xref\n0 ${objs.length}\n0000000000 65535 f \n`;for(let i=1;i<objs.length;i++)out+=String(offs[i]).padStart(10,"0")+" 00000 n \n";
+ let out="%PDF-1.4\n",offs=[0];
+ for(let i=1;i<objs.length;i++){offs[i]=out.length;out+=`${i} 0 obj\n${objs[i]}\nendobj\n`}
+ const xref=out.length;out+=`xref\n0 ${objs.length}\n0000000000 65535 f \n`;
+ for(let i=1;i<objs.length;i++)out+=String(offs[i]).padStart(10,"0")+" 00000 n \n";
  out+=`trailer\n<< /Size ${objs.length} /Root ${catalog} 0 R >>\nstartxref\n${xref}\n%%EOF`;
  return new Blob([Uint8Array.from(out,ch=>ch.charCodeAt(0)&255)],{type:"application/pdf"});
 }
-
 function safeDownloadLabel(v){
  return String(v||"PSM_Download")
    .replace(/[\\/:*?"<>|]+/g," ")
@@ -5051,77 +5076,61 @@ function normalizedPaymentMode(mode){return String(mode||"").trim().toLowerCase(
 function isCashMode(mode){return normalizedPaymentMode(mode)==="cash"}
 function isAccountMode(mode){return ["upi","bank","bank transfer"].includes(normalizedPaymentMode(mode))}
 
-function finiteMoney(v){const n=Number(v);return Number.isFinite(n)?money2(n):0}
-function validateSplitAmounts(cash,account,{allowZero=false,label="Payment"}={}){
- cash=Number(cash);account=Number(account);
- if(!Number.isFinite(cash)||!Number.isFinite(account))return {ok:false,message:`${label}: Cash and Account amounts must be valid numbers.`};
- if(cash<0||account<0)return {ok:false,message:`${label}: negative amounts are not allowed.`};
- const total=money2(cash+account);
- if(!allowZero&&total<=0)return {ok:false,message:`${label}: enter a Cash or Account / UPI amount.`};
- return {ok:true,cash:money2(cash),account:money2(account),total};
-}
-function accountingRecordKey(kind,r){return `${kind}:${r?.id||r?.receiptNumber||r?.invoiceNumber||"unknown"}`}
-async function runStartupSelfCheck(){
- const requiredFns=["storeSummary","fundsSummary","refreshAll","saveSale","savePayment","saveFarmerPayment","saveSettlement","backgroundBidirectionalSync"];
- const missingFns=requiredFns.filter(n=>typeof window[n]!=="function");
- const requiredStores=["farmers","liftings","cages","stores","sales","payments","singke_settlements"];
- let missingStores=[];
- try{
-   if(db?.objectStoreNames)missingStores=requiredStores.filter(n=>!db.objectStoreNames.contains(n));
- }catch(e){console.warn("DB self-check:",e)}
- const problems=[...missingFns.map(x=>`Missing function: ${x}`),...missingStores.map(x=>`Missing local database store: ${x}`)];
- if(problems.length){
-   console.error("Startup self-check failed",problems);
-   toast("Startup check found an app problem. Please use the latest backup/build.");
- }
- return {ok:!problems.length,problems};
-}
-async function quickAccountingReconcile(){
- const issues=[];
- try{
-   const stores=await txAll("stores");
-   for(const s of stores){
-     const x=await storeSummary(s.id);
-     if(!Number.isFinite(Number(x.outstanding)))issues.push(`Store ${s.name||s.id}: invalid outstanding`);
-   }
-   const f=await fundsSummary();
-   for(const k of ["cashInHand","accountBalance","combinedBalance"])if(!Number.isFinite(Number(f[k])))issues.push(`Invalid ${k}`);
- }catch(e){issues.push(e?.message||String(e))}
- return {ok:issues.length===0,issues};
-}
-function schedulePostTransactionChecks(){
- clearTimeout(window._psmPostTxTimer);
- window._psmPostTxTimer=setTimeout(async()=>{
-   try{
-     const r=await quickAccountingReconcile();
-     if(!r.ok){console.error("Post-transaction reconciliation",r.issues);toast("Saved, but accounting check found an issue. Review Accounting Control.")}
-   }catch(e){console.warn("Post-transaction check skipped:",e)}
- },150);
-}
-function splitMoneyParts(record,modeField="paymentMode"){
- const total=money2(record?.amount ?? record?.paidAmount ?? 0);
- if(record && (record.cashAmount!=null || record.accountAmount!=null)){
-   const cash=money2(record.cashAmount),account=money2(record.accountAmount);
+function paymentChannelParts(record,modeField="paymentMode",amountField="amount"){
+ const total=money2(Number(record?.[amountField])||0);
+ const hasSplit=record&&(
+   record.cashAmount!==undefined||record.accountAmount!==undefined||
+   record.cashReceived!==undefined||record.accountReceived!==undefined
+ );
+ if(hasSplit){
+   const cash=money2(Number(record.cashAmount??record.cashReceived)||0);
+   const account=money2(Number(record.accountAmount??record.accountReceived)||0);
    return {cash,account,total:money2(cash+account)};
  }
  const mode=String(record?.[modeField]||"");
  return {cash:isCashMode(mode)?total:0,account:isAccountMode(mode)?total:0,total};
 }
-function splitPaymentLabel(record,modeField="paymentMode"){
- const p=splitMoneyParts(record,modeField);
- if(p.cash>0&&p.account>0)return `Cash ₹${fmt(p.cash)} + A/C ₹${fmt(p.account)}`;
- if(p.cash>0)return `Cash ₹${fmt(p.cash)}`;
- if(p.account>0)return `A/C ₹${fmt(p.account)}`;
- return record?.[modeField]||"—";
+function readSplitPayment(cashId,accountId,label="Payment"){
+ const cash=Number(document.getElementById(cashId)?.value||0);
+ const account=Number(document.getElementById(accountId)?.value||0);
+ if(!Number.isFinite(cash)||!Number.isFinite(account)||cash<0||account<0){
+   toast(`${label}: enter valid non-negative Cash and Account amounts.`);return null;
+ }
+ const c=money2(cash),a=money2(account),total=money2(c+a);
+ if(total<=0){toast(`${label}: enter Cash or Account / UPI amount.`);return null}
+ return {cash:c,account:a,total,mode:c>0&&a>0?"Split":c>0?"Cash":"Account"};
 }
+
 async function fundsSummary(){
  const sales=await txAll("sales"),payments=await txAll("payments"),sets=await txAll("singke_settlements"),farmerPayments=await getFarmerPayments();
- const saleParts=sales.map(x=>splitMoneyParts({amount:x.paidAmount,cashAmount:x.cashAmount,accountAmount:x.accountAmount,paymentMethod:x.paymentMethod},"paymentMethod"));
- const saleCash=money2(saleParts.reduce((a,x)=>a+x.cash,0)),saleAccount=money2(saleParts.reduce((a,x)=>a+x.account,0));
- const storeCash=money2(payments.reduce((a,x)=>a+splitMoneyParts(x,"paymentMode").cash,0)),storeAccount=money2(payments.reduce((a,x)=>a+splitMoneyParts(x,"paymentMode").account,0));
- const farmerCash=money2(farmerPayments.reduce((a,x)=>a+splitMoneyParts(x,"paymentMode").cash,0)),farmerAccount=money2(farmerPayments.reduce((a,x)=>a+splitMoneyParts(x,"paymentMode").account,0));
- const singkeCash=money2(sets.reduce((a,x)=>a+splitMoneyParts(x,"paymentMethod").cash,0)),singkeAccount=money2(sets.reduce((a,x)=>a+splitMoneyParts(x,"paymentMethod").account,0));
- return {saleCash,storeCash,farmerCash,singkeCash,saleAccount,storeAccount,farmerAccount,singkeAccount,cashInHand:money2(saleCash+storeCash-farmerCash-singkeCash),accountBalance:money2(saleAccount+storeAccount-farmerAccount-singkeAccount),combinedBalance:money2(saleCash+storeCash+saleAccount+storeAccount-farmerCash-singkeCash-farmerAccount-singkeAccount)};
+
+ // Sales store the actual receipt channels. Linked excess-payment rows affect store outstanding,
+ // but are excluded here so the same receipt is never counted twice in Cash/Account.
+ let saleCash=0,saleAccount=0;
+ for(const x of sales){
+   const p=(x.receiptCashAmount!==undefined||x.receiptAccountAmount!==undefined)
+     ?{cash:money2(Number(x.receiptCashAmount)||0),account:money2(Number(x.receiptAccountAmount)||0)}
+     :paymentChannelParts(x,"paymentMethod","paidAmount");
+   saleCash+=p.cash;saleAccount+=p.account;
+ }
+ let storeCash=0,storeAccount=0;
+ for(const x of payments){
+   if(x.linkedSaleId&&String(x.remarks||"").includes("Excess received on invoice"))continue;
+   const p=paymentChannelParts(x,"paymentMode","amount");storeCash+=p.cash;storeAccount+=p.account;
+ }
+ let farmerCash=0,farmerAccount=0;
+ for(const x of farmerPayments){const p=paymentChannelParts(x,"paymentMode","amount");farmerCash+=p.cash;farmerAccount+=p.account}
+ let singkeCash=0,singkeAccount=0;
+ for(const x of sets){const p=paymentChannelParts(x,"paymentMethod","amount");singkeCash+=p.cash;singkeAccount+=p.account}
+
+ saleCash=money2(saleCash);storeCash=money2(storeCash);farmerCash=money2(farmerCash);singkeCash=money2(singkeCash);
+ saleAccount=money2(saleAccount);storeAccount=money2(storeAccount);farmerAccount=money2(farmerAccount);singkeAccount=money2(singkeAccount);
+ return {
+  saleCash,storeCash,farmerCash,singkeCash,saleAccount,storeAccount,farmerAccount,singkeAccount,
+  cashInHand:money2(saleCash+storeCash-farmerCash-singkeCash),
+  accountBalance:money2(saleAccount+storeAccount-farmerAccount-singkeAccount),
+  combinedBalance:money2(saleCash+storeCash+saleAccount+storeAccount-farmerCash-singkeCash-farmerAccount-singkeAccount)
+ };
 }
 async function cashInHandSummary(){return fundsSummary()}
 
@@ -5220,33 +5229,31 @@ async function openFarmerPayment(farmerId){
    <div class="field"><label>Date</label><input id="fpDate" type="date" value="${today()}"></div>
    <div class="field"><label>Cash Payment ₹</label><input id="fpCash" type="number" min="0" step="0.01" value="0" inputmode="decimal" oninput="updateFarmerPaymentPreview()"></div>
    <div class="field"><label>Account / UPI Payment ₹</label><input id="fpAccount" type="number" min="0" step="0.01" value="0" inputmode="decimal" oninput="updateFarmerPaymentPreview()"></div>
-   <div class="field"><label>Total Payment ₹</label><input id="fpAmount" value="0.00" disabled></div>
+   <div class="field"><label>Total Payment ₹</label><input id="fpAmount" disabled value="0.00"></div>
    <div class="field"><label>Outstanding After Payment ₹</label><input id="fpRemaining" value="${fmt(due)}" disabled></div>
    <div class="field" style="grid-column:1/-1"><label>Remarks</label><input id="fpRemarks" placeholder="Optional"></div>
   </div>
   <div style="height:12px"></div><button class="btn primary" onclick="saveFarmerPayment('${farmerId}')">Save Payment</button>`);
 }
 function updateFarmerPaymentPreview(){
- const due=Number(document.getElementById("fpCurrentDue")?.dataset?.value)||0,cash=money2(document.getElementById("fpCash")?.value),account=money2(document.getElementById("fpAccount")?.value),amt=money2(cash+account),el=document.getElementById("fpRemaining"),total=document.getElementById("fpAmount");
- if(total)total.value=fmt(amt);if(el)el.value=fmt(money2(due-amt));
+ const due=Number(document.getElementById("fpCurrentDue")?.dataset?.value)||0,cash=Number(document.getElementById("fpCash")?.value)||0,account=Number(document.getElementById("fpAccount")?.value)||0,amt=money2(cash+account),el=document.getElementById("fpRemaining");
+ const total=document.getElementById("fpAmount");if(total)total.value=fmt(amt);
+ if(el)el.value=fmt(money2(due-amt));
 }
 async function saveFarmerPayment(farmerId){
  const f=await txGet("farmers",farmerId);if(!f)return toast("Farmer not found.");
- const date=document.getElementById("fpDate")?.value||"",fv=validateSplitAmounts(document.getElementById("fpCash")?.value,document.getElementById("fpAccount")?.value,{label:"Farmer payment"}),remarks=document.getElementById("fpRemarks")?.value?.trim()||"";
- if(!fv.ok)return toast(fv.message);
- const {cash:cashAmount,account:accountAmount,total:amount}=fv;
- const mode=cashAmount>0&&accountAmount>0?"Split":cashAmount>0?"Cash":"Account";
- if(!date)return toast("Enter a valid payment date.");
+ const date=document.getElementById("fpDate")?.value||"",split=readSplitPayment("fpCash","fpAccount","Farmer payment"),remarks=document.getElementById("fpRemarks")?.value?.trim()||"";
+ if(!split||!date)return !date?toast("Enter a valid payment date."):undefined;
+ const {cash:cashAmount,account:accountAmount,total:amount,mode}=split;
  const before=await getFarmerLedgerData(farmerId);
  const priorRows=before.rows.filter(r=>String(r.date||"")<=String(date));
  const previousOutstanding=money2(priorRows.length?priorRows[priorRows.length-1].balance:0);
  if(amount>previousOutstanding+.009&&!confirm(`Payment ₹${fmt(amount)} is higher than farmer outstanding ₹${fmt(previousOutstanding)} as of ${date}. Save as an advance/credit balance?`))return;
  const idv=id("FP"),remainingOutstanding=money2(previousOutstanding-amount),now=iso();
- const p={id:idv,farmerId,farmerName:f.name||"",paymentDate:date,amount,cashAmount,accountAmount,paymentMode:mode,remarks,previousOutstanding,remainingOutstanding,createdAt:now,updatedAt:now};
+ const p={id:idv,farmerId,farmerName:f.name||"",paymentDate:date,amount,paymentMode:mode,cashAmount,accountAmount,remarks,previousOutstanding,remainingOutstanding,createdAt:now,updatedAt:now};
  await setSetting(farmerPaymentSettingKey(idv),p);
  audit("farmer_payments","CREATE",idv,`${f.name} | ₹${fmt(amount)} | ${mode}`);
  clearCurrentFormDraft();closeModal();await refreshAll();
- schedulePostTransactionChecks();
  const sel=document.getElementById("farmerLedgerFarmer");if(sel){sel.value=farmerId;await renderFarmerLedger()}
  toast(`Farmer payment saved. Balance: ₹${fmt(remainingOutstanding)}`);
 }
@@ -6172,14 +6179,8 @@ async function authRequest(path,method="GET",body=null,token=null){
 async function refreshAuthSession(){
   const current=AUTH_SESSION||loadAuthSession();
   if(!current?.refresh_token)throw new Error("Your login session has expired.");
-  try{
-    const data=await authRequest("token?grant_type=refresh_token","POST",{refresh_token:current.refresh_token});
-    saveAuthSession(data);return data;
-  }catch(e){
-    // Never erase a previously verified session because of a temporary network failure.
-    if(isNetworkAuthError(e)){AUTH_SESSION=current;throw e}
-    throw e;
-  }
+  const data=await authRequest("token?grant_type=refresh_token","POST",{refresh_token:current.refresh_token});
+  saveAuthSession(data);return data;
 }
 async function getAuthenticatedUser(){
  let s=AUTH_SESSION||loadAuthSession();
@@ -6238,116 +6239,72 @@ async function supabaseLogout(){
 async function requireAuthentication(){
  updateAuthNetworkUI();
  const cached=loadAuthSession();
-
- // Previously verified device: never freeze startup on a slow/failed auth check.
  if(cached){
    AUTH_SESSION=cached;
-   const cachedUser=cachedAuthIdentity(cached);
-   unlockAuthenticatedApp(cachedUser,{offline:!navigator.onLine});
-
-   if(navigator.onLine){
-     Promise.resolve().then(async()=>{
-       try{
-         const user=await getAuthenticatedUser();
-         if(user)unlockAuthenticatedApp(user);
-       }catch(e){
-         console.warn("Background session validation:",e);
-         // Network errors keep the verified local session usable.
-         if(!isNetworkAuthError(e) && !loadAuthSession()){
-           showLoginScreen("Your session expired. Please sign in again.");
-         }
-       }
-     });
+   showLoginScreen();
+   const status=document.getElementById("authNetworkStatus");
+   if(status&&navigator.onLine){status.textContent="Checking saved sign-in…";status.className="auth-network-status online"}
+   if(!navigator.onLine){
+     const user=cachedAuthIdentity(cached);
+     unlockAuthenticatedApp(user,{offline:true});
+     return user;
    }
-   return cachedUser;
+   try{
+     const user=await getAuthenticatedUser();
+     if(user){unlockAuthenticatedApp(user);return user}
+   }catch(e){
+     if(isNetworkAuthError(e)){
+       const user=cachedAuthIdentity(cached);
+       unlockAuthenticatedApp(user,{offline:true});
+       return user;
+     }
+   }
  }
 
- showLoginScreen(!navigator.onLine?"Internet is required for the first sign-in on this device.":"");
- const emailEl=document.getElementById("authEmail");
- if(emailEl)emailEl.value=rememberedLoginEmail();
+ showLoginScreen(cached?"Your saved session could not be verified. Please sign in again.":(!navigator.onLine?"Internet is required for the first sign-in on this device.":""));
+ const emailEl=document.getElementById("authEmail"),pwEl=document.getElementById("authPassword");
+ if(emailEl){emailEl.value=rememberedLoginEmail()}
  updatePasskeySupportUI();
  updateAuthNetworkUI();
 
- return await new Promise((resolve,reject)=>{
-   const form=document.getElementById("authForm");
-   const passkeyBtn=document.getElementById("passkeyLoginBtn");
-   const offlineBtn=document.getElementById("authOfflineBtn");
-   if(!form){
-     reject(new Error("Login form is unavailable. Reload the app."));
-     return;
-   }
-
+ return await new Promise(resolve=>{
+   const form=document.getElementById("authForm"),passkeyBtn=document.getElementById("passkeyLoginBtn"),offlineBtn=document.getElementById("authOfflineBtn");
    form.onsubmit=async e=>{
      e.preventDefault();
      const btn=document.getElementById("authSubmit"),err=document.getElementById("authError");
-     if(!navigator.onLine){
-       if(err){err.textContent="Internet is required for the first sign-in on this device.";err.style.display="block"}
-       updateAuthNetworkUI();return;
-     }
-     const email=document.getElementById("authEmail")?.value?.trim()||"";
-     const password=document.getElementById("authPassword")?.value||"";
-     if(!email||!password){
-       if(err){err.textContent="Enter your email and password.";err.style.display="block"}
-       return;
-     }
-     if(btn){btn.disabled=true;btn.textContent="Signing In…"}
-     if(err)err.style.display="none";
+     if(!navigator.onLine){err.textContent="Internet is required to sign in. If this device was previously verified, use Continue Offline.";err.style.display="block";updateAuthNetworkUI();return}
+     btn.disabled=true;btn.textContent="Signing In…";err.style.display="none";
      try{
+       const email=document.getElementById("authEmail").value.trim(),password=document.getElementById("authPassword").value;
        const user=await supabaseLogin(email,password);
-       const pw=document.getElementById("authPassword");if(pw)pw.value="";
+       document.getElementById("authPassword").value="";
        resolve(user);
      }catch(ex){
-       console.error("Sign in failed:",ex);
-       if(err){
-         err.textContent=isNetworkAuthError(ex)
-           ?"Cannot reach the login server. Check your internet and try again."
-           :(ex?.message||"Unable to sign in.");
-         err.style.display="block";
-       }
-     }finally{
-       if(btn){btn.disabled=false;btn.textContent="Sign In"}
-     }
+       err.textContent=ex.message||"Unable to sign in.";err.style.display="block";
+     }finally{btn.disabled=false;btn.textContent="Sign In"}
    };
-
    if(offlineBtn)offlineBtn.onclick=()=>{
      const s=loadAuthSession();
-     if(!s){updateAuthNetworkUI();return}
+     if(!s)return updateAuthNetworkUI();
      AUTH_SESSION=s;
      const user=cachedAuthIdentity(s);
      unlockAuthenticatedApp(user,{offline:true});
      resolve(user);
    };
-
    if(passkeyBtn)passkeyBtn.onclick=async()=>{
      const err=document.getElementById("authError");
-     if(!navigator.onLine){
-       if(err){err.textContent="Internet is required for passkey sign-in.";err.style.display="block"}
-       return;
-     }
-     passkeyBtn.disabled=true;passkeyBtn.textContent="Waiting for Passkey…";
-     if(err)err.style.display="none";
+     if(!navigator.onLine){err.textContent="Internet is required for passkey sign-in.";err.style.display="block";return}
+     passkeyBtn.disabled=true;passkeyBtn.textContent="Waiting for Passkey…";err.style.display="none";
      try{const user=await supabasePasskeyLogin();resolve(user)}
-     catch(ex){
-       if(err){err.textContent=ex?.name==="NotAllowedError"?"Passkey request was cancelled or timed out.":(ex?.message||"Unable to sign in with passkey.");err.style.display="block"}
-     }finally{
-       passkeyBtn.disabled=!passkeyEnvironmentOK();
-       passkeyBtn.textContent="🔐 Sign In with Passkey / Biometric";
-     }
+     catch(ex){err.textContent=ex?.name==="NotAllowedError"?"Passkey request was cancelled or timed out.":(ex.message||"Unable to sign in with passkey.");err.style.display="block"}
+     finally{passkeyBtn.disabled=!passkeyEnvironmentOK();passkeyBtn.textContent="🔐 Sign In with Passkey / Biometric"}
    };
  });
 }
 async function ensureFreshAuthToken(){
   if(!AUTH_SESSION)AUTH_SESSION=loadAuthSession();
   if(!AUTH_SESSION)throw new Error("Not authenticated.");
-  if(authExpiresSoon(AUTH_SESSION)){
-    try{await refreshAuthSession()}
-    catch(e){
-      if(isNetworkAuthError(e))throw e;
-      saveAuthSession(null);
-      throw new Error("Your sign-in session expired. Please sign in again.");
-    }
-  }
-  if(!AUTH_SESSION?.access_token)throw new Error("Your sign-in session is incomplete. Please sign in again.");
+  if(authExpiresSoon(AUTH_SESSION))await refreshAuthSession();
   return AUTH_SESSION.access_token;
 }
 async function rest(table,method="GET",body=null,query=""){
@@ -6807,7 +6764,6 @@ async function deleteAllRowsFromSupabaseTable(table){
  await purgeTombstonedLocalRows();
 
  const user=await requireAuthentication();
-try{await runStartupSelfCheck()}catch(e){console.warn("Startup self-check skipped:",e)}
  cleanupDeleteTombstones();
  try{await migratePreviousFarmerStoreIds()}catch(e){console.warn("Local ID migration:",e)}
 
