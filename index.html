@@ -2408,6 +2408,30 @@ async function openStorePaymentLedgerEntry(paymentId){
   ["Store",st?.name||x.storeName||"—"],["Date",simpleDate(x.paymentDate||x.createdAt)],["Amount","Rs. "+fmt(Number(x.amount)||0)],["Payment Mode",x.paymentMode||x.paymentMethod||"—"],["Reference",x.referenceNumber||x.receiptNumber||"—"],["Remarks",x.remarks||x.notes||"—"]
  ],`<button class="btn primary" onclick="closeModal();editStorePayment('${x.id}')">Edit Payment</button><button class="btn" onclick="closeModal();openStorePaymentLedger('${x.storeId}',1)">Back to Ledger</button>${S.role==="admin"?`<button class="btn danger" onclick="deleteStorePayment('${x.id}')">Delete Duplicate</button>`:""}`);
 }
+async function openLiftingTradingProfit(lid){
+ const l=await txGet("liftings",lid);if(!l)return toast("Lifting not found.");
+ const [cages,sales]=await Promise.all([txAll("cages"),txAll("sales")]);
+ const own=cages.filter(c=>String(c.liftingId)===String(lid)),ids=new Set(own.map(c=>String(c.id))),seen=new Set(),rate=Number(l.liftingRate??l.ratePerKg)||0;
+ let revenue=0,cost=0,kg=0,lines=[],warnings=[];
+ for(const sale of sales){
+  const details=Array.isArray(sale.cageDetails)&&sale.cageDetails.length?sale.cageDetails:null;
+  const saleIds=Array.isArray(sale.cageIds)&&sale.cageIds.length?sale.cageIds:[sale.cageId].filter(Boolean);
+  const total=details?details.reduce((a,d)=>a+(Number(d.weight)||0),0):0;
+  let portions=[];
+  if(details)portions=details.filter(d=>ids.has(String(d.cageId))).map(d=>({id:String(d.cageId),weight:Number(d.weight)||0,denom:total}));
+  else if(saleIds.length===1&&ids.has(String(saleIds[0]))){const c=own.find(c=>String(c.id)===String(saleIds[0]));portions=[{id:String(saleIds[0]),weight:Number(c?.weight)||0,denom:Number(c?.weight)||0}];}
+  else if(saleIds.some(id=>ids.has(String(id))))warnings.push(`Sale ${sale.invoiceNumber||sale.id}: missing cage allocation; excluded.`);
+  for(const x of portions){
+   if(seen.has(x.id)){warnings.push(`Duplicate sold cage ${x.id} excluded.`);continue;}
+   if(!(x.denom>0)){warnings.push(`Sale ${sale.invoiceNumber||sale.id}: missing physical weight; excluded.`);continue;}
+   seen.add(x.id);const net=Number(sale.netAmount??sale.invoiceNetAmount??sale.saleAmount??sale.totalAmount)||0;
+   const rev=net*x.weight/x.denom,expense=x.weight*rate;revenue+=rev;cost+=expense;kg+=x.weight;
+   lines.push([sale.invoiceNumber||sale.id,own.find(c=>String(c.id)===x.id)?.cageNumber||x.id,fmt(x.weight),"₹"+fmt(money2(rev)),"₹"+fmt(money2(expense)),"₹"+fmt(money2(rev-expense))]);
+  }
+ }
+ const unsold=own.filter(c=>!seen.has(String(c.id))),profit=money2(revenue-cost);
+ openModal(`<div class="detail-title">PSM Trading Profit</div><div class="detail-sub">${esc(l.farmerName||"Farmer")} · ${esc(l.invoiceNumber||l.id)}</div><div class="detail-grid">${detailItem("Sold Cages",seen.size+" / "+own.length)}${detailItem("Sold Weight",fmt(kg)+" kg")}${detailItem("Allocated Net Sales","₹"+fmt(money2(revenue)))}${detailItem("Sold Cage Lifting Cost","₹"+fmt(money2(cost)))}${detailItem("Trading Profit","₹"+fmt(profit))}${detailItem("Unsold Cages",unsold.length)}</div><p class="sub">Gross trading profit = allocated net invoice sales − physical sold-cage weight × current lifting rate (₹${fmt(rate)}/kg). Multi-cage invoice revenue is allocated by physical cage weight. Unsold cages are excluded. This is not cash received or net business profit.</p><div class="tablewrap"><table><thead><tr><th>Invoice</th><th>Cage</th><th>Kg</th><th>Net Sales</th><th>Cost</th><th>Profit</th></tr></thead><tbody>${lines.map(row=>`<tr>${row.map(v=>`<td>${esc(v)}</td>`).join("")}</tr>`).join("")||'<tr><td colspan="6">No linked sold cages.</td></tr>'}</tbody></table></div>${warnings.length?`<div class="warning-box"><b>Review required:</b><br>${warnings.map(esc).join("<br>")}</div>`:""}<div class="detail-actions"><button class="btn" onclick="closeModal();openLiftingDetails('${lid}')">Back to Lifting</button></div>`);
+}
 async function openLiftingDetails(lid){
  const l=await txGet("liftings",lid);if(!l)return toast("Lifting not found.");
  await reconcileCageInventoryState({sync:false});
@@ -2419,7 +2443,7 @@ async function openLiftingDetails(lid){
    const sale=c.saleId?saleMap.get(String(c.saleId)):null;
    return `<tr><td>${i+1}</td><td><b>${esc(c.cageNumber||"—")}</b></td><td>${fmt(c.weight)} kg</td><td>${c.birdCount||0}</td><td><span class="badge ${c.isSold?"orange":"green"}">${c.isSold?"Sold":"Unsold"}</span></td><td>${sale?esc(sale.storeName||sale.storeId||"—"):"—"}</td><td class="mono">${sale?esc(sale.invoiceNumber||sale.id):"—"}</td></tr>`;
  }).join("");
- const actions=`<button class="btn" onclick="closeModal();openLiftingRateEditor('${l.id}')">Edit Rate</button><button class="btn primary" onclick="closeModal();previewFarmerInvoice('${l.id}')">Invoice</button><button class="btn" onclick="shareFarmerLiftingPdf('${l.id}')">WhatsApp</button><button class="btn" onclick="shareLiftingToMpf('${l.id}')" title="WhatsApp 8880674264">To MPF (WhatsApp)</button><button class="btn" onclick="sendFarmerInvoiceSms('${l.id}')">SMS</button>${S.role==="admin"?`<button class="btn danger" onclick="closeModal();deleteLifting('${l.id}')">Delete</button>`:""}`;
+ const actions=`<button class="btn primary" onclick="closeModal();openLiftingTradingProfit('${l.id}')">View Profit</button><button class="btn" onclick="closeModal();openLiftingRateEditor('${l.id}')">Edit Rate</button><button class="btn primary" onclick="closeModal();previewFarmerInvoice('${l.id}')">Invoice</button><button class="btn" onclick="shareFarmerLiftingPdf('${l.id}')">WhatsApp</button><button class="btn" onclick="shareLiftingToMpf('${l.id}')" title="WhatsApp 8880674264">To MPF (WhatsApp)</button><button class="btn" onclick="sendFarmerInvoiceSms('${l.id}')">SMS</button>${S.role==="admin"?`<button class="btn danger" onclick="closeModal();deleteLifting('${l.id}')">Delete</button>`:""}`;
  openModal(`<div class="detail-title">${esc(f?.name||l.farmerName||"Lifting")}</div>
  <div class="detail-sub">Invoice ${esc(l.invoiceNumber||l.id)}</div>
  <div class="detail-grid">
@@ -3686,7 +3710,7 @@ async function saveSale(){
    createdAt:iso(),updatedAt:iso()};
  const excessPayment=excess>0?{
    id:id("PAY"),receiptNumber:await nextSequentialNumber("payment",date),storeId,paymentDate:date,amount:excess,
-   paymentMode,cashAmount:0,accountAmount:0,referenceNumber:inv,remarks:`Excess received on invoice ${inv}; adjust existing store outstanding, then advance`,
+   paymentMode:paymentMethod,cashAmount:0,accountAmount:0,referenceNumber:inv,remarks:`Excess received on invoice ${inv}; adjust existing store outstanding, then advance`,
    storeName:store.name||"",storePhone:store.phone||"",linkedSaleId:sid,
    previousDue:money2(fin.outstanding),remainingDue:money2(fin.outstanding-excess),
    createdAt:iso(),updatedAt:iso()
@@ -3713,7 +3737,7 @@ async function saveSale(){
    queueCloud("settings","UPSERT",{key:"cage_state_"+c.id,value:{isSold:true,saleId:sid,updatedAt:r.updatedAt},updatedAt:r.updatedAt});
  }
  audit("sales","CREATE",sid,`${inv} | ${current.length} cages`);
- clearCurrentFormDraft();window._saleModalDraft=null;closeModal();await refreshAll();await previewStoreInvoice(sid);
+ clearCurrentFormDraft();window._saleModalDraft=null;closeModal();await previewStoreInvoice(sid);setTimeout(()=>{refreshAll().catch(e=>{console.error("Post-sale refresh failed",e);toast("Invoice saved; refresh the dashboard if totals look outdated.");});},0);
 }
 
 function clearSingkeFilter(){
@@ -5005,21 +5029,22 @@ async function openLiftingRateEditor(liftingId){
  if(!l)return toast("Lifting not found.");
  const f=await txGet("farmers",l.farmerId);
  const current=Number(l.liftingRate??l.ratePerKg)||0;
- openModal(`<h3>Edit Lifting Rate</h3>
-  <div class="sub" style="margin-bottom:12px">Only the rate can be changed. Farmer, date, cages, weight and birds remain unchanged.</div>
+ openModal(`<h3>Edit Lifting Date &amp; Rate</h3>
+  <div class="sub" style="margin-bottom:12px">Change the lifting date and/or rate. Farmer, cages, weight and birds remain unchanged. The original creation timestamp is preserved.</div>
   <div class="detail-grid" style="margin-bottom:12px">
    ${detailItem("Farmer",f?.name||l.farmerName||"")}
    ${detailItem("Invoice",l.invoiceNumber||l.id)}
-   ${detailItem("Date",l.liftingDate||"")}
+   ${detailItem("Current Date",l.liftingDate||"")}
    ${detailItem("Total Weight",fmt(l.totalWeight)+" kg")}
   </div>
+  <div class="field" style="margin-bottom:10px"><label>Lifting Date</label><input id="editLiftingDateOnly" type="date" value="${esc(l.liftingDate||"")}" required></div>
   <div class="field">
    <label>Lifting Rate ₹ / kg</label>
    <input id="editLiftingRateOnly" type="number" step="0.01" min="0.01" inputmode="decimal" value="${current}">
   </div>
   <div class="action-group" style="margin-top:14px">
    <button class="btn" type="button" onclick="closeModal()">Cancel</button>
-   <button class="btn primary" type="button" onclick="saveLiftingRateOnly('${l.id}')">Save Rate</button>
+   <button class="btn primary" type="button" onclick="saveLiftingRateOnly('${l.id}')">Save Date &amp; Rate</button>
   </div>`);
  setTimeout(()=>{const x=document.getElementById("editLiftingRateOnly");if(x){x.focus();x.select()}},50);
 }
@@ -5028,13 +5053,22 @@ async function saveLiftingRateOnly(liftingId){
  const l=await txGet("liftings",liftingId);
  if(!l)return toast("Lifting not found.");
  const rate=Number(document.getElementById("editLiftingRateOnly")?.value);
- if(!(rate>0))return toast("Enter a valid lifting rate.");
+ const date=String(document.getElementById("editLiftingDateOnly")?.value||"");
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date+"T00:00:00Z"))||new Date(date+"T00:00:00Z").toISOString().slice(0,10)!==date)return toast("Enter a valid lifting date.");
+ if(!(rate>0)||!Number.isFinite(rate))return toast("Enter a valid lifting rate.");
+ // A lifting cannot be moved after a date on which one of its cages was sold.
+ const linkedCages=(await txAll("cages")).filter(c=>String(c.liftingId)===String(liftingId));
+ const soldIds=new Set(linkedCages.filter(c=>c.isSold).map(c=>String(c.id)));
+ const linkedSales=(await txAll("sales")).filter(s=>Array.isArray(s.items)&&s.items.some(i=>soldIds.has(String(i.cageId||i.id))));
+ const earliestSale=linkedSales.map(s=>String(s.saleDate||"")).filter(Boolean).sort()[0];
+ if(earliestSale&&date>earliestSale)return toast(`Cannot set lifting after linked sale date ${earliestSale}.`);
 
  const weight=Number(l.totalWeight)||0;
  const exact=Math.round(weight*rate*100)/100;
  const rr=invoiceRound(exact);
  const updated={
    ...l,
+   liftingDate:date,
    liftingRate:rate,
    ratePerKg:rate,
    liftingAmount:exact,
@@ -5046,10 +5080,10 @@ async function saveLiftingRateOnly(liftingId){
  };
  await txPut("liftings",updated);
  queueCloud("liftings","UPSERT",updated);
- audit("liftings","UPDATE_RATE",liftingId,`Rate ₹${fmt(rate)}/kg`);
+ audit("liftings","UPDATE_DATE_RATE",liftingId,`Date ${l.liftingDate||""} → ${date}; Rate ₹${fmt(Number(l.liftingRate??l.ratePerKg)||0)} → ₹${fmt(rate)}/kg`);
  closeModal();
  await refreshAll();
- toast("Lifting rate updated.");
+ toast("Lifting date and rate updated.");
 }
 
 async function renderLiftings(){
