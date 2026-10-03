@@ -1873,7 +1873,7 @@ button[onclick*="changeFarmerPage("],button[onclick*="changeFarmerCombinedPage("
 
 <section id="v-singke" class="view">
  <div class="head">
-  <div><h1>Singke Reconciliation Ledger</h1><p>Lifting payable, Wangkhei adjustments, settlements and running balance</p></div>
+  <div><h1>Singke Reconciliation Ledger</h1><button class="btn primary" onclick="exportVerifiedSingkeBalance()">Publish Balance to MPF Farmer Account</button><p>Lifting payable, Wangkhei adjustments, settlements and running balance</p></div>
   <div class="action-group"><button class="btn" onclick="downloadSingkeLedgerPdf()">Download MPF Ledger PDF</button><button class="btn" onclick="exportSingkeLedgerExcel()">Excel</button><button class="btn primary" onclick="openSettlement()">+ Record Settlement</button></div>
  </div>
  <div class="grid g4">
@@ -5462,6 +5462,24 @@ async function singkeAccountingData(){
  const remain=money2((Number(p?.amount)||0)+liftingPayable-wang+wangReceived-sett-farmerPaid);
  return {p,cutoff,liftUsed,mpfPaidLiftings,wangSales,wangLaterPayments,setsUsed,farmerUsed,liftingPayable,wang,wangKg,wangInvoiceReceipts,wangLaterReceipts,wangReceived,sett,farmerPaid,remain};
 }
+async function exportVerifiedSingkeBalance(){
+ try{
+  if(!navigator.onLine)throw Error('Internet connection required to publish.');
+  if(!AUTH_SESSION)AUTH_SESSION=loadAuthSession();
+  if(!AUTH_SESSION)throw Error('Sign in to PSM first.');
+  const currentUser=await authRequest('user','GET',null,await ensureFreshAuthToken());
+  if(String(currentUser?.email||'').toLowerCase()!=='surajpngmbm75@gmail.com')throw Error('Only the authorized PSM account can publish this balance.');
+  await queueAllLocalRecordsForUpload();
+  const synced=await backgroundBidirectionalSync({force:true});
+  if(!synced)throw Error('PSM synchronization is incomplete. Resolve pending cloud changes before publishing.');
+  const s=await singkeAccountingData();
+  if(!Number.isFinite(Number(s.remain)))throw Error('Invalid reconciliation amount.');
+  if(!confirm(`Review PSM reconciliation before publishing.\nOpening: ₹${fmt(s.p?.amount||0)}\nLifting: ₹${fmt(s.liftingPayable)}\nWangkhei sales: ₹${fmt(s.wang)}\nWangkhei received: ₹${fmt(s.wangReceived)}\nSettlements: ₹${fmt(s.sett)}\nDirect farmer payments: ₹${fmt(s.farmerPaid)}\n\nRemaining payable: ₹${fmt(s.remain)}\n\nPublish directly to MPF Farmer Account?`))return;
+  const uid=currentUser.id;
+  await rest('mpf_psm_balance_snapshots','POST',{source_ref:'PSM-'+id('BAL'),amount:money2(s.remain),as_of:new Date().toISOString(),imported_by:uid});
+  toast('PSM balance published to MPF Farmer Account.');
+ }catch(e){toast('Publish failed: '+(e.message||String(e)))}
+}
 async function singkeSummary(){return singkeAccountingData()}
 
 async function renderSingke(){
@@ -5554,6 +5572,24 @@ function updateFarmerPaymentPreview(){
  const total=document.getElementById("fpAmount");if(total)total.value=fmt(amt);
  if(el)el.value=fmt(money2(due-amt));
 }
+async function editFarmerPayment(paymentId){
+ const p=(await getFarmerPayments()).find(x=>String(x.id)===String(paymentId));if(!p)return toast("Payment not found.");
+ const f=await txGet("farmers",p.farmerId);if(!f)return toast("Farmer not found.");
+ openModal(`<h3>Edit Farmer Payment</h3><div class="sub">Correct existing payment ${esc(p.id)} for ${esc(f.name)}. This replaces the recorded amount, not adds another payment.</div><div class="grid g2">
+ <div class="field"><label>Date</label><input type="date" id="fpeDate" value="${esc(p.paymentDate)}"></div>
+ <div class="field"><label>Cash ₹</label><input type="number" min="0" step="0.01" id="fpeCash" value="${Number(p.cashAmount??(p.paymentMode==='CASH'?p.amount:0))}"></div>
+ <div class="field"><label>Account / UPI ₹</label><input type="number" min="0" step="0.01" id="fpeAccount" value="${Number(p.accountAmount??(p.paymentMode==='ACCOUNT'?p.amount:0))}"></div>
+ <div class="field"><label>Reason for correction</label><input id="fpeReason" maxlength="200" placeholder="Required for audit"></div></div><button class="btn primary" onclick="saveEditedFarmerPayment('${esc(p.id)}')">Save Correction</button>`);
+}
+async function saveEditedFarmerPayment(paymentId){
+ const p=(await getFarmerPayments()).find(x=>String(x.id)===String(paymentId));if(!p)return toast("Payment no longer exists.");
+ const date=document.getElementById('fpeDate')?.value,reason=document.getElementById('fpeReason')?.value.trim(),cash=Number(document.getElementById('fpeCash')?.value),account=Number(document.getElementById('fpeAccount')?.value);
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(date||'')||!reason||![cash,account].every(x=>Number.isFinite(x)&&x>=0&&Math.abs(Math.round(x*100)-x*100)<1e-7)||cash+account<=0)return toast('Valid date, positive payment and correction reason are required.');
+ const amount=money2(cash+account),now=iso(),mode=cash&&account?'SPLIT':cash?'CASH':'ACCOUNT';
+ const updated={...p,paymentDate:date,amount,cashAmount:cash,accountAmount:account,paymentMode:mode,remarks:p.remarks||'',updatedAt:now,correctionReason:reason,corrections:[...(p.corrections||[]),{at:now,oldDate:p.paymentDate,oldAmount:p.amount,oldCash:p.cashAmount,oldAccount:p.accountAmount,newDate:date,newAmount:amount,reason}]};delete updated._settingKey;
+ if(!confirm(`Replace original payment ₹${fmt(p.amount)} with ₹${fmt(amount)}? This changes the farmer ledger and Singke reconciliation.`))return;
+ await setSetting(farmerPaymentSettingKey(paymentId),updated);audit('farmer_payments','EDIT',paymentId,`₹${fmt(p.amount)} → ₹${fmt(amount)} | ${reason}`);closeModal();await refreshAll();const sel=document.getElementById('farmerLedgerFarmer');if(sel){sel.value=p.farmerId;await renderFarmerLedger()}toast('Existing farmer payment corrected.');
+}
 async function saveFarmerPayment(farmerId){
  const f=await txGet("farmers",farmerId);if(!f)return toast("Farmer not found.");
  const date=document.getElementById("fpDate")?.value||"",split=readSplitPayment("fpCash","fpAccount","Farmer payment"),remarks=document.getElementById("fpRemarks")?.value?.trim()||"";
@@ -5598,7 +5634,7 @@ async function renderFarmerLedger(){
  if(!host)return;
  if(!id){host.innerHTML=`<tr><td colspan="7" class="empty">No farmer selected</td></tr>`;if(sum)sum.textContent="";return}
  const d=await getFarmerLedgerData(id);
- host.innerHTML=d.rows.length?d.rows.map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(d.farmer.name)}</td><td>${r.kind==="lifting"?fmt(r.kg):"—"}</td><td>${r.kind==="lifting"?"₹"+fmt(r.rate):"—"}</td><td>${r.amount?"₹"+fmt(r.amount):"—"}</td><td>${r.payment?"₹"+fmt(r.payment):"—"}</td><td><b>₹${fmt(r.balance)}</b></td></tr>`).join(""):`<tr><td colspan="7" class="empty">No lifting or payment records for this farmer.</td></tr>`;
+ host.innerHTML=d.rows.length?d.rows.map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(d.farmer.name)}</td><td>${r.kind==="lifting"?fmt(r.kg):"—"}</td><td>${r.kind==="lifting"?"₹"+fmt(r.rate):"—"}</td><td>${r.amount?"₹"+fmt(r.amount):"—"}</td><td>${r.payment?"₹"+fmt(r.payment)+` <button class="btn" style="padding:3px 7px;font-size:11px" onclick="editFarmerPayment('${r.paymentId}')">Edit</button>`:"—"}</td><td><b>₹${fmt(r.balance)}</b></td></tr>`).join(""):`<tr><td colspan="7" class="empty">No lifting or payment records for this farmer.</td></tr>`;
  if(sum)sum.innerHTML=`<b>Total:</b> ${fmt(d.totalKg)} kg &nbsp; | &nbsp; Lifting Amount: <b>₹${fmt(d.totalAmount)}</b> &nbsp; | &nbsp; Payments: <b>₹${fmt(d.totalPaid)}</b> &nbsp; | &nbsp; Outstanding: <b>₹${fmt(d.balance)}</b>`;
 }
 
