@@ -2538,8 +2538,10 @@ async function openSaleDetails(sid){
  const st=await txGet("stores",s.storeId),wang=!!(st?.isWangkhei||s.isWangkheiSale),ps=await salePaymentStatus(s);
  const details=Array.isArray(s.cageDetails)&&s.cageDetails.length?s.cageDetails:[{cageNumber:s.cageNumber||s.cageId||"",weight:Number(s.weight??s.netWeight)||0,birdCount:Number(s.birdsCount)||0}];
  const rate=Number(s.salesRate??s.ratePerKg)||0;
- const rows=details.map((x,i)=>{const w=Number(x.weight)||0,b=Number(x.birdCount)||0;return `<tr><td>${i+1}</td><td><b>${esc(x.cageNumber||x.cageId||"—")}</b></td><td>${b}</td><td>${fmt(w)} kg</td><td>₹${fmt(rate)}</td><td><b>₹${fmt(w*rate)}</b></td></tr>`}).join("");
- const totalWeight=details.reduce((a,x)=>a+(Number(x.weight)||0),0),totalBirds=details.reduce((a,x)=>a+(Number(x.birdCount)||0),0);
+ const physicalTotal=details.reduce((a,x)=>a+(Number(x.weight)||0),0),billedTotal=Number(s.weight??s.netWeight??physicalTotal)||0;
+ let allocatedSoFar=0;
+ const rows=details.map((x,i)=>{const physical=Number(x.weight)||0,b=Number(x.birdCount)||0;let billed=i===details.length-1?money2(billedTotal-allocatedSoFar):money2(physicalTotal>0?billedTotal*physical/physicalTotal:0);allocatedSoFar=money2(allocatedSoFar+billed);return `<tr><td>${i+1}</td><td><b>${esc(x.cageNumber||x.cageId||"—")}</b></td><td>${b}</td><td>${fmt(billed)} kg</td><td>₹${fmt(rate)}</td><td><b>₹${fmt(billed*rate)}</b></td></tr>`}).join("");
+ const totalWeight=billedTotal,totalBirds=details.reduce((a,x)=>a+(Number(x.birdCount)||0),0);
  const storeOutstanding=wang?"MPF A/C":`₹${fmt((await storeSummary(s.storeId)).outstanding)}`;
  openModal(`<div class="simple-sale-invoice">
    <div class="ssi-head"><div><div class="ssi-brand">SPT VENTURES</div><div class="ssi-muted">SALE INVOICE</div></div><div class="ssi-inv"><b>${esc(s.invoiceNumber||s.id)}</b><span>${esc(s.saleDate||"")}</span></div><button type="button" class="btn ssi-one-close" onclick="attemptCloseModal()" aria-label="Close invoice">✕</button></div>
@@ -5328,7 +5330,8 @@ async function previewStoreInvoice(saleId){
  const wang=!!(st?.isWangkhei||s.isWangkheiSale);
  const saleCages=Array.isArray(s.cageDetails)&&s.cageDetails.length?s.cageDetails:[{cageNumber:s.cageNumber||s.cageId||"",weight:Number(s.weight??s.netWeight)||0,birdCount:Number(s.birdsCount)||0}];
  const physicalWeight=money2(saleCages.reduce((sum,c)=>sum+(Number(c.weight)||0),0));
- const cageRows=saleCages.map((c,i)=>`<tr><td>${i+1}</td><td><b>${esc(c.cageNumber||c.cageId||"")}</b></td><td>${fmt(c.weight)}</td><td>${c.birdCount||0}</td></tr>`).join("");
+ const billedWeight=Number(s.weight??s.netWeight??physicalWeight)||0;let billedAllocated=0;
+ const cageRows=saleCages.map((c,i)=>{const w=Number(c.weight)||0,billed=i===saleCages.length-1?money2(billedWeight-billedAllocated):money2(physicalWeight>0?billedWeight*w/physicalWeight:0);billedAllocated=money2(billedAllocated+billed);return `<tr><td>${i+1}</td><td><b>${esc(c.cageNumber||c.cageId||"")}</b></td><td>${fmt(billed)}</td><td>${c.birdCount||0}</td></tr>`}).join("");
  openModal(`<div class="psm-invoice"><img class="psm-invoice-watermark" src="${PSM_LOGO_DATA_URI}" alt=""><img class="psm-invoice-logo" src="${PSM_LOGO_DATA_URI}" alt="SPT VENTURES logo">
    <div class="psm-brandbar">
      <div class="psm-logo"><div class="psm-logo-mark">SPT</div></div>
@@ -5358,7 +5361,7 @@ async function previewStoreInvoice(saleId){
         <div>Sale ID</div><span class="mono">${esc(s.id)}</span>
       </div></div>
     </div>
-    <table class="psm-table"><thead><tr><th>#</th><th>Cage No.</th><th>Physical Weight (kg)</th><th>Birds</th></tr></thead><tbody>
+    <table class="psm-table"><thead><tr><th>#</th><th>Cage No.</th><th>Billed Weight (kg)</th><th>Birds</th></tr></thead><tbody>
       ${cageRows}
       <tr><td colspan="2"><b>PHYSICAL TOTAL</b></td><td><b>${fmt(physicalWeight)}</b></td><td><b>${s.birdsCount||0}</b></td></tr>
     </tbody></table>
@@ -5396,17 +5399,17 @@ async function shareStoreInvoiceWhatsApp(saleId){
   const cages=Array.isArray(s.cageDetails)&&s.cageDetails.length?s.cageDetails:[{cageNumber:s.cageNumber||s.cageId||"",weight:Number(s.weight??s.netWeight)||0,birdCount:Number(s.birdsCount)||0}];
   const rate=Number(s.salesRate??s.ratePerKg)||0;
   const totalBirds=cages.reduce((sum,c)=>sum+(Number(c.birdCount)||0),0);
-  const totalWeight=cages.reduce((sum,c)=>sum+(Number(c.weight)||0),0);
+  const physicalTotal=cages.reduce((sum,c)=>sum+(Number(c.weight)||0),0),totalWeight=Number(s.weight??s.netWeight??physicalTotal)||0;
   let detailBlock="";
   if(cages.length===1){
-    const c=cages[0],weight=Number(c.weight)||0,birds=Number(c.birdCount)||0;
-    detailBlock=`Birds: ${birds}\nWeight: ${fmt(weight)} kg\nRate: Rs. ${fmt(rate)} / kg`;
+    const c=cages[0],weight=totalWeight,birds=Number(c.birdCount)||0;
+    detailBlock=`Birds: ${birds}\nBilled Weight: ${fmt(weight)} kg\nRate: Rs. ${fmt(rate)} / kg`;
   }else{
-    const cageLines=cages.map((c,i)=>{
-      const weight=Number(c.weight)||0,birds=Number(c.birdCount)||0,amount=weight*rate;
+    let used=0;const cageLines=cages.map((c,i)=>{
+      const physical=Number(c.weight)||0,birds=Number(c.birdCount)||0,weight=i===cages.length-1?money2(totalWeight-used):money2(physicalTotal>0?totalWeight*physical/physicalTotal:0);used=money2(used+weight);const amount=weight*rate;
       return `${i+1}. Cage ${c.cageNumber||c.cageId||"-"} — ${birds} Birds — ${fmt(weight)} kg × Rs. ${fmt(rate)} = Rs. ${fmt(amount)}`;
     }).join("\n");
-    detailBlock=`CAGE-WISE DETAILS\n${cageLines}\n\nTotal Cages: ${cages.length}\nTotal Birds: ${totalBirds}\nTotal Weight: ${fmt(totalWeight)} kg\nRate: Rs. ${fmt(rate)} / kg`;
+    detailBlock=`CAGE-WISE DETAILS (BILLED WEIGHT)\n${cageLines}\n\nTotal Cages: ${cages.length}\nTotal Birds: ${totalBirds}\nTotal Billed Weight: ${fmt(totalWeight)} kg\nRate: Rs. ${fmt(rate)} / kg`;
   }
   const msg=`SPT VENTURES - Sale Details
 Invoice: ${s.invoiceNumber||s.id}
